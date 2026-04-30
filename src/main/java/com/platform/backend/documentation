@@ -1,0 +1,90 @@
+Estructura base del backend
+
+El proyecto backend se organiza bajo el paquete raíz:
+
+com.platform.backend
+
+Esta estructura sigue un enfoque de arquitectura limpia (Clean Architecture) combinada con un monolito modular, permitiendo una clara separación de responsabilidades y facilitando la escalabilidad del sistema.
+
+Componentes principales
+1. config
+
+Este paquete contiene todas las configuraciones globales del sistema.
+
+Responsabilidades:
+Configuración de seguridad (por ejemplo, autenticación con JWT y autorización por roles)
+Configuración de acceso a base de datos
+Definición de beans globales de Spring
+Configuración de herramientas adicionales (Swagger, CORS, etc.)
+Objetivo:
+
+Centralizar la configuración técnica del sistema, manteniéndola separada de la lógica de negocio.
+
+2. modules
+
+Este es el núcleo del sistema. Contiene todos los módulos funcionales organizados por dominio del negocio.
+
+Cada módulo representa un contexto delimitado (bounded context) e implementa internamente las capas de la arquitectura limpia:
+
+modules/
+ └── <module-name>/
+      ├── domain/
+      ├── application/
+      ├── infrastructure/
+      └── presentation/
+Ejemplos de módulos:
+user
+team
+match
+event
+venue
+ranking
+report
+audit
+Responsabilidades:
+Encapsular la lógica de negocio de cada dominio
+Definir entidades, casos de uso y reglas específicas
+Gestionar su propia persistencia y exposición de endpoints
+Objetivo:
+
+Lograr un sistema desacoplado, mantenible y preparado para escalar, donde cada módulo evoluciona de forma independiente.
+
+3. shared
+
+Este paquete contiene componentes reutilizables a lo largo de toda la aplicación.
+
+Responsabilidades:
+Manejo global de excepciones
+Clases utilitarias
+Componentes comunes (helpers, constantes, validadores)
+Elementos compartidos de seguridad
+Objetivo:
+
+Evitar duplicación de código y centralizar funcionalidades transversales utilizadas por múltiples módulos.
+
+4. BackendApplication
+
+Clase principal de la aplicación.
+
+Responsabilidades:
+Punto de entrada del sistema
+Inicialización del contexto de Spring Boot
+Configuración base de arranque
+@SpringBootApplication
+public class BackendApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(BackendApplication.class, args);
+    }
+}
+Consideraciones de diseño
+La estructura está orientada al dominio del negocio, no a capas técnicas globales.
+Cada módulo es autónomo y contiene su propia implementación de las capas:
+dominio
+aplicación
+infraestructura
+presentación
+Se promueve un bajo acoplamiento entre módulos y una alta cohesión interna.
+Esta organización facilita la futura migración a microservicios si el sistema lo requiere.
+Conclusión
+
+Esta estructura permite desarrollar un backend robusto, escalable y mantenible, alineado con buenas prácticas modernas de arquitectura de software, asegurando una clara separación entre la lógica de negocio y los detalles técnicos de implementación.

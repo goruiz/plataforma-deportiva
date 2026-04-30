@@ -1,0 +1,219 @@
+Estructura interna de los módulos
+Cada módulo del sistema implementa una estructura basada en Clean Architecture, compuesta por las siguientes capas:
+domain / application / infrastructure / presentation
+Esta organización no es arbitraria; cada nombre representa una responsabilidad específica dentro del sistema.
+
+1. domain
+Por qué se llama “domain”
+El término domain hace referencia al dominio del negocio, es decir, al problema real que el sistema intenta resolver (en este caso, la gestión deportiva).
+
+Para qué sirve
+Contiene la lógica central del negocio, independiente de cualquier tecnología.
+Aquí se define:
+
+
+Entidades (User, Team, Match, etc.)
+
+
+Reglas del negocio
+
+
+Value Objects
+
+
+Interfaces de repositorio
+
+
+Servicios de dominio
+
+
+
+Características
+
+
+No depende de frameworks (ni Spring, ni JPA)
+
+
+No conoce la base de datos
+
+
+Es la parte más estable del sistema
+
+
+
+Ejemplo en tu sistema
+
+
+Validar resultados de un partido
+
+
+Definir reglas de un torneo
+
+
+Calcular estados (activo, finalizado, etc.)
+
+
+
+2. application
+Por qué se llama “application”
+Representa la lógica de aplicación, es decir, cómo el sistema ejecuta acciones específicas del usuario.
+
+Para qué sirve
+Orquesta los casos de uso del sistema.
+Aquí se define:
+
+
+Casos de uso (use cases)
+
+
+DTOs de entrada y salida
+
+
+Coordinación entre dominio y persistencia
+
+
+
+Características
+
+
+No contiene lógica de negocio compleja (eso está en domain)
+
+
+Actúa como intermediario entre presentación e infraestructura
+
+
+
+Ejemplo en tu sistema
+
+
+Registrar resultado de un partido
+
+
+Crear un equipo
+
+
+Asignar un jugador a un equipo
+
+
+
+3. infrastructure
+Por qué se llama “infrastructure”
+Se refiere a la infraestructura técnica, es decir, todo lo necesario para que el sistema funcione en el mundo real.
+
+Para qué sirve
+Implementa los detalles técnicos que el dominio necesita pero no debe conocer.
+Aquí se define:
+
+
+Implementaciones de repositorios (JPA)
+
+
+Entidades de base de datos
+
+
+Integraciones externas (APIs, almacenamiento, etc.)
+
+
+Configuración técnica específica del módulo
+
+
+
+Características
+
+
+Depende de frameworks (Spring, Hibernate, etc.)
+
+
+Puede cambiar sin afectar la lógica del negocio
+
+
+
+Ejemplo en tu sistema
+
+
+Guardar un partido en PostgreSQL
+
+
+Consultar usuarios desde la base de datos
+
+
+Integración con almacenamiento de imágenes
+
+
+
+4. presentation
+Por qué se llama “presentation”
+Representa la capa de presentación, es decir, cómo el sistema se expone al exterior.
+
+Para qué sirve
+Gestiona la interacción con clientes externos (por ejemplo, la app en Flutter).
+Aquí se define:
+
+
+Controladores REST
+
+
+Endpoints HTTP
+
+
+Validación de requests
+
+
+Respuestas de la API
+
+
+
+Características
+
+
+Es la capa más externa
+
+
+No contiene lógica de negocio
+
+
+Solo transforma datos y delega a application
+
+
+
+Ejemplo en tu sistema
+
+
+Endpoint para listar partidos
+
+
+Endpoint para crear usuarios
+
+
+Endpoint para ver ranking
+
+
+
+Relación entre capas
+El flujo de ejecución sigue esta dirección:
+presentation → application → domain → infrastructure
+Regla clave
+El domain no depende de ninguna otra capa, mientras que las demás capas dependen de él directa o indirectamente.
+
+Justificación de la estructura
+Esta separación permite:
+
+
+Aislar la lógica de negocio de la tecnología
+
+
+Facilitar el mantenimiento del sistema
+
+
+Mejorar la testabilidad
+
+
+Permitir cambios tecnológicos sin afectar el núcleo del sistema
+
+
+Escalar el sistema de forma ordenada
+
+
+
+Conclusión
+Los nombres domain, application, infrastructure y presentation no son arbitrarios, sino que reflejan una división clara de responsabilidades dentro del sistema. Esta estructura garantiza una arquitectura limpia, desacoplada y alineada con buenas prácticas modernas de desarrollo de software.
