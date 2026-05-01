@@ -1,0 +1,79 @@
+S — Single Responsibility (una sola responsabilidad)
+Cada cosa debe hacer solo una cosa
+Analogía:
+Un cuchillo sirve para cortar. No debería abrir botellas ni medir ni pesar. Si hace muchas cosas, lo hará todo mal.
+Ejemplo:
+Mal:
+class UserService {
+createUser() {}
+sendEmail() {}
+generateReport() {}
+}
+Hace demasiadas cosas
+Bien:
+UserService crea usuarios
+EmailService envía emails
+ReportService genera reportes
+O — Open/Closed (abierto a extensión, cerrado a modificación)
+Puedes agregar cosas nuevas sin romper lo que ya funciona
+Analogía:
+Un enchufe permite conectar nuevos dispositivos sin cambiar la instalación eléctrica
+Ejemplo:
+Mal:
+if (type === "admin") { ... }
+if (type === "user") { ... }
+Cada nuevo tipo obliga a modificar el código
+Bien:
+interface UserRole {
+getPermissions()
+}
+Puedes añadir nuevos roles sin modificar los existentes
+L — Liskov Substitution (sustitución)
+Puedes reemplazar una clase por otra sin romper el sistema
+Analogía:
+Un cargador USB funciona con distintos dispositivos compatibles, sin importar la marca
+Ejemplo:
+Mal:
+class Bird {
+fly() {}
+}
+class Penguin extends Bird {
+fly() { throw Error("no vuela"); }
+}
+Rompe el comportamiento esperado
+Bien:
+No todos los pájaros deben tener la capacidad de volar. Se separan los comportamientos
+I — Interface Segregation (interfaces pequeñas)
+No obligues a una clase a implementar cosas que no necesita
+Analogía:
+Un control remoto debe tener solo los botones necesarios, no cien opciones inútiles
+Ejemplo:
+Mal:
+interface Worker {
+work()
+eat()
+}
+Un robot no necesita comer
+Bien:
+Se separa en interfaces más pequeñas como Workable y Eatable
+D — Dependency Inversion (depender de abstracciones)
+Las clases deben depender de interfaces, no de implementaciones concretas
+Analogía:
+Un enchufe estándar permite conectar diferentes dispositivos sin importar cuál sea
+Ejemplo:
+Mal:
+class UserService {
+repo = new MySQLUserRepository()
+}
+Está acoplado a una implementación concreta
+Bien:
+class UserService {
+constructor(repo: IUserRepository) {}
+}
+Permite cambiar la implementación sin modificar la clase
+Resumen:
+S: una clase, una responsabilidad
+O: se puede extender sin modificar
+L: se puede sustituir sin romper
+I: interfaces pequeñas y específicas
+D: depender de abstracciones, no de implementaciones

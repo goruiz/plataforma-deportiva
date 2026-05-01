@@ -1,219 +1,94 @@
-Estructura interna de los módulos
-Cada módulo del sistema implementa una estructura basada en Clean Architecture, compuesta por las siguientes capas:
-domain / application / infrastructure / presentation
-Esta organización no es arbitraria; cada nombre representa una responsabilidad específica dentro del sistema.
+Informe de Estructura Arquitectónica: Modelo Modular y Capas Limpias
+Este informe detalla la organización lógica del proyecto, basada en los principios de Arquitectura Modular. El objetivo principal es separar las reglas del negocio de los detalles tecnológicos, permitiendo que el sistema sea fácil de mantener, escalar y probar.
 
-1. domain
-Por qué se llama “domain”
-El término domain hace referencia al dominio del negocio, es decir, al problema real que el sistema intenta resolver (en este caso, la gestión deportiva).
+1. Principio Fundamental: La Regla de Dependencia
+El sistema se organiza en capas concéntricas. La regla de oro es que las dependencias siempre apuntan hacia adentro.
 
-Para qué sirve
-Contiene la lógica central del negocio, independiente de cualquier tecnología.
-Aquí se define:
+El núcleo (Dominio) es independiente y no conoce nada del mundo exterior.
 
+Las capas externas (Infraestructura y Presentación) conocen y utilizan el núcleo para funcionar.
 
-Entidades (User, Team, Match, etc.)
+2. Estructura Interna de los Módulos
+Cada módulo del sistema (por ejemplo: Usuarios, Equipos o Partidos) se divide internamente en cuatro áreas de responsabilidad:
 
+A. Dominio (El Corazón del Negocio)
+Es la capa más importante porque define el problema real que el sistema resuelve.
 
-Reglas del negocio
+Para qué sirve: Define qué es el negocio y cómo se comporta, sin importar si usamos una base de datos o una página web.
 
+Contenido:
 
-Value Objects
+Entidades: Objetos base (ej. Usuario, Partido).
 
+Reglas: Lógica que no cambia (ej. un partido no puede tener resultados negativos).
 
-Interfaces de repositorio
+Interfaces: Contratos que dicen "necesito guardar datos", pero no explican cómo.
 
+Característica: Es la parte más estable y no depende de ningún programa o librería externa.
 
-Servicios de dominio
+B. Aplicación (El Orquestador)
+Representa las acciones que el usuario puede realizar en el sistema.
 
+Para qué sirve: Coordina el flujo de información. Recibe una orden y dirige a las demás capas para cumplirla.
 
+Contenido:
 
-Características
+Casos de Uso: Acciones específicas (ej. "Registrar un nuevo equipo", "Finalizar torneo").
 
+DTOs: Formatos simples de datos para mover información entre capas.
 
-No depende de frameworks (ni Spring, ni JPA)
+Característica: No contiene reglas de negocio complejas, solo "instrucciones" de operación.
 
+C. Infraestructura (El Soporte Técnico)
+Es la herramienta que permite que el sistema funcione en el mundo real.
 
-No conoce la base de datos
+Para qué sirve: Implementa los detalles técnicos que el Dominio necesita pero no sabe hacer por sí mismo.
 
+Contenido:
 
-Es la parte más estable del sistema
+Bases de Datos: Conexión real con SQL, PostgreSQL, etc.
 
+Servicios Externos: Envío de correos, almacenamiento de imágenes en la nube o pasarelas de pago.
 
+Característica: Es la capa más cambiante; aquí es donde se instalan las librerías y frameworks.
 
-Ejemplo en tu sistema
+D. Presentación (La Puerta de Entrada)
+Es el medio por el cual el mundo exterior interactúa con nuestra aplicación.
 
+Para qué sirve: Recibe las peticiones del usuario (desde una app móvil o web) y entrega una respuesta.
 
-Validar resultados de un partido
+Contenido:
 
+Controladores: Reciben los datos, verifican que el formato sea correcto y los pasan a la capa de Aplicación.
 
-Definir reglas de un torneo
+Característica: No sabe nada de bases de datos ni de reglas de negocio; su único trabajo es la comunicación.
 
+3. Flujo de Trabajo y Datos
+Para que el sistema funcione correctamente, la información sigue un camino ordenado:
 
-Calcular estados (activo, finalizado, etc.)
+Entrada: El usuario envía una solicitud que llega a Presentación.
 
+Proceso: Presentación le entrega los datos a Aplicación (Caso de Uso).
 
+Lógica: Aplicación consulta al Dominio para validar las reglas.
 
-2. application
-Por qué se llama “application”
-Representa la lógica de aplicación, es decir, cómo el sistema ejecuta acciones específicas del usuario.
+Salida/Persistencia: Aplicación utiliza la Infraestructura para guardar los cambios en la base de datos o enviar notificaciones.
 
-Para qué sirve
-Orquesta los casos de uso del sistema.
-Aquí se define:
 
+Shutterstock
+Explorar
+4. Configuración General y Migraciones
+Aunque cada módulo tiene su propia estructura, existen elementos técnicos que son compartidos por todo el sistema para mantener la coherencia:
 
-Casos de uso (use cases)
+Conexión a Base de Datos: Se centraliza en la capa de infraestructura global para evitar conexiones duplicadas.
 
+Migraciones: Los scripts que crean o modifican tablas se guardan en una carpeta compartida. Esto garantiza que todos los desarrolladores trabajen con la misma estructura de base de datos.
 
-DTOs de entrada y salida
+5. Justificación y Beneficios
+Implementar esta arquitectura modular ofrece ventajas claras para el futuro del proyecto:
 
+Mantenimiento Sencillo: Si la base de datos falla o cambia, solo se toca la capa de Infraestructura; el resto del código sigue intacto.
 
-Coordinación entre dominio y persistencia
+Orden: Cada archivo tiene un lugar lógico, lo que facilita encontrar errores o agregar funciones.
 
-
-
-Características
-
-
-No contiene lógica de negocio compleja (eso está en domain)
-
-
-Actúa como intermediario entre presentación e infraestructura
-
-
-
-Ejemplo en tu sistema
-
-
-Registrar resultado de un partido
-
-
-Crear un equipo
-
-
-Asignar un jugador a un equipo
-
-
-
-3. infrastructure
-Por qué se llama “infrastructure”
-Se refiere a la infraestructura técnica, es decir, todo lo necesario para que el sistema funcione en el mundo real.
-
-Para qué sirve
-Implementa los detalles técnicos que el dominio necesita pero no debe conocer.
-Aquí se define:
-
-
-Implementaciones de repositorios (JPA)
-
-
-Entidades de base de datos
-
-
-Integraciones externas (APIs, almacenamiento, etc.)
-
-
-Configuración técnica específica del módulo
-
-
-
-Características
-
-
-Depende de frameworks (Spring, Hibernate, etc.)
-
-
-Puede cambiar sin afectar la lógica del negocio
-
-
-
-Ejemplo en tu sistema
-
-
-Guardar un partido en PostgreSQL
-
-
-Consultar usuarios desde la base de datos
-
-
-Integración con almacenamiento de imágenes
-
-
-
-4. presentation
-Por qué se llama “presentation”
-Representa la capa de presentación, es decir, cómo el sistema se expone al exterior.
-
-Para qué sirve
-Gestiona la interacción con clientes externos (por ejemplo, la app en Flutter).
-Aquí se define:
-
-
-Controladores REST
-
-
-Endpoints HTTP
-
-
-Validación de requests
-
-
-Respuestas de la API
-
-
-
-Características
-
-
-Es la capa más externa
-
-
-No contiene lógica de negocio
-
-
-Solo transforma datos y delega a application
-
-
-
-Ejemplo en tu sistema
-
-
-Endpoint para listar partidos
-
-
-Endpoint para crear usuarios
-
-
-Endpoint para ver ranking
-
-
-
-Relación entre capas
-El flujo de ejecución sigue esta dirección:
-presentation → application → domain → infrastructure
-Regla clave
-El domain no depende de ninguna otra capa, mientras que las demás capas dependen de él directa o indirectamente.
-
-Justificación de la estructura
-Esta separación permite:
-
-
-Aislar la lógica de negocio de la tecnología
-
-
-Facilitar el mantenimiento del sistema
-
-
-Mejorar la testabilidad
-
-
-Permitir cambios tecnológicos sin afectar el núcleo del sistema
-
-
-Escalar el sistema de forma ordenada
-
-
-
-Conclusión
-Los nombres domain, application, infrastructure y presentation no son arbitrarios, sino que reflejan una división clara de responsabilidades dentro del sistema. Esta estructura garantiza una arquitectura limpia, desacoplada y alineada con buenas prácticas modernas de desarrollo de software.
+Escalabilidad: El sistema puede crecer módulo por módulo sin convertirse en un desorden de código difícil de manejar.
