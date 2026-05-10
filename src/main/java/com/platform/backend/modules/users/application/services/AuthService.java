@@ -25,17 +25,16 @@ public class AuthService implements IAuthService {
 
         UsersEntity newRegisteredUser = userMapper.toEntity(registerRequest);
 
-        newRegisteredUser.setPassword(
-                passwordEncoder.encode(registerRequest.getPassword())
-        );
-
+        //encrypt password
+        newRegisteredUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        
+        //save user to database
         UsersEntity savedUser = usersJpaRepository.save(newRegisteredUser);
 
-        String token = jwtService.generateToken(
-                savedUser,
-                savedUser.getUsername()
-        );
-
+        //generate JWT token
+        String token = jwtService.generateToken(savedUser, savedUser.getUsername());
+        
+        //return token
         return new RegisterResponse(token);
     }
 }

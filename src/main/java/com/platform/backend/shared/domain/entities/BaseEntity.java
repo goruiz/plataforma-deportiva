@@ -1,7 +1,8 @@
 package com.platform.backend.shared.domain.entities;
 
 import jakarta.persistence.*;
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
@@ -19,23 +20,23 @@ public abstract class BaseEntity {
     protected UUID createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    protected Instant createdAt;
+    protected LocalDateTime createdAt;
 
     @Column(name = "updated_by")
     protected UUID updatedBy;
 
     @Column(name = "updated_at")
-    protected Instant updatedAt;
+    protected LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = Instant.now();
-        this.updatedAt = Instant.now();
+        this.createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        this.updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = Instant.now();
+        this.updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
 
     // getters y setters
@@ -56,11 +57,11 @@ public abstract class BaseEntity {
         this.createdBy = createdBy;
     }
 
-    public Instant getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -72,11 +73,11 @@ public abstract class BaseEntity {
         this.updatedBy = updatedBy;
     }
 
-    public Instant getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 }
