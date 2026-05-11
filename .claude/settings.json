@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Remove-Item \"c:\\\\Users\\\\admseneca\\\\Documents\\\\Proyectos\\\\plataforma-deportiva\\\\src\\\\main\\\\java\\\\com\\\\platform\\\\backend\\\\modules\\\\users\\\\domain\\\\irepositories\\\\IAuthRepository.java\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\admseneca\\\\Documents\\\\Proyectos\\\\plataforma-deportiva\\\\src\\\\main\\\\java\\\\com\\\\platform\\\\backend\\\\modules\\\\users\\\\infrastructure\\\\persistence\\\\repositories\\\\AuthRepository.java\" -Force)"
+    ]
+  }
+}
