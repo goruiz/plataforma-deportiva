@@ -13,9 +13,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationFilter;
 
 import java.util.List;
 
@@ -57,7 +59,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                     AuthenticationProvider authenticationProvider,
-                                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                                    CorsConfigurationSource corsConfigurationSource,
+                                                    JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
@@ -65,8 +68,9 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authenticationProvider(authenticationProvider)
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/users/auth/**").permitAll()
+                .requestMatchers("/users/auth/login", "/users/auth/register").permitAll()
                 .anyRequest().authenticated()
             );
 

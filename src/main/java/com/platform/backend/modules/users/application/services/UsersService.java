@@ -6,8 +6,10 @@ import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -49,5 +51,14 @@ public class UsersService implements IUsersService {
 
         String token = jwtService.generateToken(user, user.getEmail());
         return new AuthResponse(token);
+    }
+
+    @Override
+    public UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email) {
+        UsersEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+        userMapper.updateEntity(user, request);
+        UsersEntity saved = userRepository.save(user);
+        return userMapper.toUpdateProfileResponse(saved);
     }
 }
