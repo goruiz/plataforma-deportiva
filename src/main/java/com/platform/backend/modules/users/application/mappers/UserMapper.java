@@ -2,7 +2,6 @@ package com.platform.backend.modules.users.application.mappers;
 
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
-import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;

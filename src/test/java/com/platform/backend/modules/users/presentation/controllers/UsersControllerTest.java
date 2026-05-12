@@ -127,9 +127,6 @@ class UsersControllerTest {
 
     private RegisterRequest buildRegisterRequest(String email, String password) {
         RegisterRequest req = new RegisterRequest();
-        req.setFirstName("Juan");
-        req.setLastName("Perez");
-        req.setUsername("jperez");
         req.setEmail(email);
         req.setPassword(password);
         return req;

@@ -31,7 +31,7 @@ public class UsersService implements IUsersService {
         UsersEntity newUser = userMapper.toEntity(registerRequest);
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         UsersEntity savedUser = userRepository.save(newUser);
-        String token = jwtService.generateToken(savedUser, savedUser.getUsername());
+        String token = jwtService.generateToken(savedUser, savedUser.getEmail());
         return new RegisterResponse(token);
     }
 
@@ -47,7 +47,7 @@ public class UsersService implements IUsersService {
         UsersEntity user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        String token = jwtService.generateToken(user, user.getUsername());
+        String token = jwtService.generateToken(user, user.getEmail());
         return new AuthResponse(token);
     }
 }

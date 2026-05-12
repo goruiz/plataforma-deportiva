@@ -46,9 +46,6 @@ class UsersServiceTest {
     @BeforeEach
     void setUp() {
         registerRequest = new RegisterRequest();
-        registerRequest.setFirstName("Juan");
-        registerRequest.setLastName("Perez");
-        registerRequest.setUsername("jperez");
         registerRequest.setEmail("juan@email.com");
         registerRequest.setPassword("password123");
 

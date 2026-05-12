@@ -9,24 +9,6 @@ import lombok.Data;
 public class RegisterRequest {
 
     @NotBlank
-    @Size(max = 255)
-    private String firstName;
-
-    @Size(max = 255)
-    private String middleName;
-
-    @NotBlank
-    @Size(max = 255)
-    private String lastName;
-
-    @Size(max = 255)
-    private String secondLastName;
-
-    @NotBlank
-    @Size(min = 3, max = 255)
-    private String username;
-
-    @NotBlank
     @Email
     @Size(max = 255)
     private String email;
