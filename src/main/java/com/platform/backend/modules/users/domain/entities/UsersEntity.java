@@ -3,7 +3,6 @@ package com.platform.backend.modules.users.domain.entities;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -34,94 +33,29 @@ public class UsersEntity extends BaseEntity {
     @Column(length = 255)
     private String password;
 
-    @Column(name = "deleted_by")
-    private UUID deletedBy;
+    public UsersEntity() {}
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    public UUID getIdRole() { return idRole; }
+    public void setIdRole(UUID idRole) { this.idRole = idRole; }
 
-    public UsersEntity() {
-    }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    // getters y setters
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
 
-    public UUID getIdRole() {
-        return idRole;
-    }
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public void setIdRole(UUID idRole) {
-        this.idRole = idRole;
-    }
+    public String getSecondLastName() { return secondLastName; }
+    public void setSecondLastName(String secondLastName) { this.secondLastName = secondLastName; }
 
-    public String getFirstName() {
-        return firstName;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getMiddleName() {
-        return middleName;
-    }
-
-    public void setMiddleName(String middleName) {
-        this.middleName = middleName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getSecondLastName() {
-        return secondLastName;
-    }
-
-    public void setSecondLastName(String secondLastName) {
-        this.secondLastName = secondLastName;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public UUID getDeletedBy() {
-        return deletedBy;
-    }
-
-    public void setDeletedBy(UUID deletedBy) {
-        this.deletedBy = deletedBy;
-    }
-
-    public LocalDateTime getDeletedAt() {
-        return deletedAt;
-    }
-
-    public void setDeletedAt(LocalDateTime deletedAt) {
-        this.deletedAt = deletedAt;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

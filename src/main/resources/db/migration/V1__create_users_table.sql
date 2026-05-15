@@ -1,6 +1,5 @@
-CREATE TABLE IF NOT EXISTS users
-(
-    id               UUID         NOT NULL,
+CREATE TABLE IF NOT EXISTS users (
+    id               UUID NOT NULL,
     id_role          UUID,
     first_name       VARCHAR(255),
     middle_name      VARCHAR(255),
@@ -10,13 +9,10 @@ CREATE TABLE IF NOT EXISTS users
     email            VARCHAR(255),
     password         VARCHAR(255),
     created_by       UUID,
-    created_at       TIMESTAMP    NOT NULL,
+    created_at       TIMESTAMP(6),
     updated_by       UUID,
-    updated_at       TIMESTAMP,
+    updated_at       TIMESTAMP(6),
     deleted_by       UUID,
-    deleted_at       TIMESTAMP,
-    CONSTRAINT pk_users PRIMARY KEY (id)
+    deleted_at       TIMESTAMP(6),
+    CONSTRAINT users_pkey1 PRIMARY KEY (id)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email    ON users (email);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (username);
