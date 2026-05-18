@@ -1,0 +1,62 @@
+package com.platform.backend.modules.players.presentation.controllers;
+
+import com.platform.backend.modules.players.application.iservices.IPlayersService;
+import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
+import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/players")
+@RequiredArgsConstructor
+public class PlayersController {
+
+    private final IPlayersService playersService;
+
+    @GetMapping
+    public ResponseEntity<List<PlayerResponse>> getAll() {
+        return ResponseEntity.ok(playersService.getAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PlayerResponse> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(playersService.getById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<PlayerResponse> create(@Valid @RequestBody CreatePlayerRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(playersService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<PlayerResponse> update(@PathVariable UUID id,
+                                                  @Valid @RequestBody UpdatePlayerRequest request) {
+        return ResponseEntity.ok(playersService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        playersService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+        playersService.hardDelete(id);
+        return ResponseEntity.noContent().build();
+    }
+}

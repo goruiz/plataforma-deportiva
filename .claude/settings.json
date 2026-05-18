@@ -5,7 +5,8 @@
       "Bash(Remove-Item \"c:\\\\Users\\\\admseneca\\\\Documents\\\\Proyectos\\\\plataforma-deportiva\\\\src\\\\main\\\\java\\\\com\\\\platform\\\\backend\\\\modules\\\\users\\\\infrastructure\\\\persistence\\\\repositories\\\\AuthRepository.java\" -Force)",
       "PowerShell(java -version 2>&1)",
       "PowerShell(javac -version 2>&1)",
-      "PowerShell($env:JAVA_HOME; echo \"---\"; \\(Get-Command java\\).Source)"
+      "PowerShell($env:JAVA_HOME; echo \"---\"; \\(Get-Command java\\).Source)",
+      "Bash(./mvnw compile *)"
     ]
   }
 }
