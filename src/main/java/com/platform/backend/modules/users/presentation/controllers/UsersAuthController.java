@@ -19,11 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users/auth")
-public class UsersController {
+public class UsersAuthController {
 
     private final IUsersService usersService;
 
-    public UsersController(IUsersService usersService) {
+    public UsersAuthController(IUsersService usersService) {
         this.usersService = usersService;
     }
 

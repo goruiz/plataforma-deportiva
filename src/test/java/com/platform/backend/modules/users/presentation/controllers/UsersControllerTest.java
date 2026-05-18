@@ -41,7 +41,7 @@ class UsersControllerTest {
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new UsersController(usersService))
+                .standaloneSetup(new UsersAuthController(usersService))
                 .setControllerAdvice(new GlobalException())
                 .setValidator(validator)
                 .build();
