@@ -1,6 +1,6 @@
 package com.platform.backend.modules.users.presentation.controllers;
 
-import com.platform.backend.modules.users.application.iservices.IUsersService;
+import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
@@ -21,26 +21,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/users/auth")
 public class UsersAuthController {
 
-    private final IUsersService usersService;
+    private final IUsersAuthService usersAuthService;
 
-    public UsersAuthController(IUsersService usersService) {
-        this.usersService = usersService;
+    public UsersAuthController(IUsersAuthService usersAuthService) {
+        this.usersAuthService = usersAuthService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-        return ResponseEntity.ok(usersService.login(loginRequest));
+        return ResponseEntity.ok(usersAuthService.login(loginRequest));
     }
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        return ResponseEntity.ok(usersService.register(registerRequest));
+        return ResponseEntity.ok(usersAuthService.register(registerRequest));
     }
 
     @PutMapping("/update-profile")
     public ResponseEntity<UpdateProfileResponse> updateProfile(
             @Valid @RequestBody UpdateProfileRequest request,
             @AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(usersService.updateProfile(request, principal.getUsername()));
+        return ResponseEntity.ok(usersAuthService.updateProfile(request, principal.getUsername()));
     }
 }

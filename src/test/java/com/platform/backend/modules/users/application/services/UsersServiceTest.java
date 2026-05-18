@@ -37,7 +37,7 @@ class UsersServiceTest {
     @Mock private AuthenticationManager authenticationManager;
 
     @InjectMocks
-    private UsersService usersService;
+    private UsersAuthService usersAuthService;
 
     private RegisterRequest registerRequest;
     private LoginRequest loginRequest;
@@ -66,9 +66,9 @@ class UsersServiceTest {
         when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
         when(passwordEncoder.encode("password123")).thenReturn("hashed_password");
         when(userRepository.save(usersEntity)).thenReturn(usersEntity);
-        when(jwtService.generateToken(usersEntity, "jperez")).thenReturn("jwt-token");
+        when(jwtService.generateToken(usersEntity, "juan@email.com")).thenReturn("jwt-token");
 
-        RegisterResponse response = usersService.register(registerRequest);
+        RegisterResponse response = usersAuthService.register(registerRequest);
 
         assertThat(response).isNotNull();
         assertThat(response.getToken()).isEqualTo("jwt-token");
@@ -83,7 +83,7 @@ class UsersServiceTest {
         when(userRepository.save(any())).thenReturn(usersEntity);
         when(jwtService.generateToken(any(), anyString())).thenReturn("token");
 
-        usersService.register(registerRequest);
+        usersAuthService.register(registerRequest);
 
         verify(passwordEncoder).encode("password123");
     }
@@ -95,9 +95,9 @@ class UsersServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
         when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
-        when(jwtService.generateToken(usersEntity, "jperez")).thenReturn("jwt-login-token");
+        when(jwtService.generateToken(usersEntity, "juan@email.com")).thenReturn("jwt-login-token");
 
-        AuthResponse response = usersService.login(loginRequest);
+        AuthResponse response = usersAuthService.login(loginRequest);
 
         assertThat(response).isNotNull();
         assertThat(response.getToken()).isEqualTo("jwt-login-token");
@@ -110,7 +110,7 @@ class UsersServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
-        assertThatThrownBy(() -> usersService.login(loginRequest))
+        assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class);
 
         verify(userRepository, never()).findByEmail(anyString());
@@ -122,7 +122,7 @@ class UsersServiceTest {
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
         when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> usersService.login(loginRequest))
+        assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Invalid credentials");
     }

@@ -1,7 +1,7 @@
 package com.platform.backend.modules.users.presentation.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.platform.backend.modules.users.application.iservices.IUsersService;
+import com.platform.backend.modules.users.application.iservices.*;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
@@ -31,7 +31,7 @@ class UsersControllerTest {
     private ObjectMapper objectMapper;
 
     @Mock
-    private IUsersService usersService;
+    private IUsersAuthService usersAuthService;
 
     @BeforeEach
     void setUp() {
@@ -41,7 +41,7 @@ class UsersControllerTest {
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new UsersAuthController(usersService))
+                .standaloneSetup(new UsersAuthController(usersAuthService))
                 .setControllerAdvice(new GlobalException())
                 .setValidator(validator)
                 .build();
@@ -51,7 +51,7 @@ class UsersControllerTest {
 
     @Test
     void register_whenValidBody_thenReturn200WithToken() throws Exception {
-        when(usersService.register(any())).thenReturn(new RegisterResponse("jwt-token"));
+        when(usersAuthService.register(any())).thenReturn(new RegisterResponse("jwt-token"));
 
         mockMvc.perform(post("/users/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -91,7 +91,7 @@ class UsersControllerTest {
 
     @Test
     void login_whenValidCredentials_thenReturn200WithToken() throws Exception {
-        when(usersService.login(any())).thenReturn(new AuthResponse("jwt-login-token"));
+        when(usersAuthService.login(any())).thenReturn(new AuthResponse("jwt-login-token"));
 
         mockMvc.perform(post("/users/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -102,7 +102,7 @@ class UsersControllerTest {
 
     @Test
     void login_whenBadCredentials_thenReturn401() throws Exception {
-        when(usersService.login(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+        when(usersAuthService.login(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
         mockMvc.perform(post("/users/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

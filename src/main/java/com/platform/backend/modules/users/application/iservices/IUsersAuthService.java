@@ -6,24 +6,12 @@ import com.platform.backend.modules.users.presentation.requests.UpdateProfileReq
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
-import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 
-import java.util.List;
-import java.util.UUID;
-
-public interface IUsersService {
-
-    List<UserResponse> getAllUsers();
-
-    UserResponse getUserById(UUID id);
+public interface IUsersAuthService {
 
     RegisterResponse register(RegisterRequest registerRequest);
 
     AuthResponse login(LoginRequest loginRequest);
 
     UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email);
-
-    void softDelete(UUID id);
-
-    void hardDelete(UUID id);
 }
