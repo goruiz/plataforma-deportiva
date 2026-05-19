@@ -18,6 +18,8 @@ public interface IUserRepository {
 
     Optional<UsersEntity> findByUsername(String username);
 
+    boolean existsByEmail(String email);
+
     Optional<UsersEntity> findActiveById(UUID id);
 
     void hardDelete(UsersEntity user);

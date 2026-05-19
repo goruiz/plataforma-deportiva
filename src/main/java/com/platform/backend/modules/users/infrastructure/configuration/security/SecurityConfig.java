@@ -1,5 +1,7 @@
 package com.platform.backend.modules.users.infrastructure.configuration.security;
 
+import com.platform.backend.shared.infraestructure.ratelimit.LoginRateLimiterFilter;
+import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,7 +19,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationFilter;
 
 import java.util.List;
 
@@ -57,10 +58,16 @@ public class SecurityConfig {
     }
 
     @Bean
+    public LoginRateLimiterFilter loginRateLimiterFilter() {
+        return new LoginRateLimiterFilter();
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                     AuthenticationProvider authenticationProvider,
                                                     CorsConfigurationSource corsConfigurationSource,
-                                                    JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                    LoginRateLimiterFilter loginRateLimiterFilter) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
@@ -68,6 +75,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authenticationProvider(authenticationProvider)
+            .addFilterBefore(loginRateLimiterFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/users/auth/login", "/users/auth/register").permitAll()

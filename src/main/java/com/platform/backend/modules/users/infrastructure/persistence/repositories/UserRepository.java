@@ -47,6 +47,11 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
+    public boolean existsByEmail(String email) {
+        return usersJpaRepository.existsByEmail(email);
+    }
+
+    @Override
     public void hardDelete(UsersEntity user) {
         usersJpaRepository.delete(user);
     }

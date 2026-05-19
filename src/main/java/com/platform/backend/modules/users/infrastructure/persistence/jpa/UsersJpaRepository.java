@@ -14,6 +14,8 @@ public interface UsersJpaRepository
 
     Optional<UsersEntity> findByUsername(String username);
 
+    boolean existsByEmail(String email);
+
     List<UsersEntity> findAllByDeletedAtIsNull();
 
     Optional<UsersEntity> findByIdAndDeletedAtIsNull(UUID id);
