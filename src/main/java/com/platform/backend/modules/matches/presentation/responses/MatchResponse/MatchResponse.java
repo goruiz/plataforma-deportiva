@@ -17,6 +17,7 @@ public class MatchResponse {
     private Integer homeScore;
     private Integer awayScore;
     private UUID eventId;
+    private UUID courtId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

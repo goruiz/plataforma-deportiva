@@ -34,6 +34,9 @@ public class MatchesEntity extends BaseEntity {
     @Column(name = "event_id")
     private UUID eventId;
 
+    @Column(name = "id_court")
+    private UUID courtId;
+
     public MatchesEntity() {}
 
     public UUID getHomeTeamId() { return homeTeamId; }
@@ -59,4 +62,7 @@ public class MatchesEntity extends BaseEntity {
 
     public UUID getEventId() { return eventId; }
     public void setEventId(UUID eventId) { this.eventId = eventId; }
+
+    public UUID getCourtId() { return courtId; }
+    public void setCourtId(UUID courtId) { this.courtId = courtId; }
 }

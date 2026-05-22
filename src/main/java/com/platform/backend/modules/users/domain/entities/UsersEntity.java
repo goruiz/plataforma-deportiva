@@ -3,6 +3,8 @@ package com.platform.backend.modules.users.domain.entities;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "users")
 public class UsersEntity extends BaseEntity {
@@ -28,6 +30,9 @@ public class UsersEntity extends BaseEntity {
     @Column(length = 255)
     private String password;
 
+    @Column(name = "id_role")
+    private UUID idRole;
+
     public UsersEntity() {}
 
     public String getFirstName() { return firstName; }
@@ -50,4 +55,7 @@ public class UsersEntity extends BaseEntity {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public UUID getIdRole() { return idRole; }
+    public void setIdRole(UUID idRole) { this.idRole = idRole; }
 }

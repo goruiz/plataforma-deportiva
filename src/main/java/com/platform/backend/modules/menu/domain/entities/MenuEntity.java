@@ -3,6 +3,8 @@ package com.platform.backend.modules.menu.domain.entities;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "menu")
 public class MenuEntity extends BaseEntity {
@@ -13,8 +15,8 @@ public class MenuEntity extends BaseEntity {
     @Column(length = 255)
     private String description;
 
-    @Column(name = "id_parent_menu", length = 255)
-    private String idParentMenu;
+    @Column(name = "id_parent_menu")
+    private UUID idParentMenu;
 
     @Column(name = "\"order\"")
     private Integer order;
@@ -25,6 +27,12 @@ public class MenuEntity extends BaseEntity {
     @Column(length = 255)
     private String icon;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Column(name = "nav_order")
+    private Short navOrder;
+
     public MenuEntity() {}
 
     public String getName() { return name; }
@@ -33,8 +41,8 @@ public class MenuEntity extends BaseEntity {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public String getIdParentMenu() { return idParentMenu; }
-    public void setIdParentMenu(String idParentMenu) { this.idParentMenu = idParentMenu; }
+    public UUID getIdParentMenu() { return idParentMenu; }
+    public void setIdParentMenu(UUID idParentMenu) { this.idParentMenu = idParentMenu; }
 
     public Integer getOrder() { return order; }
     public void setOrder(Integer order) { this.order = order; }
@@ -44,4 +52,10 @@ public class MenuEntity extends BaseEntity {
 
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public Short getNavOrder() { return navOrder; }
+    public void setNavOrder(Short navOrder) { this.navOrder = navOrder; }
 }

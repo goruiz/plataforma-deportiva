@@ -41,11 +41,11 @@ public class MenuService implements IMenuService {
         List<MenuTreeResponse> roots = new ArrayList<>();
         for (MenuEntity entity : all) {
             MenuTreeResponse node = map.get(entity.getId().toString());
-            String parentId = entity.getIdParentMenu();
-            if (parentId == null || parentId.isBlank()) {
+            UUID parentId = entity.getIdParentMenu();
+            if (parentId == null) {
                 roots.add(node);
             } else {
-                MenuTreeResponse parent = map.get(parentId);
+                MenuTreeResponse parent = map.get(parentId.toString());
                 if (parent != null) {
                     parent.getSubmenus().add(node);
                 } else {

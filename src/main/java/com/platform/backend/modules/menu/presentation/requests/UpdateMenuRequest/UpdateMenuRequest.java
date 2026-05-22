@@ -3,6 +3,8 @@ package com.platform.backend.modules.menu.presentation.requests.UpdateMenuReques
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UpdateMenuRequest {
 
@@ -12,8 +14,7 @@ public class UpdateMenuRequest {
     @Size(max = 255)
     private String description;
 
-    @Size(max = 255)
-    private String idParentMenu;
+    private UUID idParentMenu;
 
     private Integer order;
 
@@ -22,4 +23,8 @@ public class UpdateMenuRequest {
 
     @Size(max = 255)
     private String icon;
+
+    private Boolean isActive;
+
+    private Short navOrder;
 }

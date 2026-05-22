@@ -26,4 +26,6 @@ public class UpdateMatchRequest {
     private Integer awayScore;
 
     private UUID eventId;
+
+    private UUID courtId;
 }

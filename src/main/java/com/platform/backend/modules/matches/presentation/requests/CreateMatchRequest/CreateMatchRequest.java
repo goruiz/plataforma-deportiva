@@ -23,4 +23,6 @@ public class CreateMatchRequest {
     private String location;
 
     private UUID eventId;
+
+    private UUID courtId;
 }
