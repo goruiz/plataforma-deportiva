@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.application.services;
+package com.platform.backend.modules.events.application.services;
 
 import com.platform.backend.modules.events.application.iservices.IEventsService;
 import com.platform.backend.modules.events.application.mappers.EventMapper;

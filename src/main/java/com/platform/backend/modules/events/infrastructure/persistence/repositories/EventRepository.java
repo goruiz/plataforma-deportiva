@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.infrastructure.persistence.repositories;
+package com.platform.backend.modules.events.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;

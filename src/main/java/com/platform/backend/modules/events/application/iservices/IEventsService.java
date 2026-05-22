@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.application.iservices;
+package com.platform.backend.modules.events.application.iservices;
 
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;

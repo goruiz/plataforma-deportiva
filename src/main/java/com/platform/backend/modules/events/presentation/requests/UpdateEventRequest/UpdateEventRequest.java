@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.requests.UpdateEventRequest;
+package com.platform.backend.modules.events.presentation.requests.UpdateEventRequest;
 
 import jakarta.validation.constraints.Size;
 import lombok.Data;

@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.infrastructure.persistence.jpa;
+package com.platform.backend.modules.events.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

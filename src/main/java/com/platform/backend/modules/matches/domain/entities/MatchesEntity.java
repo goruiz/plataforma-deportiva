@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.domain.entities;
+package com.platform.backend.modules.matches.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;

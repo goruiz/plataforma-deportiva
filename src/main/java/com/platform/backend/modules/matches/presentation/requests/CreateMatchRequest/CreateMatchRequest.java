@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest;
+package com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

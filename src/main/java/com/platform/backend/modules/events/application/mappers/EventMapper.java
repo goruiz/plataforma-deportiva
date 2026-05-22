@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.application.mappers;
+package com.platform.backend.modules.events.application.mappers;
 
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;

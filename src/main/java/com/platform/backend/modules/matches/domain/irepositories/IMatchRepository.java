@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.domain.irepositories;
+package com.platform.backend.modules.matches.domain.irepositories;
 
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 

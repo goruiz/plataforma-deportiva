@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.controllers;
+package com.platform.backend.modules.events.presentation.controllers;
 
 import com.platform.backend.modules.events.application.iservices.IEventsService;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;

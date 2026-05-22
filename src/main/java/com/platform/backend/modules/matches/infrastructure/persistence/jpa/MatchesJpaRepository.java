@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.infrastructure.persistence.jpa;
+package com.platform.backend.modules.matches.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.requests.CreateCategoryRequest;
+package com.platform.backend.modules.events.presentation.requests.CreateCategoryRequest;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

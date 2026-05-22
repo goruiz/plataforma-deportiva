@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.responses.CategoryResponse;
+package com.platform.backend.modules.events.presentation.responses.CategoryResponse;
 
 import lombok.Data;
 

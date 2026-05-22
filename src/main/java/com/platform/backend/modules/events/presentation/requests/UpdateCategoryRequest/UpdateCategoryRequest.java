@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.requests.UpdateCategoryRequest;
+package com.platform.backend.modules.events.presentation.requests.UpdateCategoryRequest;
 
 import jakarta.validation.constraints.Size;
 import lombok.Data;

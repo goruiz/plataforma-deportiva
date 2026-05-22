@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest;
+package com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest;
 
 import jakarta.validation.constraints.Size;
 import lombok.Data;

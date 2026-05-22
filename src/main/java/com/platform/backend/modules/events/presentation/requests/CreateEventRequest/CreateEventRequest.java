@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.presentation.requests.CreateEventRequest;
+package com.platform.backend.modules.events.presentation.requests.CreateEventRequest;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

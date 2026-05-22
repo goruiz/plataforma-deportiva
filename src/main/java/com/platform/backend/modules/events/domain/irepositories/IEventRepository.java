@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.events.domain.irepositories;
+package com.platform.backend.modules.events.domain.irepositories;
 
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
 

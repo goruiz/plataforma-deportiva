@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.matches.presentation.responses.MatchResponse;
+package com.platform.backend.modules.matches.presentation.responses.MatchResponse;
 
 import lombok.Data;
 
