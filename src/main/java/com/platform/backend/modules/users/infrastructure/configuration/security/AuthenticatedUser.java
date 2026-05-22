@@ -10,7 +10,6 @@ import java.util.UUID;
 public class AuthenticatedUser implements UserDetails {
 
     private final UUID id;
-    private final UUID idRole;
 
     private final String firstName;
     private final String middleName;
@@ -24,7 +23,6 @@ public class AuthenticatedUser implements UserDetails {
 
     public AuthenticatedUser(
             UUID id,
-            UUID idRole,
             String firstName,
             String middleName,
             String lastName,
@@ -33,7 +31,6 @@ public class AuthenticatedUser implements UserDetails {
             Collection<? extends GrantedAuthority> authorities
     ) {
         this.id = id;
-        this.idRole = idRole;
 
         this.firstName = firstName;
         this.middleName = middleName;
@@ -48,10 +45,6 @@ public class AuthenticatedUser implements UserDetails {
 
     public UUID getId() {
         return id;
-    }
-
-    public UUID getIdRole() {
-        return idRole;
     }
 
     public String getFirstName() {
@@ -119,7 +112,6 @@ public class AuthenticatedUser implements UserDetails {
 
     public static AuthenticatedUser from(
             UUID id,
-            UUID idRole,
             String firstName,
             String middleName,
             String lastName,
@@ -130,7 +122,6 @@ public class AuthenticatedUser implements UserDetails {
 
         return new AuthenticatedUser(
                 id,
-                idRole,
                 firstName,
                 middleName,
                 lastName,
