@@ -3,6 +3,7 @@ package com.platform.backend.modules.events.presentation.controllers;
 import com.platform.backend.modules.events.application.iservices.IEventsCategoriesService;
 import com.platform.backend.modules.events.presentation.requests.CreateEventsCategoriesRequest.CreateEventsCategoriesRequest;
 import com.platform.backend.modules.events.presentation.responses.EventsCategoriesResponse.EventsCategoriesResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,29 +27,29 @@ public class EventsCategoriesController {
     private final IEventsCategoriesService eventsCategoriesService;
 
     @GetMapping
-    public ResponseEntity<List<EventsCategoriesResponse>> getAll() {
-        return ResponseEntity.ok(eventsCategoriesService.getAll());
+    public ResponseEntity<ApiResponse<List<EventsCategoriesResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(eventsCategoriesService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<EventsCategoriesResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(eventsCategoriesService.getById(id));
+    public ResponseEntity<ApiResponse<EventsCategoriesResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(eventsCategoriesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<EventsCategoriesResponse> create(@Valid @RequestBody CreateEventsCategoriesRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventsCategoriesService.create(request));
+    public ResponseEntity<ApiResponse<EventsCategoriesResponse>> create(@Valid @RequestBody CreateEventsCategoriesRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(eventsCategoriesService.create(request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         eventsCategoriesService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         eventsCategoriesService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

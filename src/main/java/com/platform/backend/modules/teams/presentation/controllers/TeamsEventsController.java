@@ -3,6 +3,7 @@ package com.platform.backend.modules.teams.presentation.controllers;
 import com.platform.backend.modules.teams.application.iservices.ITeamsEventsService;
 import com.platform.backend.modules.teams.presentation.requests.CreateTeamsEventsRequest.CreateTeamsEventsRequest;
 import com.platform.backend.modules.teams.presentation.responses.TeamsEventsResponse.TeamsEventsResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,29 +27,29 @@ public class TeamsEventsController {
     private final ITeamsEventsService teamsEventsService;
 
     @GetMapping
-    public ResponseEntity<List<TeamsEventsResponse>> getAll() {
-        return ResponseEntity.ok(teamsEventsService.getAll());
+    public ResponseEntity<ApiResponse<List<TeamsEventsResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(teamsEventsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TeamsEventsResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(teamsEventsService.getById(id));
+    public ResponseEntity<ApiResponse<TeamsEventsResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(teamsEventsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<TeamsEventsResponse> create(@Valid @RequestBody CreateTeamsEventsRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(teamsEventsService.create(request));
+    public ResponseEntity<ApiResponse<TeamsEventsResponse>> create(@Valid @RequestBody CreateTeamsEventsRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(teamsEventsService.create(request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         teamsEventsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         teamsEventsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

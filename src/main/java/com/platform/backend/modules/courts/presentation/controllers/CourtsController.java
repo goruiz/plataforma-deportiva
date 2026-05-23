@@ -4,6 +4,7 @@ import com.platform.backend.modules.courts.application.iservices.ICourtsService;
 import com.platform.backend.modules.courts.presentation.requests.CreateCourtRequest.CreateCourtRequest;
 import com.platform.backend.modules.courts.presentation.requests.UpdateCourtRequest.UpdateCourtRequest;
 import com.platform.backend.modules.courts.presentation.responses.CourtResponse.CourtResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class CourtsController {
     private final ICourtsService courtsService;
 
     @GetMapping
-    public ResponseEntity<List<CourtResponse>> getAll() {
-        return ResponseEntity.ok(courtsService.getAll());
+    public ResponseEntity<ApiResponse<List<CourtResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(courtsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CourtResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(courtsService.getById(id));
+    public ResponseEntity<ApiResponse<CourtResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(courtsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<CourtResponse> create(@Valid @RequestBody CreateCourtRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(courtsService.create(request));
+    public ResponseEntity<ApiResponse<CourtResponse>> create(@Valid @RequestBody CreateCourtRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(courtsService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CourtResponse> update(@PathVariable UUID id,
-                                                @Valid @RequestBody UpdateCourtRequest request) {
-        return ResponseEntity.ok(courtsService.update(id, request));
+    public ResponseEntity<ApiResponse<CourtResponse>> update(@PathVariable UUID id,
+                                                             @Valid @RequestBody UpdateCourtRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(courtsService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         courtsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         courtsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

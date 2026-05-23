@@ -5,6 +5,7 @@ import com.platform.backend.modules.menu.presentation.requests.CreateMenuRequest
 import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest.UpdateMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuResponse;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuTreeResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,35 +30,35 @@ public class MenuController {
     private final IMenuService menuService;
 
     @GetMapping
-    public ResponseEntity<List<MenuTreeResponse>> getAll() {
-        return ResponseEntity.ok(menuService.getAll());
+    public ResponseEntity<ApiResponse<List<MenuTreeResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(menuService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MenuResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(menuService.getById(id));
+    public ResponseEntity<ApiResponse<MenuResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(menuService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<MenuResponse> create(@Valid @RequestBody CreateMenuRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(menuService.create(request));
+    public ResponseEntity<ApiResponse<MenuResponse>> create(@Valid @RequestBody CreateMenuRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(menuService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MenuResponse> update(@PathVariable UUID id,
-                                               @Valid @RequestBody UpdateMenuRequest request) {
-        return ResponseEntity.ok(menuService.update(id, request));
+    public ResponseEntity<ApiResponse<MenuResponse>> update(@PathVariable UUID id,
+                                                            @Valid @RequestBody UpdateMenuRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(menuService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         menuService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         menuService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

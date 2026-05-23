@@ -4,6 +4,7 @@ import com.platform.backend.modules.menu.application.iservices.IRolesMenuService
 import com.platform.backend.modules.menu.presentation.requests.CreateRolesMenuRequest.CreateRolesMenuRequest;
 import com.platform.backend.modules.menu.presentation.requests.UpdateRolesMenuRequest.UpdateRolesMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.RolesMenuResponse.RolesMenuResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class RolesMenuController {
     private final IRolesMenuService rolesMenuService;
 
     @GetMapping
-    public ResponseEntity<List<RolesMenuResponse>> getAll() {
-        return ResponseEntity.ok(rolesMenuService.getAll());
+    public ResponseEntity<ApiResponse<List<RolesMenuResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RolesMenuResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(rolesMenuService.getById(id));
+    public ResponseEntity<ApiResponse<RolesMenuResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<RolesMenuResponse> create(@Valid @RequestBody CreateRolesMenuRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(rolesMenuService.create(request));
+    public ResponseEntity<ApiResponse<RolesMenuResponse>> create(@Valid @RequestBody CreateRolesMenuRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(rolesMenuService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RolesMenuResponse> update(@PathVariable UUID id,
-                                                    @Valid @RequestBody UpdateRolesMenuRequest request) {
-        return ResponseEntity.ok(rolesMenuService.update(id, request));
+    public ResponseEntity<ApiResponse<RolesMenuResponse>> update(@PathVariable UUID id,
+                                                                 @Valid @RequestBody UpdateRolesMenuRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         rolesMenuService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         rolesMenuService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

@@ -7,6 +7,7 @@ import com.platform.backend.modules.users.presentation.requests.UpdateProfileReq
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,19 +29,19 @@ public class UsersAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-        return ResponseEntity.ok(usersAuthService.login(loginRequest));
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
+        return ResponseEntity.ok(ApiResponse.ok(usersAuthService.login(loginRequest)));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        return ResponseEntity.ok(usersAuthService.register(registerRequest));
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        return ResponseEntity.ok(ApiResponse.ok(usersAuthService.register(registerRequest)));
     }
 
     @PutMapping("/update-profile")
-    public ResponseEntity<UpdateProfileResponse> updateProfile(
+    public ResponseEntity<ApiResponse<UpdateProfileResponse>> updateProfile(
             @Valid @RequestBody UpdateProfileRequest request,
             @AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(usersAuthService.updateProfile(request, principal.getUsername()));
+        return ResponseEntity.ok(ApiResponse.ok(usersAuthService.updateProfile(request, principal.getUsername())));
     }
 }

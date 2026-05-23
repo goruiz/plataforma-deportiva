@@ -4,6 +4,7 @@ import com.platform.backend.modules.events.application.iservices.ICategoriesServ
 import com.platform.backend.modules.events.presentation.requests.CreateCategoryRequest.CreateCategoryRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateCategoryRequest.UpdateCategoryRequest;
 import com.platform.backend.modules.events.presentation.responses.CategoryResponse.CategoryResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class CategoriesController {
     private final ICategoriesService categoriesService;
 
     @GetMapping
-    public ResponseEntity<List<CategoryResponse>> getAll() {
-        return ResponseEntity.ok(categoriesService.getAll());
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(categoriesService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(categoriesService.getById(id));
+    public ResponseEntity<ApiResponse<CategoryResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(categoriesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoriesService.create(request));
+    public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CreateCategoryRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(categoriesService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryResponse> update(@PathVariable UUID id,
-                                                   @Valid @RequestBody UpdateCategoryRequest request) {
-        return ResponseEntity.ok(categoriesService.update(id, request));
+    public ResponseEntity<ApiResponse<CategoryResponse>> update(@PathVariable UUID id,
+                                                                @Valid @RequestBody UpdateCategoryRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(categoriesService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         categoriesService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         categoriesService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

@@ -4,6 +4,7 @@ import com.platform.backend.modules.matches.application.iservices.IActionsServic
 import com.platform.backend.modules.matches.presentation.requests.CreateActionRequest.CreateActionRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateActionRequest.UpdateActionRequest;
 import com.platform.backend.modules.matches.presentation.responses.ActionResponse.ActionResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class ActionsController {
     private final IActionsService actionsService;
 
     @GetMapping
-    public ResponseEntity<List<ActionResponse>> getAll() {
-        return ResponseEntity.ok(actionsService.getAll());
+    public ResponseEntity<ApiResponse<List<ActionResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(actionsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ActionResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(actionsService.getById(id));
+    public ResponseEntity<ApiResponse<ActionResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(actionsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<ActionResponse> create(@Valid @RequestBody CreateActionRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(actionsService.create(request));
+    public ResponseEntity<ApiResponse<ActionResponse>> create(@Valid @RequestBody CreateActionRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(actionsService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ActionResponse> update(@PathVariable UUID id,
-                                                 @Valid @RequestBody UpdateActionRequest request) {
-        return ResponseEntity.ok(actionsService.update(id, request));
+    public ResponseEntity<ApiResponse<ActionResponse>> update(@PathVariable UUID id,
+                                                              @Valid @RequestBody UpdateActionRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(actionsService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         actionsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         actionsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

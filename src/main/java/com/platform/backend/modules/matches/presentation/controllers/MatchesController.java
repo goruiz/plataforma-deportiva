@@ -4,6 +4,7 @@ import com.platform.backend.modules.matches.application.iservices.IMatchesServic
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class MatchesController {
     private final IMatchesService matchesService;
 
     @GetMapping
-    public ResponseEntity<List<MatchResponse>> getAll() {
-        return ResponseEntity.ok(matchesService.getAll());
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MatchResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(matchesService.getById(id));
+    public ResponseEntity<ApiResponse<MatchResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<MatchResponse> create(@Valid @RequestBody CreateMatchRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(matchesService.create(request));
+    public ResponseEntity<ApiResponse<MatchResponse>> create(@Valid @RequestBody CreateMatchRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(matchesService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MatchResponse> update(@PathVariable UUID id,
-                                                @Valid @RequestBody UpdateMatchRequest request) {
-        return ResponseEntity.ok(matchesService.update(id, request));
+    public ResponseEntity<ApiResponse<MatchResponse>> update(@PathVariable UUID id,
+                                                             @Valid @RequestBody UpdateMatchRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         matchesService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         matchesService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

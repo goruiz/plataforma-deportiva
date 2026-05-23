@@ -4,6 +4,7 @@ import com.platform.backend.modules.events.application.iservices.IEventsService;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class EventsController {
     private final IEventsService eventsService;
 
     @GetMapping
-    public ResponseEntity<List<EventResponse>> getAll() {
-        return ResponseEntity.ok(eventsService.getAll());
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(eventsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<EventResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(eventsService.getById(id));
+    public ResponseEntity<ApiResponse<EventResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(eventsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<EventResponse> create(@Valid @RequestBody CreateEventRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventsService.create(request));
+    public ResponseEntity<ApiResponse<EventResponse>> create(@Valid @RequestBody CreateEventRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(eventsService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EventResponse> update(@PathVariable UUID id,
-                                                @Valid @RequestBody UpdateEventRequest request) {
-        return ResponseEntity.ok(eventsService.update(id, request));
+    public ResponseEntity<ApiResponse<EventResponse>> update(@PathVariable UUID id,
+                                                             @Valid @RequestBody UpdateEventRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(eventsService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         eventsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         eventsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

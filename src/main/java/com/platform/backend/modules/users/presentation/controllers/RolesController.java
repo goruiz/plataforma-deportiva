@@ -4,6 +4,7 @@ import com.platform.backend.modules.users.application.iservices.IRolesService;
 import com.platform.backend.modules.users.presentation.requests.CreateRoleRequest.CreateRoleRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateRoleRequest.UpdateRoleRequest;
 import com.platform.backend.modules.users.presentation.responses.RoleResponse.RoleResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class RolesController {
     private final IRolesService rolesService;
 
     @GetMapping
-    public ResponseEntity<List<RoleResponse>> getAll() {
-        return ResponseEntity.ok(rolesService.getAll());
+    public ResponseEntity<ApiResponse<List<RoleResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(rolesService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RoleResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(rolesService.getById(id));
+    public ResponseEntity<ApiResponse<RoleResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(rolesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<RoleResponse> create(@Valid @RequestBody CreateRoleRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(rolesService.create(request));
+    public ResponseEntity<ApiResponse<RoleResponse>> create(@Valid @RequestBody CreateRoleRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(rolesService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RoleResponse> update(@PathVariable UUID id,
-                                               @Valid @RequestBody UpdateRoleRequest request) {
-        return ResponseEntity.ok(rolesService.update(id, request));
+    public ResponseEntity<ApiResponse<RoleResponse>> update(@PathVariable UUID id,
+                                                            @Valid @RequestBody UpdateRoleRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(rolesService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         rolesService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         rolesService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

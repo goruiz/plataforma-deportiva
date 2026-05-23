@@ -4,6 +4,7 @@ import com.platform.backend.modules.players.application.iservices.IPlayersServic
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class PlayersController {
     private final IPlayersService playersService;
 
     @GetMapping
-    public ResponseEntity<List<PlayerResponse>> getAll() {
-        return ResponseEntity.ok(playersService.getAll());
+    public ResponseEntity<ApiResponse<List<PlayerResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PlayerResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(playersService.getById(id));
+    public ResponseEntity<ApiResponse<PlayerResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<PlayerResponse> create(@Valid @RequestBody CreatePlayerRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(playersService.create(request));
+    public ResponseEntity<ApiResponse<PlayerResponse>> create(@Valid @RequestBody CreatePlayerRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(playersService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PlayerResponse> update(@PathVariable UUID id,
-                                                  @Valid @RequestBody UpdatePlayerRequest request) {
-        return ResponseEntity.ok(playersService.update(id, request));
+    public ResponseEntity<ApiResponse<PlayerResponse>> update(@PathVariable UUID id,
+                                                              @Valid @RequestBody UpdatePlayerRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         playersService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         playersService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

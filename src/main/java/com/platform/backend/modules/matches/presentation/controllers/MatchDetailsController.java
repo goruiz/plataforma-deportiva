@@ -4,6 +4,7 @@ import com.platform.backend.modules.matches.application.iservices.IMatchDetailsS
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchDetailRequest.CreateMatchDetailRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchDetailRequest.UpdateMatchDetailRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchDetailResponse.MatchDetailResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class MatchDetailsController {
     private final IMatchDetailsService matchDetailsService;
 
     @GetMapping
-    public ResponseEntity<List<MatchDetailResponse>> getAll() {
-        return ResponseEntity.ok(matchDetailsService.getAll());
+    public ResponseEntity<ApiResponse<List<MatchDetailResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(matchDetailsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MatchDetailResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(matchDetailsService.getById(id));
+    public ResponseEntity<ApiResponse<MatchDetailResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(matchDetailsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<MatchDetailResponse> create(@Valid @RequestBody CreateMatchDetailRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(matchDetailsService.create(request));
+    public ResponseEntity<ApiResponse<MatchDetailResponse>> create(@Valid @RequestBody CreateMatchDetailRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(matchDetailsService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MatchDetailResponse> update(@PathVariable UUID id,
-                                                      @Valid @RequestBody UpdateMatchDetailRequest request) {
-        return ResponseEntity.ok(matchDetailsService.update(id, request));
+    public ResponseEntity<ApiResponse<MatchDetailResponse>> update(@PathVariable UUID id,
+                                                                   @Valid @RequestBody UpdateMatchDetailRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(matchDetailsService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         matchDetailsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         matchDetailsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

@@ -2,6 +2,7 @@ package com.platform.backend.modules.users.presentation.controllers;
 
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,24 +24,24 @@ public class UsersManagementController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return ResponseEntity.ok(usersManagementService.getAllUsers());
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
+        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getAllUsers()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
-        return ResponseEntity.ok(usersManagementService.getUserById(id));
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getUserById(id)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> softDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable UUID id) {
         usersManagementService.softDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         usersManagementService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

@@ -4,6 +4,7 @@ import com.platform.backend.modules.permissions.application.iservices.IPermissio
 import com.platform.backend.modules.permissions.presentation.requests.CreatePermissionRequest.CreatePermissionRequest;
 import com.platform.backend.modules.permissions.presentation.requests.UpdatePermissionRequest.UpdatePermissionRequest;
 import com.platform.backend.modules.permissions.presentation.responses.PermissionResponse.PermissionResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,35 +29,35 @@ public class PermissionsController {
     private final IPermissionsService permissionsService;
 
     @GetMapping
-    public ResponseEntity<List<PermissionResponse>> getAll() {
-        return ResponseEntity.ok(permissionsService.getAll());
+    public ResponseEntity<ApiResponse<List<PermissionResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(permissionsService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PermissionResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(permissionsService.getById(id));
+    public ResponseEntity<ApiResponse<PermissionResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(permissionsService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<PermissionResponse> create(@Valid @RequestBody CreatePermissionRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(permissionsService.create(request));
+    public ResponseEntity<ApiResponse<PermissionResponse>> create(@Valid @RequestBody CreatePermissionRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(permissionsService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PermissionResponse> update(@PathVariable UUID id,
-                                                     @Valid @RequestBody UpdatePermissionRequest request) {
-        return ResponseEntity.ok(permissionsService.update(id, request));
+    public ResponseEntity<ApiResponse<PermissionResponse>> update(@PathVariable UUID id,
+                                                                  @Valid @RequestBody UpdatePermissionRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(permissionsService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         permissionsService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         permissionsService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }

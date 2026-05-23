@@ -3,6 +3,7 @@ package com.platform.backend.modules.users.presentation.controllers;
 import com.platform.backend.modules.users.application.iservices.IUsersRolesService;
 import com.platform.backend.modules.users.presentation.requests.CreateUsersRolesRequest.CreateUsersRolesRequest;
 import com.platform.backend.modules.users.presentation.responses.UsersRolesResponse.UsersRolesResponse;
+import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,29 +27,29 @@ public class UsersRolesController {
     private final IUsersRolesService usersRolesService;
 
     @GetMapping
-    public ResponseEntity<List<UsersRolesResponse>> getAll() {
-        return ResponseEntity.ok(usersRolesService.getAll());
+    public ResponseEntity<ApiResponse<List<UsersRolesResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(usersRolesService.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UsersRolesResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(usersRolesService.getById(id));
+    public ResponseEntity<ApiResponse<UsersRolesResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(usersRolesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<UsersRolesResponse> create(@Valid @RequestBody CreateUsersRolesRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(usersRolesService.create(request));
+    public ResponseEntity<ApiResponse<UsersRolesResponse>> create(@Valid @RequestBody CreateUsersRolesRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(usersRolesService.create(request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         usersRolesService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         usersRolesService.hardDelete(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.deleted());
     }
 }
