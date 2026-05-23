@@ -5,6 +5,7 @@ import com.platform.backend.modules.matches.presentation.requests.CreateActionRe
 import com.platform.backend.modules.matches.presentation.requests.UpdateActionRequest.UpdateActionRequest;
 import com.platform.backend.modules.matches.presentation.responses.ActionResponse.ActionResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Actions", description = "Match action management")
 @RestController
 @RequestMapping("/actions")
 @RequiredArgsConstructor

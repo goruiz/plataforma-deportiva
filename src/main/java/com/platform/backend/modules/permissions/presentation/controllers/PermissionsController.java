@@ -5,6 +5,7 @@ import com.platform.backend.modules.permissions.presentation.requests.CreatePerm
 import com.platform.backend.modules.permissions.presentation.requests.UpdatePermissionRequest.UpdatePermissionRequest;
 import com.platform.backend.modules.permissions.presentation.responses.PermissionResponse.PermissionResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Permissions", description = "Permission management")
 @RestController
 @RequestMapping("/permissions")
 @RequiredArgsConstructor

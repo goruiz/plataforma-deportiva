@@ -5,6 +5,7 @@ import com.platform.backend.modules.events.presentation.requests.CreateCategoryR
 import com.platform.backend.modules.events.presentation.requests.UpdateCategoryRequest.UpdateCategoryRequest;
 import com.platform.backend.modules.events.presentation.responses.CategoryResponse.CategoryResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Categories", description = "Event category management")
 @RestController
 @RequestMapping("/categories")
 @RequiredArgsConstructor

@@ -5,6 +5,7 @@ import com.platform.backend.modules.courts.presentation.requests.CreateCourtRequ
 import com.platform.backend.modules.courts.presentation.requests.UpdateCourtRequest.UpdateCourtRequest;
 import com.platform.backend.modules.courts.presentation.responses.CourtResponse.CourtResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Courts", description = "Court management")
 @RestController
 @RequestMapping("/courts")
 @RequiredArgsConstructor

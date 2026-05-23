@@ -78,7 +78,13 @@ public class SecurityConfig {
             .addFilterBefore(loginRateLimiterFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/users/auth/login", "/users/auth/register").permitAll()
+                .requestMatchers(
+                        "/users/auth/login",
+                        "/users/auth/register",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             );
 

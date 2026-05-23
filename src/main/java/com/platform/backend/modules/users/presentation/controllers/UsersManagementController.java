@@ -3,6 +3,7 @@ package com.platform.backend.modules.users.presentation.controllers;
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Users", description = "User management")
 @RestController
 @RequestMapping("/users")
 public class UsersManagementController {

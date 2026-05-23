@@ -5,6 +5,7 @@ import com.platform.backend.modules.menu.presentation.requests.CreateRolesMenuRe
 import com.platform.backend.modules.menu.presentation.requests.UpdateRolesMenuRequest.UpdateRolesMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.RolesMenuResponse.RolesMenuResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Roles - Menu", description = "Role-menu relationship management")
 @RestController
 @RequestMapping("/roles-menu")
 @RequiredArgsConstructor

@@ -6,6 +6,7 @@ import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuResponse;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuTreeResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Menu", description = "Navigation menu management")
 @RestController
 @RequestMapping("/menu")
 @RequiredArgsConstructor

@@ -5,6 +5,7 @@ import com.platform.backend.modules.users.presentation.requests.CreateRoleReques
 import com.platform.backend.modules.users.presentation.requests.UpdateRoleRequest.UpdateRoleRequest;
 import com.platform.backend.modules.users.presentation.responses.RoleResponse.RoleResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Roles", description = "Role management")
 @RestController
 @RequestMapping("/roles")
 @RequiredArgsConstructor

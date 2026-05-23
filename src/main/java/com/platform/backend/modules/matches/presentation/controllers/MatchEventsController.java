@@ -5,6 +5,7 @@ import com.platform.backend.modules.matches.presentation.requests.CreateMatchEve
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchEventRequest.UpdateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchEventResponse.MatchEventResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Match Events", description = "Match event tracking")
 @RestController
 @RequestMapping("/match-events")
 @RequiredArgsConstructor
