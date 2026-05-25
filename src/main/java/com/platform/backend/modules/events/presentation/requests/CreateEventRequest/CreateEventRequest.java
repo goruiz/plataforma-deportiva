@@ -17,10 +17,6 @@ public class CreateEventRequest {
 
     @NotBlank
     @Size(max = 30)
-    private String type;
-
-    @NotBlank
-    @Size(max = 30)
     private String format;
 
     @NotNull

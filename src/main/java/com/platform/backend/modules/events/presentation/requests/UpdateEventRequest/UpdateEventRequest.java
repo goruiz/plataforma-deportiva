@@ -13,9 +13,6 @@ public class UpdateEventRequest {
     private String name;
 
     @Size(max = 30)
-    private String type;
-
-    @Size(max = 30)
     private String format;
 
     @Size(max = 20)

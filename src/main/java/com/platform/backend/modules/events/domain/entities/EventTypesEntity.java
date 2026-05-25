@@ -15,6 +15,9 @@ public class EventTypesEntity extends BaseEntity {
     @Column(length = 255)
     private String description;
 
+    @Column(length = 255)
+    private String translationKey;
+
     @OneToMany(mappedBy = "eventType", fetch = FetchType.LAZY)
     private List<EventsEntity> events;
 
@@ -25,6 +28,9 @@ public class EventTypesEntity extends BaseEntity {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getTranslationKey() { return translationKey; }
+    public void setTranslationKey(String translationKey) { this.translationKey = translationKey; }
 
     public List<EventsEntity> getEvents() { return events; }
     public void setEvents(List<EventsEntity> events) { this.events = events; }
