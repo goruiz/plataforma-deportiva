@@ -1,9 +1,9 @@
 package com.platform.backend.modules.events.application.mappers;
 
-import com.platform.backend.modules.events.domain.entities.EventsEntity;
-import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
-import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
-import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
+import com.platform.backend.modules.events.domain.entities.EventTypesEntity;
+import com.platform.backend.modules.events.presentation.requests.CreateEventTypeRequest.CreateEventTypeRequest;
+import com.platform.backend.modules.events.presentation.requests.UpdateEventTypeRequest.UpdateEventTypeRequest;
+import com.platform.backend.modules.events.presentation.responses.EventTypeResponse.EventTypeResponse;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -15,18 +15,17 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
         unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE,
         unmappedSourcePolicy = org.mapstruct.ReportingPolicy.IGNORE
 )
-public interface EventMapper {
+public interface EventTypeMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", constant = "DRAFT")
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "eventType", ignore = true)
-    EventsEntity toEntity(CreateEventRequest request);
+    @Mapping(target = "events", ignore = true)
+    EventTypesEntity toEntity(CreateEventTypeRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
@@ -36,8 +35,8 @@ public interface EventMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "eventType", ignore = true)
-    void updateEntity(@MappingTarget EventsEntity entity, UpdateEventRequest request);
+    @Mapping(target = "events", ignore = true)
+    void updateEntity(@MappingTarget EventTypesEntity entity, UpdateEventTypeRequest request);
 
-    EventResponse toResponse(EventsEntity entity);
+    EventTypeResponse toResponse(EventTypesEntity entity);
 }

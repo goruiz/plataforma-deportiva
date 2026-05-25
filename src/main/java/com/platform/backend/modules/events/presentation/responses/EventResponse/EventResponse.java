@@ -1,5 +1,6 @@
 package com.platform.backend.modules.events.presentation.responses.EventResponse;
 
+import com.platform.backend.modules.events.presentation.responses.EventTypeResponse.EventTypeResponse;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -16,6 +17,7 @@ public class EventResponse {
     private String status;
     private LocalDate startDate;
     private LocalDate endDate;
+    private EventTypeResponse eventType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

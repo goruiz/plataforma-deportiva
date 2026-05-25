@@ -42,6 +42,11 @@ public class EventRepository implements IEventRepository {
     }
 
     @Override
+    public List<EventsEntity> findAllActiveByEventTypeId(UUID eventTypeId) {
+        return eventsJpaRepository.findAllByEventTypeIdAndDeletedAtIsNull(eventTypeId);
+    }
+
+    @Override
     public void delete(EventsEntity event) {
         eventsJpaRepository.save(event);
     }

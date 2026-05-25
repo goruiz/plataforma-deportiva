@@ -27,6 +27,10 @@ public class EventsEntity extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_event_type", foreignKey = @ForeignKey(name = "fk_events_types_events"))
+    private EventTypesEntity eventType;
+
     public EventsEntity() {}
 
     public String getName() { return name; }
@@ -46,4 +50,7 @@ public class EventsEntity extends BaseEntity {
 
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+
+    public EventTypesEntity getEventType() { return eventType; }
+    public void setEventType(EventTypesEntity eventType) { this.eventType = eventType; }
 }

@@ -33,6 +33,9 @@ public class MenuEntity extends BaseEntity {
     @Column(name = "nav_order")
     private Short navOrder;
 
+    @Column(name = "translation_key", length = 255)
+    private String translationKey;
+
     public MenuEntity() {}
 
     public String getName() { return name; }
@@ -58,4 +61,7 @@ public class MenuEntity extends BaseEntity {
 
     public Short getNavOrder() { return navOrder; }
     public void setNavOrder(Short navOrder) { this.navOrder = navOrder; }
+
+    public String getTranslationKey() { return translationKey; }
+    public void setTranslationKey(String translationKey) { this.translationKey = translationKey; }
 }

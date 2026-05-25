@@ -2,8 +2,10 @@ package com.platform.backend.modules.events.application.services;
 
 import com.platform.backend.modules.events.application.iservices.IEventsService;
 import com.platform.backend.modules.events.application.mappers.EventMapper;
+import com.platform.backend.modules.events.domain.entities.EventTypesEntity;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventTypeRepository;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class EventsService implements IEventsService {
 
     private final IEventRepository eventRepository;
+    private final IEventTypeRepository eventTypeRepository;
     private final EventMapper eventMapper;
 
     @Override
@@ -44,6 +47,11 @@ public class EventsService implements IEventsService {
             throw new DataIntegrityViolationException("Event name already exists");
         }
         EventsEntity event = eventMapper.toEntity(request);
+        if (request.getIdEventType() != null) {
+            EventTypesEntity eventType = eventTypeRepository.findActiveById(request.getIdEventType())
+                    .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + request.getIdEventType()));
+            event.setEventType(eventType);
+        }
         return eventMapper.toResponse(eventRepository.save(event));
     }
 
@@ -52,6 +60,11 @@ public class EventsService implements IEventsService {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
         eventMapper.updateEntity(event, request);
+        if (request.getIdEventType() != null) {
+            EventTypesEntity eventType = eventTypeRepository.findActiveById(request.getIdEventType())
+                    .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + request.getIdEventType()));
+            event.setEventType(eventType);
+        }
         return eventMapper.toResponse(eventRepository.save(event));
     }
 

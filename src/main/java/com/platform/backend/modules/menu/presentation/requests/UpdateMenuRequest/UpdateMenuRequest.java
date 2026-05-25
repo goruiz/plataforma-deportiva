@@ -27,4 +27,7 @@ public class UpdateMenuRequest {
     private Boolean isActive;
 
     private Short navOrder;
+
+    @Size(max = 255)
+    private String translationKey;
 }

@@ -18,6 +18,8 @@ public interface IEventRepository {
 
     boolean existsByName(String name);
 
+    List<EventsEntity> findAllActiveByEventTypeId(UUID eventTypeId);
+
     void delete(EventsEntity event);
 
     void hardDelete(EventsEntity event);

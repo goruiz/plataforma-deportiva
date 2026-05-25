@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 public class UpdateEventRequest {
@@ -23,4 +24,6 @@ public class UpdateEventRequest {
     private LocalDate startDate;
 
     private LocalDate endDate;
+
+    private UUID idEventType;
 }
