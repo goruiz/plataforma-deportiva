@@ -1,13 +1,13 @@
 package com.platform.backend.modules.menu.domain.entities;
 
-import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import jakarta.persistence.*;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "menu")
-public class MenuEntity extends BaseEntity {
+public class MenuEntity extends BaseTranslatableEntity {
 
     @Column(length = 255)
     private String name;
@@ -32,9 +32,6 @@ public class MenuEntity extends BaseEntity {
 
     @Column(name = "nav_order")
     private Short navOrder;
-
-    @Column(name = "translation_key", length = 255)
-    private String translationKey;
 
     public MenuEntity() {}
 
@@ -61,7 +58,4 @@ public class MenuEntity extends BaseEntity {
 
     public Short getNavOrder() { return navOrder; }
     public void setNavOrder(Short navOrder) { this.navOrder = navOrder; }
-
-    public String getTranslationKey() { return translationKey; }
-    public void setTranslationKey(String translationKey) { this.translationKey = translationKey; }
 }

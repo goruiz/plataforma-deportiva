@@ -1,16 +1,19 @@
 package com.platform.backend.modules.events.domain.entities;
 
-import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "events")
-public class EventsEntity extends BaseEntity {
+public class EventsEntity extends BaseTranslatableEntity {
 
     @Column(length = 200, nullable = false)
     private String name;
+
+    @Column(length = 255)
+    private String description;
 
     @Column(length = 30, nullable = false)
     private String format;
@@ -32,6 +35,9 @@ public class EventsEntity extends BaseEntity {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public String getFormat() { return format; }
     public void setFormat(String format) { this.format = format; }

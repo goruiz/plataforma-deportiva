@@ -1,15 +1,18 @@
 package com.platform.backend.modules.permissions.domain.entities;
 
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
-import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "permissions")
-public class PermissionsEntity extends BaseEntity {
+public class PermissionsEntity extends BaseTranslatableEntity {
 
     @Column(length = 255)
     private String name;
+
+    @Column(length = 255)
+    private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_role", foreignKey = @ForeignKey(name = "fk_permissions_roles_1"))
@@ -19,6 +22,9 @@ public class PermissionsEntity extends BaseEntity {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public RolesEntity getRole() { return role; }
     public void setRole(RolesEntity role) { this.role = role; }

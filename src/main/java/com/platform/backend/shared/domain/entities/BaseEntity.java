@@ -34,12 +34,6 @@ public abstract class BaseEntity {
     @Column(name = "deleted_at")
     protected LocalDateTime deletedAt;
 
-    @Column(name = "name_translation_key", length = 255)
-    protected String translationKey;
-
-    @Column(name = "description_translation_key", length = 255)
-    protected String descriptionTranslationKey;
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -105,21 +99,5 @@ public abstract class BaseEntity {
 
     public void setDeletedAt(LocalDateTime deletedAt) {
         this.deletedAt = deletedAt;
-    }
-
-    public String getTranslationKey() {
-        return translationKey;
-    }
-
-    public void setTranslationKey(String translationKey) {
-        this.translationKey = translationKey;
-    }
-
-    public String getDescriptionTranslationKey() {
-        return descriptionTranslationKey;
-    }
-
-    public void setDescriptionTranslationKey(String descriptionTranslationKey) {
-        this.descriptionTranslationKey = descriptionTranslationKey;
     }
 }
