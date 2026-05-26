@@ -9,19 +9,19 @@ import java.time.LocalDate;
 @Table(name = "events")
 public class EventsEntity extends BaseTranslatableEntity {
 
-    @Column(length = 200, nullable = false)
+    @Column(length = 200)
     private String name;
 
     @Column(length = 255)
     private String description;
 
-    @Column(length = 30, nullable = false)
+    @Column(length = 30)
     private String format;
 
-    @Column(length = 20, nullable = false)
-    private String status = "DRAFT";
+    @Column(length = 20)
+    private String status;
 
-    @Column(name = "start_date", nullable = false)
+    @Column(name = "start_date")
     private LocalDate startDate;
 
     @Column(name = "end_date")

@@ -40,6 +40,18 @@ public class EventsController {
         return ResponseEntity.ok(ApiResponse.ok(eventsService.getById(id)));
     }
 
+    @GetMapping("/by-event-type/{eventTypeId}")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getByEventTypeId(@PathVariable UUID eventTypeId) {
+        return ResponseEntity.ok(ApiResponse.ok(eventsService.getByEventTypeId(eventTypeId)));
+    }
+
+    @GetMapping("/by-event-type/{eventTypeId}/by-user/{userId}")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getByEventTypeIdAndCreatedBy(
+            @PathVariable UUID eventTypeId,
+            @PathVariable UUID userId) {
+        return ResponseEntity.ok(ApiResponse.ok(eventsService.getByEventTypeIdAndCreatedBy(eventTypeId, userId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<EventResponse>> create(@Valid @RequestBody CreateEventRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(eventsService.create(request)));

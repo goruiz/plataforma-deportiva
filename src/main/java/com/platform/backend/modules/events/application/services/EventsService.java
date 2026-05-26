@@ -13,6 +13,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +27,7 @@ public class EventsService implements IEventsService {
     private final IEventTypeRepository eventTypeRepository;
     private final EventMapper eventMapper;
 
+    @Transactional(readOnly = true)
     @Override
     public List<EventResponse> getAll() {
         return eventRepository.findAllActive()
@@ -34,6 +36,7 @@ public class EventsService implements IEventsService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     @Override
     public EventResponse getById(UUID id) {
         EventsEntity event = eventRepository.findActiveById(id)
@@ -66,6 +69,28 @@ public class EventsService implements IEventsService {
             event.setEventType(eventType);
         }
         return eventMapper.toResponse(eventRepository.save(event));
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<EventResponse> getByEventTypeId(UUID eventTypeId) {
+        eventTypeRepository.findActiveById(eventTypeId)
+                .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + eventTypeId));
+        return eventRepository.findAllActiveByEventTypeId(eventTypeId)
+                .stream()
+                .map(eventMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<EventResponse> getByEventTypeIdAndCreatedBy(UUID eventTypeId, UUID createdBy) {
+        eventTypeRepository.findActiveById(eventTypeId)
+                .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + eventTypeId));
+        return eventRepository.findAllActiveByEventTypeIdAndCreatedBy(eventTypeId, createdBy)
+                .stream()
+                .map(eventMapper::toResponse)
+                .toList();
     }
 
     @Override

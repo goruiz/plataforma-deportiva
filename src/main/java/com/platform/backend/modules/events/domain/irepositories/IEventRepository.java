@@ -20,6 +20,8 @@ public interface IEventRepository {
 
     List<EventsEntity> findAllActiveByEventTypeId(UUID eventTypeId);
 
+    List<EventsEntity> findAllActiveByEventTypeIdAndCreatedBy(UUID eventTypeId, UUID createdBy);
+
     void delete(EventsEntity event);
 
     void hardDelete(EventsEntity event);

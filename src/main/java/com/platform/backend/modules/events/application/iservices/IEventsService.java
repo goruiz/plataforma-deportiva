@@ -17,6 +17,10 @@ public interface IEventsService {
 
     EventResponse update(UUID id, UpdateEventRequest request);
 
+    List<EventResponse> getByEventTypeId(UUID eventTypeId);
+
+    List<EventResponse> getByEventTypeIdAndCreatedBy(UUID eventTypeId, UUID createdBy);
+
     void delete(UUID id);
 
     void hardDelete(UUID id);
