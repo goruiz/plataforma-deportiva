@@ -21,7 +21,9 @@
       "PowerShell(taskkill /PID 21272 /F)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\WALDO\\\\Documents\\\\Proyectos\\\\Plataforma deportiva\\\\backend\\\\src\\\\main\\\\java\\\\com\\\\platform\\\\backend\\\\modules\\\\menu\" -Recurse -Directory)",
       "Bash(Select-Object FullName)",
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\WALDO\\\\Documents\\\\Proyectos\\\\Plataforma deportiva\\\\backend\\\\src\\\\main\\\\resources\\\\db\\\\migration\" -Recurse -ErrorAction SilentlyContinue)"
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\WALDO\\\\Documents\\\\Proyectos\\\\Plataforma deportiva\\\\backend\\\\src\\\\main\\\\resources\\\\db\\\\migration\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Sort-Object FullName)",
+      "Bash(./mvnw clean *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\admseneca\\Documents\\Proyectos\\sports-platform\\Backend\\plataforma-deportiva\\src\\main\\java\\com\\platform\\backend\\modules\\matches\\domain\\entities"

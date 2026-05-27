@@ -1,13 +1,18 @@
 package com.platform.backend.shared.domain.entities;
 
+import com.platform.backend.shared.infraestructure.audit.ApplicationContextProvider;
 import jakarta.persistence.*;
+import org.hibernate.annotations.UuidGenerator;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-import org.hibernate.annotations.UuidGenerator;
-
 @MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
     @Id
@@ -16,12 +21,14 @@ public abstract class BaseEntity {
     @Column(nullable = false, updatable = false)
     protected UUID id;
 
-    @Column(name = "created_by")
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
     protected UUID createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     protected LocalDateTime createdAt;
 
+    @LastModifiedBy
     @Column(name = "updated_by")
     protected UUID updatedBy;
 
@@ -36,13 +43,18 @@ public abstract class BaseEntity {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        this.updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        if (this.deletedAt != null && this.deletedBy == null) {
+            this.deletedAt = this.deletedAt.truncatedTo(ChronoUnit.SECONDS);
+            ApplicationContextProvider.getCurrentAuditorId().ifPresent(id -> this.deletedBy = id);
+        }
     }
 
     public UUID getId() {

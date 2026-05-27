@@ -12,6 +12,7 @@ public class EventResponse {
 
     private UUID id;
     private String name;
+    private String description;
     private String format;
     private String status;
     private LocalDate startDate;

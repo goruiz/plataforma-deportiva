@@ -46,15 +46,13 @@ public class EventsService implements IEventsService {
 
     @Override
     public EventResponse create(CreateEventRequest request) {
-        if (eventRepository.existsByName(request.getName())) {
+        if (request.getName() != null && eventRepository.existsByName(request.getName())) {
             throw new DataIntegrityViolationException("Event name already exists");
         }
+        EventTypesEntity eventType = eventTypeRepository.findActiveById(request.getIdEventType())
+                .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + request.getIdEventType()));
         EventsEntity event = eventMapper.toEntity(request);
-        if (request.getIdEventType() != null) {
-            EventTypesEntity eventType = eventTypeRepository.findActiveById(request.getIdEventType())
-                    .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + request.getIdEventType()));
-            event.setEventType(eventType);
-        }
+        event.setEventType(eventType);
         return eventMapper.toResponse(eventRepository.save(event));
     }
 

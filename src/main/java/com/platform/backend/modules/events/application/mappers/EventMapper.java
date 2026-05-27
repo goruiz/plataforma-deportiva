@@ -18,7 +18,6 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 public interface EventMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", constant = "DRAFT")
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
