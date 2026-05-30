@@ -12,4 +12,6 @@ public interface MatchesJpaRepository extends JpaRepository<MatchesEntity, UUID>
     List<MatchesEntity> findAllByDeletedAtIsNull();
 
     Optional<MatchesEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    List<MatchesEntity> findAllByEventIdAndDeletedAtIsNull(UUID eventId);
 }

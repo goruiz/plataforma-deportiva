@@ -37,6 +37,11 @@ public class TeamsEventsRepository implements ITeamsEventsRepository {
     }
 
     @Override
+    public List<TeamsEventsEntity> findAllActiveByEventId(UUID eventId) {
+        return teamsEventsJpaRepository.findAllByEvent_IdAndDeletedAtIsNull(eventId);
+    }
+
+    @Override
     public void delete(TeamsEventsEntity teamsEvents) {
         teamsEventsJpaRepository.save(teamsEvents);
     }

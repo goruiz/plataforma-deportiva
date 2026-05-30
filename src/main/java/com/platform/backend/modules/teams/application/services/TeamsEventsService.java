@@ -36,6 +36,14 @@ public class TeamsEventsService implements ITeamsEventsService {
     }
 
     @Override
+    public List<TeamsEventsResponse> getByEventId(UUID eventId) {
+        return teamsEventsRepository.findAllActiveByEventId(eventId)
+                .stream()
+                .map(teamsEventsMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     public TeamsEventsResponse getById(UUID id) {
         TeamsEventsEntity teamsEvents = teamsEventsRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Team-event assignment not found with id: " + id));

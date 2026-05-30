@@ -1,4 +1,4 @@
-package com.platform.backend.modules.courts.presentation.responses.CourtResponse;
+package com.platform.backend.modules.sportcomplexes.presentation.responses.SportComplexResponse;
 
 import lombok.Data;
 
@@ -6,14 +6,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-public class CourtResponse {
+public class SportComplexResponse {
 
     private UUID id;
     private String name;
     private String description;
     private String location;
-    private UUID sportComplexId;
-    private String sportComplexName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

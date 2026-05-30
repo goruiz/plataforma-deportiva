@@ -1,9 +1,9 @@
-package com.platform.backend.modules.courts.application.mappers;
+package com.platform.backend.modules.sportcomplexes.application.mappers;
 
-import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
-import com.platform.backend.modules.courts.presentation.requests.CreateCourtRequest.CreateCourtRequest;
-import com.platform.backend.modules.courts.presentation.requests.UpdateCourtRequest.UpdateCourtRequest;
-import com.platform.backend.modules.courts.presentation.responses.CourtResponse.CourtResponse;
+import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
+import com.platform.backend.modules.sportcomplexes.presentation.requests.CreateSportComplexRequest.CreateSportComplexRequest;
+import com.platform.backend.modules.sportcomplexes.presentation.requests.UpdateSportComplexRequest.UpdateSportComplexRequest;
+import com.platform.backend.modules.sportcomplexes.presentation.responses.SportComplexResponse.SportComplexResponse;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -15,7 +15,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
         unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE,
         unmappedSourcePolicy = org.mapstruct.ReportingPolicy.IGNORE
 )
-public interface CourtMapper {
+public interface SportComplexMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -24,8 +24,7 @@ public interface CourtMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "sportComplex", ignore = true)
-    CourtsEntity toEntity(CreateCourtRequest request);
+    SportComplexesEntity toEntity(CreateSportComplexRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
@@ -35,10 +34,7 @@ public interface CourtMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "sportComplex", ignore = true)
-    void updateEntity(@MappingTarget CourtsEntity entity, UpdateCourtRequest request);
+    void updateEntity(@MappingTarget SportComplexesEntity entity, UpdateSportComplexRequest request);
 
-    @Mapping(target = "sportComplexId", source = "sportComplex.id")
-    @Mapping(target = "sportComplexName", source = "sportComplex.name")
-    CourtResponse toResponse(CourtsEntity entity);
+    SportComplexResponse toResponse(SportComplexesEntity entity);
 }

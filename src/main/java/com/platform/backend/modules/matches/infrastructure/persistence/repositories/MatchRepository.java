@@ -37,6 +37,11 @@ public class MatchRepository implements IMatchRepository {
     }
 
     @Override
+    public List<MatchesEntity> findAllActiveByEventId(UUID eventId) {
+        return matchesJpaRepository.findAllByEventIdAndDeletedAtIsNull(eventId);
+    }
+
+    @Override
     public void delete(MatchesEntity match) {
         matchesJpaRepository.save(match);
     }

@@ -1,5 +1,6 @@
 package com.platform.backend.modules.courts.domain.entities;
 
+import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import jakarta.persistence.*;
 
@@ -16,6 +17,10 @@ public class CourtsEntity extends BaseTranslatableEntity {
     @Column(length = 255)
     private String location;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_sport_complex", foreignKey = @ForeignKey(name = "fk_courts_sport_complexes"))
+    private SportComplexesEntity sportComplex;
+
     public CourtsEntity() {}
 
     public String getName() { return name; }
@@ -26,4 +31,7 @@ public class CourtsEntity extends BaseTranslatableEntity {
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+
+    public SportComplexesEntity getSportComplex() { return sportComplex; }
+    public void setSportComplex(SportComplexesEntity sportComplex) { this.sportComplex = sportComplex; }
 }

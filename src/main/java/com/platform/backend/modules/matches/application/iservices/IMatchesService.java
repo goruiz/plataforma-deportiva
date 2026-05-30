@@ -13,6 +13,8 @@ public interface IMatchesService {
 
     MatchResponse getById(UUID id);
 
+    List<MatchResponse> getByEventId(UUID eventId);
+
     MatchResponse create(CreateMatchRequest request);
 
     MatchResponse update(UUID id, UpdateMatchRequest request);

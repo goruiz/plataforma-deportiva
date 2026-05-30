@@ -10,6 +10,7 @@ public class TeamsEventsResponse {
 
     private UUID id;
     private UUID teamId;
+    private String teamName;
     private UUID eventId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

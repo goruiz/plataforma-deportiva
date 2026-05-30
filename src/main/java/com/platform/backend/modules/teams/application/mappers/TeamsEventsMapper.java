@@ -13,6 +13,7 @@ import org.mapstruct.Mapping;
 public interface TeamsEventsMapper {
 
     @Mapping(target = "teamId", source = "team.id")
+    @Mapping(target = "teamName", source = "team.name")
     @Mapping(target = "eventId", source = "event.id")
     TeamsEventsResponse toResponse(TeamsEventsEntity entity);
 }

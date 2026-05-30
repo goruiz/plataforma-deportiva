@@ -38,6 +38,11 @@ public class TeamsEventsController {
         return ResponseEntity.ok(ApiResponse.ok(teamsEventsService.getById(id)));
     }
 
+    @GetMapping("/by-event/{eventId}")
+    public ResponseEntity<ApiResponse<List<TeamsEventsResponse>>> getByEventId(@PathVariable UUID eventId) {
+        return ResponseEntity.ok(ApiResponse.ok(teamsEventsService.getByEventId(eventId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<TeamsEventsResponse>> create(@Valid @RequestBody CreateTeamsEventsRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(teamsEventsService.create(request)));

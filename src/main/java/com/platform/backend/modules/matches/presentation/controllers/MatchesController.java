@@ -40,6 +40,11 @@ public class MatchesController {
         return ResponseEntity.ok(ApiResponse.ok(matchesService.getById(id)));
     }
 
+    @GetMapping("/by-event/{eventId}")
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> getByEventId(@PathVariable UUID eventId) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.getByEventId(eventId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<MatchResponse>> create(@Valid @RequestBody CreateMatchRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(matchesService.create(request)));

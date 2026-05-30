@@ -31,6 +31,14 @@ public class MatchesService implements IMatchesService {
     }
 
     @Override
+    public List<MatchResponse> getByEventId(UUID eventId) {
+        return matchRepository.findAllActiveByEventId(eventId)
+                .stream()
+                .map(matchMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     public MatchResponse getById(UUID id) {
         MatchesEntity match = matchRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));

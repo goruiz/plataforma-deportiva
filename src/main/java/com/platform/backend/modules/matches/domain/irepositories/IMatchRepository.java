@@ -16,6 +16,8 @@ public interface IMatchRepository {
 
     Optional<MatchesEntity> findActiveById(UUID id);
 
+    List<MatchesEntity> findAllActiveByEventId(UUID eventId);
+
     void delete(MatchesEntity match);
 
     void hardDelete(MatchesEntity match);

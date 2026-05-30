@@ -12,4 +12,6 @@ public interface TeamsEventsJpaRepository extends JpaRepository<TeamsEventsEntit
     List<TeamsEventsEntity> findAllByDeletedAtIsNull();
 
     Optional<TeamsEventsEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    List<TeamsEventsEntity> findAllByEvent_IdAndDeletedAtIsNull(UUID eventId);
 }

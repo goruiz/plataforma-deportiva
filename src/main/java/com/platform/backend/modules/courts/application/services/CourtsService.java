@@ -7,6 +7,8 @@ import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository
 import com.platform.backend.modules.courts.presentation.requests.CreateCourtRequest.CreateCourtRequest;
 import com.platform.backend.modules.courts.presentation.requests.UpdateCourtRequest.UpdateCourtRequest;
 import com.platform.backend.modules.courts.presentation.responses.CourtResponse.CourtResponse;
+import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
+import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class CourtsService implements ICourtsService {
 
     private final ICourtRepository courtRepository;
+    private final ISportComplexRepository sportComplexRepository;
     private final CourtMapper courtMapper;
 
     @Override
@@ -44,6 +47,11 @@ public class CourtsService implements ICourtsService {
             throw new DataIntegrityViolationException("Court name already exists");
         }
         CourtsEntity court = courtMapper.toEntity(request);
+        if (request.getIdSportComplex() != null) {
+            SportComplexesEntity complex = sportComplexRepository.findActiveById(request.getIdSportComplex())
+                    .orElseThrow(() -> new EntityNotFoundException("Sport complex not found with id: " + request.getIdSportComplex()));
+            court.setSportComplex(complex);
+        }
         return courtMapper.toResponse(courtRepository.save(court));
     }
 
@@ -52,6 +60,11 @@ public class CourtsService implements ICourtsService {
         CourtsEntity court = courtRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Court not found with id: " + id));
         courtMapper.updateEntity(court, request);
+        if (request.getIdSportComplex() != null) {
+            SportComplexesEntity complex = sportComplexRepository.findActiveById(request.getIdSportComplex())
+                    .orElseThrow(() -> new EntityNotFoundException("Sport complex not found with id: " + request.getIdSportComplex()));
+            court.setSportComplex(complex);
+        }
         return courtMapper.toResponse(courtRepository.save(court));
     }
 

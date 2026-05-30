@@ -12,6 +12,8 @@ public interface ITeamsEventsService {
 
     TeamsEventsResponse getById(UUID id);
 
+    List<TeamsEventsResponse> getByEventId(UUID eventId);
+
     TeamsEventsResponse create(CreateTeamsEventsRequest request);
 
     void delete(UUID id);

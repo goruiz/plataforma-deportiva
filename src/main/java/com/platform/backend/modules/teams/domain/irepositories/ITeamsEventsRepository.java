@@ -16,6 +16,8 @@ public interface ITeamsEventsRepository {
 
     Optional<TeamsEventsEntity> findActiveById(UUID id);
 
+    List<TeamsEventsEntity> findAllActiveByEventId(UUID eventId);
+
     void delete(TeamsEventsEntity teamsEvents);
 
     void hardDelete(TeamsEventsEntity teamsEvents);
