@@ -44,6 +44,7 @@ public class EventsService implements IEventsService {
         return eventMapper.toResponse(event);
     }
 
+    @Transactional
     @Override
     public EventResponse create(CreateEventRequest request) {
         if (request.getName() != null && eventRepository.existsByName(request.getName())) {
@@ -56,6 +57,7 @@ public class EventsService implements IEventsService {
         return eventMapper.toResponse(eventRepository.save(event));
     }
 
+    @Transactional
     @Override
     public EventResponse update(UUID id, UpdateEventRequest request) {
         EventsEntity event = eventRepository.findActiveById(id)
