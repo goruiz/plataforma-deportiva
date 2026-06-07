@@ -5,6 +5,7 @@ import com.platform.backend.modules.players.presentation.requests.InvitePlayerRe
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 
 import java.util.List;
@@ -29,6 +30,10 @@ public interface IPlayersService {
     void inviteRegister(InviteRegisterRequest request);
 
     List<PlayerResponse> getByTeamId(UUID teamId);
+
+    PlayerResponse removeFromTeam(UUID id);
+
+    PlayerResponse updateStatus(UUID id, UpdatePlayerStatusRequest request);
 
     void delete(UUID id);
 

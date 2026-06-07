@@ -11,6 +11,7 @@ import com.platform.backend.modules.players.presentation.requests.InvitePlayerRe
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
@@ -42,6 +43,7 @@ public class PlayersService implements IPlayersService {
     private int inviteExpirationDays;
 
     @Override
+    @Transactional(readOnly = true)
     public List<PlayerResponse> getAll() {
         return playerRepository.findAllActive()
                 .stream()
@@ -50,6 +52,7 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PlayerResponse getById(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
@@ -57,6 +60,7 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PlayerResponse searchByEmail(String email) {
         PlayersEntity player = playerRepository.findByEmail(email)
                 .filter(p -> p.getDeletedAt() == null)
@@ -157,11 +161,31 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PlayerResponse> getByTeamId(UUID teamId) {
         return playerRepository.findAllActiveByTeamId(teamId)
                 .stream()
                 .map(playerMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    public PlayerResponse removeFromTeam(UUID id) {
+        PlayersEntity player = playerRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        if (player.getTeam() == null) {
+            throw new IllegalStateException("Player does not belong to any team");
+        }
+        player.setTeam(null);
+        return playerMapper.toResponse(playerRepository.save(player));
+    }
+
+    @Override
+    public PlayerResponse updateStatus(UUID id, UpdatePlayerStatusRequest request) {
+        PlayersEntity player = playerRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        player.setStatus(request.getStatus());
+        return playerMapper.toResponse(playerRepository.save(player));
     }
 
     @Override

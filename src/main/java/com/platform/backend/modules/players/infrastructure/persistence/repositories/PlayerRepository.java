@@ -48,6 +48,6 @@ public class PlayerRepository implements IPlayerRepository {
 
     @Override
     public List<PlayersEntity> findAllActiveByTeamId(UUID teamId) {
-        return playersJpaRepository.findAllByTeam_IdAndDeletedAtIsNull(teamId);
+        return playersJpaRepository.findAllByTeamIdWithTeam(teamId);
     }
 }

@@ -6,6 +6,7 @@ import com.platform.backend.modules.players.presentation.requests.InvitePlayerRe
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -81,6 +82,17 @@ public class PlayersController {
                 .message("Registration link sent")
                 .timestamp(java.time.LocalDateTime.now())
                 .build());
+    }
+
+    @PatchMapping("/{id}/remove-from-team")
+    public ResponseEntity<ApiResponse<PlayerResponse>> removeFromTeam(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.removeFromTeam(id)));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<PlayerResponse>> updateStatus(@PathVariable UUID id,
+                                                                     @Valid @RequestBody UpdatePlayerStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.updateStatus(id, request)));
     }
 
     @PutMapping("/{id}")

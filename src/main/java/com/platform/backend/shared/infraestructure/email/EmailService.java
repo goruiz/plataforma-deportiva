@@ -27,7 +27,8 @@ public class EmailService {
     }
 
     public void sendRegistrationInvitation(String to, String teamName, String token) {
-        String registrationUrl = frontendUrl + "/register?inviteToken=" + token;
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+        String registrationUrl = base + "/register?inviteToken=" + token;
         sendHtmlEmail(to,
                 "Únete a " + teamName + " en la Plataforma Deportiva",
                 buildRegistrationInvitationHtml(teamName, registrationUrl));
