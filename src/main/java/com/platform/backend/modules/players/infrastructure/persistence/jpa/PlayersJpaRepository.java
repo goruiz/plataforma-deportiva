@@ -16,4 +16,6 @@ public interface PlayersJpaRepository extends JpaRepository<PlayersEntity, UUID>
     Optional<PlayersEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    List<PlayersEntity> findAllByTeam_IdAndDeletedAtIsNull(UUID teamId);
 }

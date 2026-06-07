@@ -1,5 +1,6 @@
 package com.platform.backend.modules.events.presentation.requests.CreateEventRequest;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -25,6 +26,12 @@ public class CreateEventRequest {
     private LocalDate startDate;
 
     private LocalDate endDate;
+
+    @Min(1)
+    private Integer minPlayersPerTeam;
+
+    @Min(1)
+    private Integer maxPlayersPerTeam;
 
     @NotNull
     private UUID idEventType;

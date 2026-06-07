@@ -45,4 +45,9 @@ public class PlayerRepository implements IPlayerRepository {
     public void hardDelete(PlayersEntity player) {
         playersJpaRepository.delete(player);
     }
+
+    @Override
+    public List<PlayersEntity> findAllActiveByTeamId(UUID teamId) {
+        return playersJpaRepository.findAllByTeam_IdAndDeletedAtIsNull(teamId);
+    }
 }

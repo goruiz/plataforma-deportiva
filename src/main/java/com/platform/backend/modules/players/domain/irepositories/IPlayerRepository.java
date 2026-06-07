@@ -19,4 +19,6 @@ public interface IPlayerRepository {
     boolean existsByEmail(String email);
 
     void hardDelete(PlayersEntity player);
+
+    List<PlayersEntity> findAllActiveByTeamId(UUID teamId);
 }

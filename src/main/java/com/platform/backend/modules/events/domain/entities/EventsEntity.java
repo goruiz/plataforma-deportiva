@@ -30,6 +30,12 @@ public class EventsEntity extends BaseTranslatableEntity {
     @Column(name = "url_logo", length = 255)
     private String urlLogo;
 
+    @Column(name = "min_players_per_team")
+    private Integer minPlayersPerTeam;
+
+    @Column(name = "max_players_per_team")
+    private Integer maxPlayersPerTeam;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_event_type", foreignKey = @ForeignKey(name = "fk_events_types_events"))
     private EventTypesEntity eventType;
@@ -83,6 +89,22 @@ public class EventsEntity extends BaseTranslatableEntity {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    public Integer getMinPlayersPerTeam() {
+        return minPlayersPerTeam;
+    }
+
+    public void setMinPlayersPerTeam(Integer minPlayersPerTeam) {
+        this.minPlayersPerTeam = minPlayersPerTeam;
+    }
+
+    public Integer getMaxPlayersPerTeam() {
+        return maxPlayersPerTeam;
+    }
+
+    public void setMaxPlayersPerTeam(Integer maxPlayersPerTeam) {
+        this.maxPlayersPerTeam = maxPlayersPerTeam;
     }
 
     public EventTypesEntity getEventType() {
