@@ -36,6 +36,12 @@ public class EventsEntity extends BaseTranslatableEntity {
     @Column(name = "max_players_per_team")
     private Integer maxPlayersPerTeam;
 
+    @Column(name = "min_teams")
+    private Integer minTeams;
+
+    @Column(name = "max_teams")
+    private Integer maxTeams;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_event_type", foreignKey = @ForeignKey(name = "fk_events_types_events"))
     private EventTypesEntity eventType;
@@ -105,6 +111,22 @@ public class EventsEntity extends BaseTranslatableEntity {
 
     public void setMaxPlayersPerTeam(Integer maxPlayersPerTeam) {
         this.maxPlayersPerTeam = maxPlayersPerTeam;
+    }
+
+    public Integer getMinTeams() {
+        return minTeams;
+    }
+
+    public void setMinTeams(Integer minTeams) {
+        this.minTeams = minTeams;
+    }
+
+    public Integer getMaxTeams() {
+        return maxTeams;
+    }
+
+    public void setMaxTeams(Integer maxTeams) {
+        this.maxTeams = maxTeams;
     }
 
     public EventTypesEntity getEventType() {
