@@ -6,6 +6,8 @@ import com.platform.backend.modules.matches.infrastructure.persistence.jpa.Match
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +41,13 @@ public class MatchRepository implements IMatchRepository {
     @Override
     public List<MatchesEntity> findAllActiveByEventId(UUID eventId) {
         return matchesJpaRepository.findAllByEventIdAndDeletedAtIsNull(eventId);
+    }
+
+    @Override
+    public List<MatchesEntity> findAllActiveByEventIdAndDate(UUID eventId, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        return matchesJpaRepository.findAllByEventIdAndMatchDateBetweenAndDeletedAtIsNull(eventId, start, end);
     }
 
     @Override

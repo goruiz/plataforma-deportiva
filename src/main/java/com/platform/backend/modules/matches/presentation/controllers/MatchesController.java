@@ -2,6 +2,7 @@ package com.platform.backend.modules.matches.presentation.controllers;
 
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
+import com.platform.backend.modules.matches.presentation.requests.RescheduleDateRequest.RescheduleDateRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -60,6 +62,13 @@ public class MatchesController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         matchesService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
+    }
+
+    @PatchMapping("/by-event/{eventId}/reschedule-date")
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> rescheduleDate(
+            @PathVariable UUID eventId,
+            @Valid @RequestBody RescheduleDateRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.rescheduleDate(eventId, request)));
     }
 
     @DeleteMapping("/{id}/hard")

@@ -2,6 +2,7 @@ package com.platform.backend.modules.matches.domain.irepositories;
 
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,8 @@ public interface IMatchRepository {
     Optional<MatchesEntity> findActiveById(UUID id);
 
     List<MatchesEntity> findAllActiveByEventId(UUID eventId);
+
+    List<MatchesEntity> findAllActiveByEventIdAndDate(UUID eventId, LocalDate date);
 
     void delete(MatchesEntity match);
 

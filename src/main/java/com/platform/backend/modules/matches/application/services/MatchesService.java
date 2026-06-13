@@ -5,13 +5,17 @@ import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
+import com.platform.backend.modules.matches.presentation.requests.RescheduleDateRequest.RescheduleDateRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,6 +61,33 @@ public class MatchesService implements IMatchesService {
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
         matchMapper.updateEntity(match, request);
         return matchMapper.toResponse(matchRepository.save(match));
+    }
+
+    @Override
+    @Transactional
+    public List<MatchResponse> rescheduleDate(UUID eventId, RescheduleDateRequest request) {
+        List<MatchesEntity> matches = matchRepository.findAllActiveByEventIdAndDate(eventId, request.getFromDate());
+
+        if (matches.isEmpty()) {
+            throw new EntityNotFoundException(
+                    "No matches found for event " + eventId + " on " + request.getFromDate());
+        }
+
+        LocalDate toDate = request.getToDate();
+        for (MatchesEntity match : matches) {
+            if (toDate != null) {
+                LocalTime time = match.getMatchDate().toLocalTime();
+                match.setMatchDate(LocalDateTime.of(toDate, time));
+                if ("POSTPONED".equals(match.getStatus())) {
+                    match.setStatus("SCHEDULED");
+                }
+            } else {
+                match.setStatus("POSTPONED");
+            }
+            matchRepository.save(match);
+        }
+
+        return matches.stream().map(matchMapper::toResponse).toList();
     }
 
     @Override
