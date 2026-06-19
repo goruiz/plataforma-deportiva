@@ -6,6 +6,7 @@ import com.platform.backend.modules.teams.infrastructure.persistence.jpa.TeamsJp
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,4 +51,10 @@ public class TeamRepository implements ITeamRepository {
     public void hardDelete(TeamsEntity team) {
         teamsJpaRepository.delete(team);
     }
+
+    @Override
+    public List<TeamsEntity> findAllActiveByIds(Collection<UUID> ids) {
+        return teamsJpaRepository.findAllActiveByIds(ids);
+    }
+    
 }
