@@ -3,6 +3,7 @@ package com.platform.backend.modules.matches.presentation.controllers;
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.RescheduleDateRequest.RescheduleDateRequest;
+import com.platform.backend.modules.matches.presentation.requests.RescheduleMatchRequest.RescheduleMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
@@ -69,6 +70,23 @@ public class MatchesController {
             @PathVariable UUID eventId,
             @Valid @RequestBody RescheduleDateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(matchesService.rescheduleDate(eventId, request)));
+    }
+
+    @PatchMapping("/{id}/postpone")
+    public ResponseEntity<ApiResponse<MatchResponse>> postpone(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.postpone(id)));
+    }
+
+    @PatchMapping("/{id}/suspend")
+    public ResponseEntity<ApiResponse<MatchResponse>> suspend(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.suspend(id)));
+    }
+
+    @PatchMapping("/{id}/reschedule")
+    public ResponseEntity<ApiResponse<MatchResponse>> reschedule(
+            @PathVariable UUID id,
+            @Valid @RequestBody RescheduleMatchRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.rescheduleMatch(id, request)));
     }
 
     @DeleteMapping("/{id}/hard")

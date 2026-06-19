@@ -2,6 +2,7 @@ package com.platform.backend.modules.matches.presentation.responses.EventSchedul
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +18,7 @@ public class EventScheduleConfigResponse {
     private int breakBetweenHalvesMinutes;
     private int breakBetweenMatchesMinutes;
     private UUID courtId;
+    private List<LocalDate> blockedDates;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

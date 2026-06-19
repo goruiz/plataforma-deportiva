@@ -13,7 +13,7 @@ public interface EventsJpaRepository extends JpaRepository<EventsEntity, UUID> {
 
     Optional<EventsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 
     List<EventsEntity> findAllByEventTypeIdAndDeletedAtIsNull(UUID eventTypeId);
 

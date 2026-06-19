@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,4 +30,7 @@ public class SaveScheduleConfigRequest {
     private int breakBetweenMatchesMinutes;
 
     private UUID courtId;
+
+    /** Specific dates to skip during match generation, e.g. ["2026-07-04", "2026-07-11"] */
+    private List<LocalDate> blockedDates;
 }

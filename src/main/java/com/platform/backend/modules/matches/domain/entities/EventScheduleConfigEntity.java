@@ -32,6 +32,10 @@ public class EventScheduleConfigEntity extends BaseEntity {
     @Column(name = "court_id")
     private UUID courtId;
 
+    /** Comma-separated ISO dates to skip during match generation, e.g. "2026-07-04,2026-07-11" */
+    @Column(name = "blocked_dates", columnDefinition = "TEXT")
+    private String blockedDates;
+
     public EventScheduleConfigEntity() {}
 
     public UUID getEventId() { return eventId; }
@@ -54,4 +58,7 @@ public class EventScheduleConfigEntity extends BaseEntity {
 
     public UUID getCourtId() { return courtId; }
     public void setCourtId(UUID courtId) { this.courtId = courtId; }
+
+    public String getBlockedDates() { return blockedDates; }
+    public void setBlockedDates(String blockedDates) { this.blockedDates = blockedDates; }
 }

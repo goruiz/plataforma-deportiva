@@ -6,6 +6,7 @@ import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.RescheduleDateRequest.RescheduleDateRequest;
+import com.platform.backend.modules.matches.presentation.requests.RescheduleMatchRequest.RescheduleMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -88,6 +90,48 @@ public class MatchesService implements IMatchesService {
         }
 
         return matches.stream().map(matchMapper::toResponse).toList();
+    }
+
+    @Override
+    public MatchResponse postpone(UUID id) {
+        MatchesEntity match = matchRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
+
+        if (Set.of("COMPLETED", "SUSPENDED").contains(match.getStatus())) {
+            throw new IllegalStateException(
+                "Cannot postpone a match with status: " + match.getStatus());
+        }
+
+        match.setStatus("POSTPONED");
+        return matchMapper.toResponse(matchRepository.save(match));
+    }
+
+    @Override
+    public MatchResponse suspend(UUID id) {
+        MatchesEntity match = matchRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
+
+        if ("COMPLETED".equals(match.getStatus())) {
+            throw new IllegalStateException("Cannot suspend a completed match.");
+        }
+
+        match.setStatus("SUSPENDED");
+        return matchMapper.toResponse(matchRepository.save(match));
+    }
+
+    @Override
+    public MatchResponse rescheduleMatch(UUID id, RescheduleMatchRequest request) {
+        MatchesEntity match = matchRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
+
+        if (!Set.of("POSTPONED", "SUSPENDED").contains(match.getStatus())) {
+            throw new IllegalStateException(
+                "Only POSTPONED or SUSPENDED matches can be rescheduled. Current status: " + match.getStatus());
+        }
+
+        match.setMatchDate(request.getNewDate());
+        match.setStatus("RESCHEDULED");
+        return matchMapper.toResponse(matchRepository.save(match));
     }
 
     @Override

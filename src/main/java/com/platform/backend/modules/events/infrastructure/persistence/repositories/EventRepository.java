@@ -38,7 +38,7 @@ public class EventRepository implements IEventRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return eventsJpaRepository.existsByName(name);
+        return eventsJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override

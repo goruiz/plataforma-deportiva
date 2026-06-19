@@ -97,6 +97,9 @@ public class EventsService implements IEventsService {
     public void delete(UUID id) {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
+        if (event.getName() != null) {
+            event.setName(event.getName() + "_DELETED_" + id);
+        }
         event.setDeletedAt(LocalDateTime.now());
         eventRepository.delete(event);
     }

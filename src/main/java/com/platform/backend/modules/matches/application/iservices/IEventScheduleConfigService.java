@@ -2,9 +2,8 @@ package com.platform.backend.modules.matches.application.iservices;
 
 import com.platform.backend.modules.matches.presentation.requests.SaveScheduleConfigRequest.SaveScheduleConfigRequest;
 import com.platform.backend.modules.matches.presentation.responses.EventScheduleConfigResponse.EventScheduleConfigResponse;
-import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.matches.presentation.responses.GenerateMatchesResponse.GenerateMatchesResponse;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface IEventScheduleConfigService {
@@ -13,5 +12,5 @@ public interface IEventScheduleConfigService {
 
     EventScheduleConfigResponse getConfig(UUID eventId);
 
-    List<MatchResponse> generateMatches(UUID eventId);
+    GenerateMatchesResponse generateMatches(UUID eventId);
 }
