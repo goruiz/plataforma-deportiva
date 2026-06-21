@@ -1,4 +1,4 @@
-package com.platform.backend.modules.teams.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.teams.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
@@ -39,7 +39,7 @@ public class TeamRepository implements ITeamRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return teamsJpaRepository.existsByName(name);
+        return teamsJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -58,3 +58,4 @@ public class TeamRepository implements ITeamRepository {
     }
     
 }
+

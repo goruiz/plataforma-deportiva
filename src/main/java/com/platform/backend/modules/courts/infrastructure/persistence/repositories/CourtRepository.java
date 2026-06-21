@@ -1,4 +1,4 @@
-package com.platform.backend.modules.courts.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.courts.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
@@ -38,7 +38,7 @@ public class CourtRepository implements ICourtRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return courtsJpaRepository.existsByName(name);
+        return courtsJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class CourtRepository implements ICourtRepository {
         courtsJpaRepository.delete(court);
     }
 }
+

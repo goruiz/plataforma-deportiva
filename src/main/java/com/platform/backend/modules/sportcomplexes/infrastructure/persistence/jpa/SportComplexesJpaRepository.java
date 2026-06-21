@@ -1,4 +1,4 @@
-package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface SportComplexesJpaRepository extends JpaRepository<SportComplexe
 
     Optional<SportComplexesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+

@@ -1,4 +1,4 @@
-package com.platform.backend.modules.menu.application.services;
+﻿package com.platform.backend.modules.menu.application.services;
 
 import com.platform.backend.modules.menu.application.iservices.IMenuService;
 import com.platform.backend.modules.menu.application.mappers.MenuMapper;
@@ -14,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -96,3 +97,4 @@ public class MenuService implements IMenuService {
         menuRepository.hardDelete(menu);
     }
 }
+

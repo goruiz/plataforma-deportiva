@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.users.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
@@ -48,7 +48,7 @@ public class UserRepository implements IUserRepository {
 
     @Override
     public boolean existsByEmail(String email) {
-        return usersJpaRepository.existsByEmail(email);
+        return usersJpaRepository.existsByEmailAndDeletedAtIsNull(email);
     }
 
     @Override
@@ -56,3 +56,4 @@ public class UserRepository implements IUserRepository {
         usersJpaRepository.delete(user);
     }
 }
+

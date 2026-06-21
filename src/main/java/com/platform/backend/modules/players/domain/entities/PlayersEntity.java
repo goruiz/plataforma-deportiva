@@ -2,13 +2,16 @@ package com.platform.backend.modules.players.domain.entities;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "players", uniqueConstraints = {
         @UniqueConstraint(name = "players_email_key", columnNames = "email")
 })
-public class PlayersEntity extends BaseEntity {
+public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_team", foreignKey = @ForeignKey(name = "fk_teams_players_1"))
@@ -60,4 +63,11 @@ public class PlayersEntity extends BaseEntity {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.email != null) {
+            this.email = this.email + "_DELETED_" + entityId;
+        }
+    }
 }

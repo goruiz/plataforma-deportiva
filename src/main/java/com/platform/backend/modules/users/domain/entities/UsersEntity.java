@@ -1,13 +1,14 @@
 package com.platform.backend.modules.users.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class UsersEntity extends BaseEntity {
+public class UsersEntity extends BaseEntity implements HasUniqueField {
 
     @Column(name = "first_name", length = 255)
     private String firstName;
@@ -58,4 +59,11 @@ public class UsersEntity extends BaseEntity {
 
     public UUID getIdRole() { return idRole; }
     public void setIdRole(UUID idRole) { this.idRole = idRole; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.email != null) {
+            this.email = this.email + "_DELETED_" + entityId;
+        }
+    }
 }

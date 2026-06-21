@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.users.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
@@ -38,7 +38,7 @@ public class RoleRepository implements IRoleRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return rolesJpaRepository.existsByName(name);
+        return rolesJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class RoleRepository implements IRoleRepository {
         rolesJpaRepository.delete(role);
     }
 }
+

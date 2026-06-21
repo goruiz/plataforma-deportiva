@@ -1,4 +1,4 @@
-package com.platform.backend.modules.matches.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.matches.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.matches.domain.entities.ActionsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface ActionsJpaRepository extends JpaRepository<ActionsEntity, UUID>
 
     Optional<ActionsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+

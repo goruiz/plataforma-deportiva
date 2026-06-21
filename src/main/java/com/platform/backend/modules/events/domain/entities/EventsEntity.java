@@ -1,13 +1,15 @@
 package com.platform.backend.modules.events.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "events")
-public class EventsEntity extends BaseTranslatableEntity {
+public class EventsEntity extends BaseTranslatableEntity implements HasUniqueField {
 
     @Column(length = 200)
     private String name;
@@ -135,5 +137,12 @@ public class EventsEntity extends BaseTranslatableEntity {
 
     public void setEventType(EventTypesEntity eventType) {
         this.eventType = eventType;
+    }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.name != null) {
+            this.name = this.name + "_DELETED_" + entityId;
+        }
     }
 }

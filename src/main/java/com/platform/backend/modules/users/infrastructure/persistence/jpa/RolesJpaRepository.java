@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.users.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface RolesJpaRepository extends JpaRepository<RolesEntity, UUID> {
 
     Optional<RolesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+

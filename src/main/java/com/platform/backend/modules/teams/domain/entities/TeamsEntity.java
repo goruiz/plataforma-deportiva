@@ -1,6 +1,7 @@
 package com.platform.backend.modules.teams.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
 import java.util.UUID;
@@ -9,7 +10,7 @@ import java.util.UUID;
 @Table(name = "teams", uniqueConstraints = {
         @UniqueConstraint(name = "teams_name_key", columnNames = "name")
 })
-public class TeamsEntity extends BaseEntity {
+public class TeamsEntity extends BaseEntity implements HasUniqueField {
 
     @Column(length = 150, nullable = false)
     private String name;
@@ -36,4 +37,11 @@ public class TeamsEntity extends BaseEntity {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.name != null) {
+            this.name = this.name + "_DELETED_" + entityId;
+        }
+    }
 }

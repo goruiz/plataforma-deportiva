@@ -1,4 +1,4 @@
-package com.platform.backend.modules.events.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.events.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface CategoriesJpaRepository extends JpaRepository<CategoriesEntity,
 
     Optional<CategoriesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+

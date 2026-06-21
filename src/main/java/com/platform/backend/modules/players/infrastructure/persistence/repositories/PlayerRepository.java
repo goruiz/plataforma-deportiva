@@ -1,4 +1,4 @@
-package com.platform.backend.modules.players.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.players.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
@@ -38,7 +38,7 @@ public class PlayerRepository implements IPlayerRepository {
 
     @Override
     public boolean existsByEmail(String email) {
-        return playersJpaRepository.existsByEmail(email);
+        return playersJpaRepository.existsByEmailAndDeletedAtIsNull(email);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class PlayerRepository implements IPlayerRepository {
         return playersJpaRepository.findAllByTeamIdWithTeam(teamId);
     }
 }
+

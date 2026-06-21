@@ -9,6 +9,7 @@ import com.platform.backend.modules.events.domain.irepositories.IEventTypeReposi
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -97,10 +98,7 @@ public class EventsService implements IEventsService {
     public void delete(UUID id) {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
-        if (event.getName() != null) {
-            event.setName(event.getName() + "_DELETED_" + id);
-        }
-        event.setDeletedAt(LocalDateTime.now());
+        SoftDeleteHelper.prepareForDeletion(event);
         eventRepository.delete(event);
     }
 

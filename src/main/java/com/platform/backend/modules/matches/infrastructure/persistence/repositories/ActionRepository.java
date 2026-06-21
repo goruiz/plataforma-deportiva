@@ -1,4 +1,4 @@
-package com.platform.backend.modules.matches.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.matches.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.matches.domain.entities.ActionsEntity;
 import com.platform.backend.modules.matches.domain.irepositories.IActionRepository;
@@ -38,7 +38,7 @@ public class ActionRepository implements IActionRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return actionsJpaRepository.existsByName(name);
+        return actionsJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class ActionRepository implements IActionRepository {
         actionsJpaRepository.delete(action);
     }
 }
+

@@ -1,4 +1,4 @@
-package com.platform.backend.modules.events.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.events.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.events.domain.entities.EventTypesEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventTypeRepository;
@@ -38,7 +38,7 @@ public class EventTypeRepository implements IEventTypeRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return eventTypesJpaRepository.existsByName(name);
+        return eventTypesJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class EventTypeRepository implements IEventTypeRepository {
         eventTypesJpaRepository.delete(eventType);
     }
 }
+

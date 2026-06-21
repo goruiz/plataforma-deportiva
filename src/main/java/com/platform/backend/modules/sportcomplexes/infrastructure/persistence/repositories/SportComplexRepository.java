@@ -1,4 +1,4 @@
-package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;
@@ -38,7 +38,7 @@ public class SportComplexRepository implements ISportComplexRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return sportComplexesJpaRepository.existsByName(name);
+        return sportComplexesJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class SportComplexRepository implements ISportComplexRepository {
         sportComplexesJpaRepository.delete(sportComplex);
     }
 }
+

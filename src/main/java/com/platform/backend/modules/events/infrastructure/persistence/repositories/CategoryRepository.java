@@ -1,4 +1,4 @@
-package com.platform.backend.modules.events.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.events.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
 import com.platform.backend.modules.events.domain.irepositories.ICategoryRepository;
@@ -38,7 +38,7 @@ public class CategoryRepository implements ICategoryRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return categoriesJpaRepository.existsByName(name);
+        return categoriesJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class CategoryRepository implements ICategoryRepository {
         categoriesJpaRepository.delete(category);
     }
 }
+

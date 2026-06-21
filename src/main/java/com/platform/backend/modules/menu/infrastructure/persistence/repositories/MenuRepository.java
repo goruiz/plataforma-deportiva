@@ -1,4 +1,4 @@
-package com.platform.backend.modules.menu.infrastructure.persistence.repositories;
+﻿package com.platform.backend.modules.menu.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.menu.domain.entities.MenuEntity;
 import com.platform.backend.modules.menu.domain.irepositories.IMenuRepository;
@@ -38,7 +38,7 @@ public class MenuRepository implements IMenuRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return menuJpaRepository.existsByName(name);
+        return menuJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
     @Override
@@ -51,3 +51,4 @@ public class MenuRepository implements IMenuRepository {
         menuJpaRepository.delete(menu);
     }
 }
+

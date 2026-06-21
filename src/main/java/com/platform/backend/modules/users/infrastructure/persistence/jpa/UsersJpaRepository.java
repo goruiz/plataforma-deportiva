@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.users.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +14,7 @@ public interface UsersJpaRepository
 
     Optional<UsersEntity> findByUsername(String username);
 
-    boolean existsByEmail(String email);
+    boolean existsByEmailAndDeletedAtIsNull(String email);
 
     List<UsersEntity> findAllByDeletedAtIsNull();
 

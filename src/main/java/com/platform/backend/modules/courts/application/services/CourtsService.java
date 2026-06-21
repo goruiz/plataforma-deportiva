@@ -1,4 +1,4 @@
-package com.platform.backend.modules.courts.application.services;
+﻿package com.platform.backend.modules.courts.application.services;
 
 import com.platform.backend.modules.courts.application.iservices.ICourtsService;
 import com.platform.backend.modules.courts.application.mappers.CourtMapper;
@@ -15,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
 import java.util.UUID;
 
@@ -83,3 +84,4 @@ public class CourtsService implements ICourtsService {
         courtRepository.hardDelete(court);
     }
 }
+

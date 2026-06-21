@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.application.services;
+﻿package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,3 +50,4 @@ public class UsersManagementService implements IUsersManagementService {
         userRepository.hardDelete(user);
     }
 }
+

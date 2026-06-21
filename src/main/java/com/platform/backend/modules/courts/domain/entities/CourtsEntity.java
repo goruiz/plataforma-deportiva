@@ -2,11 +2,14 @@ package com.platform.backend.modules.courts.domain.entities;
 
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "courts")
-public class CourtsEntity extends BaseTranslatableEntity {
+public class CourtsEntity extends BaseTranslatableEntity implements HasUniqueField {
 
     @Column(length = 150, nullable = false)
     private String name;
@@ -34,4 +37,11 @@ public class CourtsEntity extends BaseTranslatableEntity {
 
     public SportComplexesEntity getSportComplex() { return sportComplex; }
     public void setSportComplex(SportComplexesEntity sportComplex) { this.sportComplex = sportComplex; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.name != null) {
+            this.name = this.name + "_DELETED_" + entityId;
+        }
+    }
 }

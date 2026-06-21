@@ -1,4 +1,4 @@
-package com.platform.backend.modules.users.application.services;
+﻿package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.users.application.iservices.IRolesService;
 import com.platform.backend.modules.users.application.mappers.RoleMapper;
@@ -13,6 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
 import java.util.UUID;
 
@@ -70,3 +71,4 @@ public class RolesService implements IRolesService {
         roleRepository.hardDelete(role);
     }
 }
+

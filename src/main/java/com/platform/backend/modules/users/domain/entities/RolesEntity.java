@@ -1,11 +1,14 @@
 package com.platform.backend.modules.users.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "roles")
-public class RolesEntity extends BaseTranslatableEntity {
+public class RolesEntity extends BaseTranslatableEntity implements HasUniqueField {
 
     @Column(length = 255)
     private String name;
@@ -20,4 +23,11 @@ public class RolesEntity extends BaseTranslatableEntity {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.name != null) {
+            this.name = this.name + "_DELETED_" + entityId;
+        }
+    }
 }

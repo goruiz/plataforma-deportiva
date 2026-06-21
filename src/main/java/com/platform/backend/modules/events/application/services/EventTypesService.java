@@ -1,4 +1,4 @@
-package com.platform.backend.modules.events.application.services;
+﻿package com.platform.backend.modules.events.application.services;
 
 import com.platform.backend.modules.events.application.iservices.IEventTypesService;
 import com.platform.backend.modules.events.application.mappers.EventMapper;
@@ -16,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
 import java.util.UUID;
 
@@ -85,3 +86,4 @@ public class EventTypesService implements IEventTypesService {
         eventTypeRepository.hardDelete(eventType);
     }
 }
+

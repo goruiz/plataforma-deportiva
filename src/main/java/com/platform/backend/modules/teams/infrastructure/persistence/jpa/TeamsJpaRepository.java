@@ -1,4 +1,4 @@
-package com.platform.backend.modules.teams.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.teams.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,7 +16,7 @@ public interface TeamsJpaRepository extends JpaRepository<TeamsEntity, UUID> {
 
     Optional<TeamsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 
     @Query("SELECT t FROM TeamsEntity t WHERE t.id IN :ids AND t.deletedAt IS NULL")
     List<TeamsEntity> findAllActiveByIds(@Param("ids") Collection<UUID> ids);
@@ -24,3 +24,4 @@ public interface TeamsJpaRepository extends JpaRepository<TeamsEntity, UUID> {
 
 
 }
+

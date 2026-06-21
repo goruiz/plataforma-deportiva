@@ -1,4 +1,4 @@
-package com.platform.backend.modules.menu.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.menu.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.menu.domain.entities.MenuEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface MenuJpaRepository extends JpaRepository<MenuEntity, UUID> {
 
     Optional<MenuEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+

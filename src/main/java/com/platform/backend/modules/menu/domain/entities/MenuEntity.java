@@ -1,13 +1,14 @@
 package com.platform.backend.modules.menu.domain.entities;
 
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
+import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "menu")
-public class MenuEntity extends BaseTranslatableEntity {
+public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField {
 
     @Column(length = 255)
     private String name;
@@ -58,4 +59,11 @@ public class MenuEntity extends BaseTranslatableEntity {
 
     public Short getNavOrder() { return navOrder; }
     public void setNavOrder(Short navOrder) { this.navOrder = navOrder; }
+
+    @Override
+    public void releaseUniqueFields(UUID entityId) {
+        if (this.name != null) {
+            this.name = this.name + "_DELETED_" + entityId;
+        }
+    }
 }

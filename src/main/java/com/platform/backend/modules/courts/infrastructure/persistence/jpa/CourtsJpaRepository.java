@@ -1,4 +1,4 @@
-package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
+﻿package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +13,6 @@ public interface CourtsJpaRepository extends JpaRepository<CourtsEntity, UUID> {
 
     Optional<CourtsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 }
+
