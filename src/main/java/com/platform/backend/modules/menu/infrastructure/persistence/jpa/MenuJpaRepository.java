@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.menu.infrastructure.persistence.jpa;
+package com.platform.backend.modules.menu.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.menu.domain.entities.MenuEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

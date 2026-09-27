@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.repositories;
+package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;

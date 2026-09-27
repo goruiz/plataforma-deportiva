@@ -45,4 +45,9 @@ public class UsersRolesRepository implements IUsersRolesRepository {
     public void hardDelete(UsersRolesEntity usersRoles) {
         usersRolesJpaRepository.delete(usersRoles);
     }
+
+    @Override
+    public boolean existsActiveByUserAndRole(UUID userId, UUID roleId) {
+        return usersRolesJpaRepository.existsByUser_IdAndRole_IdAndDeletedAtIsNull(userId, roleId);
+    }
 }

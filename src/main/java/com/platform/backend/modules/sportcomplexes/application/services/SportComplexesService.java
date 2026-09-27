@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.sportcomplexes.application.services;
+package com.platform.backend.modules.sportcomplexes.application.services;
 
 import com.platform.backend.modules.sportcomplexes.application.iservices.ISportComplexesService;
 import com.platform.backend.modules.sportcomplexes.application.mappers.SportComplexMapper;

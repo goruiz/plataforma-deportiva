@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.menu.infrastructure.persistence.repositories;
+package com.platform.backend.modules.menu.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.menu.domain.entities.MenuEntity;
 import com.platform.backend.modules.menu.domain.irepositories.IMenuRepository;

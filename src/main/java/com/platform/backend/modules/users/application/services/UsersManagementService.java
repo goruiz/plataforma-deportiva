@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.users.application.services;
+package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;

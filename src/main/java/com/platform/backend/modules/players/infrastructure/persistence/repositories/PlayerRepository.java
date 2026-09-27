@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.players.infrastructure.persistence.repositories;
+package com.platform.backend.modules.players.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;

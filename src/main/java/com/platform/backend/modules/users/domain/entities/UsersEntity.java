@@ -31,9 +31,6 @@ public class UsersEntity extends BaseEntity implements HasUniqueField {
     @Column(length = 255)
     private String password;
 
-    @Column(name = "id_role")
-    private UUID idRole;
-
     public UsersEntity() {}
 
     public String getFirstName() { return firstName; }
@@ -56,9 +53,6 @@ public class UsersEntity extends BaseEntity implements HasUniqueField {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
-
-    public UUID getIdRole() { return idRole; }
-    public void setIdRole(UUID idRole) { this.idRole = idRole; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

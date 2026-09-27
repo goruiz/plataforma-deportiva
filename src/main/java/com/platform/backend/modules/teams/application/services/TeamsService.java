@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.teams.application.services;
+package com.platform.backend.modules.teams.application.services;
 
 import com.platform.backend.modules.teams.application.iservices.ITeamsService;
 import com.platform.backend.modules.teams.application.mappers.TeamMapper;

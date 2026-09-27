@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.teams.infrastructure.persistence.jpa;
+package com.platform.backend.modules.teams.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

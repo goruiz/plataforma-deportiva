@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.users.infrastructure.persistence.jpa;
+package com.platform.backend.modules.users.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

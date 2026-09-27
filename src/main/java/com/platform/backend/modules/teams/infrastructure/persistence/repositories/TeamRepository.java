@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.teams.infrastructure.persistence.repositories;
+package com.platform.backend.modules.teams.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;

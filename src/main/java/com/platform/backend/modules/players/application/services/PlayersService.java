@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.players.application.services;
+package com.platform.backend.modules.players.application.services;
 
 import com.platform.backend.modules.players.application.iservices.IPlayersService;
 import com.platform.backend.modules.players.application.mappers.PlayerMapper;

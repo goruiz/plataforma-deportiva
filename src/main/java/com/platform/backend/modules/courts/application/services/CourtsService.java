@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.courts.application.services;
+package com.platform.backend.modules.courts.application.services;
 
 import com.platform.backend.modules.courts.application.iservices.ICourtsService;
 import com.platform.backend.modules.courts.application.mappers.CourtMapper;

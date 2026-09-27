@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
+package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

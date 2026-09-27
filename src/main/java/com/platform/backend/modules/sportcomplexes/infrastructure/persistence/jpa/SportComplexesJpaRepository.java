@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.jpa;
+package com.platform.backend.modules.sportcomplexes.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -12,4 +12,6 @@ public interface UsersRolesJpaRepository extends JpaRepository<UsersRolesEntity,
     List<UsersRolesEntity> findAllByDeletedAtIsNull();
 
     Optional<UsersRolesEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByUser_IdAndRole_IdAndDeletedAtIsNull(UUID userId, UUID roleId);
 }

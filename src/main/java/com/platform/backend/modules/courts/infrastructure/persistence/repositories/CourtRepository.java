@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.courts.infrastructure.persistence.repositories;
+package com.platform.backend.modules.courts.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;

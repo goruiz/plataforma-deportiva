@@ -1,4 +1,4 @@
-﻿package com.platform.backend.modules.players.infrastructure.persistence.jpa;
+package com.platform.backend.modules.players.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -19,4 +19,6 @@ public interface IUsersRolesRepository {
     void delete(UsersRolesEntity usersRoles);
 
     void hardDelete(UsersRolesEntity usersRoles);
+
+    boolean existsActiveByUserAndRole(UUID userId, UUID roleId);
 }

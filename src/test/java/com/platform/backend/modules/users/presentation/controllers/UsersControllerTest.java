@@ -91,7 +91,7 @@ class UsersControllerTest {
 
     @Test
     void login_whenValidCredentials_thenReturn200WithToken() throws Exception {
-        when(usersAuthService.login(any())).thenReturn(new AuthResponse("jwt-login-token"));
+        when(usersAuthService.login(any())).thenReturn(new AuthResponse("jwt-login-token", false));
 
         mockMvc.perform(post("/users/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
