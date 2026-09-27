@@ -3,7 +3,10 @@ package com.platform.backend.modules.menu.application.services;
 import com.platform.backend.modules.menu.application.iservices.IMenuService;
 import com.platform.backend.modules.menu.application.mappers.MenuMapper;
 import com.platform.backend.modules.menu.domain.entities.MenuEntity;
+import com.platform.backend.modules.menu.domain.entities.RolesMenuEntity;
 import com.platform.backend.modules.menu.domain.irepositories.IMenuRepository;
+import com.platform.backend.modules.menu.domain.irepositories.IRolesMenuRepository;
+import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.menu.presentation.requests.CreateMenuRequest.CreateMenuRequest;
 import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest.UpdateMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuResponse;
@@ -19,28 +22,65 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MenuService implements IMenuService {
 
     private final IMenuRepository menuRepository;
+    private final IRolesMenuRepository rolesMenuRepository;
+    private final IUsersRolesRepository usersRolesRepository;
     private final MenuMapper menuMapper;
 
     @Override
     public List<MenuTreeResponse> getAll() {
-        List<MenuEntity> all = menuRepository.findAllActive();
+        return buildTree(menuRepository.findAllActive());
+    }
 
+    /**
+     * The menu the caller sees is the union, across every active role they hold,
+     * of the menu items that role was granted as visible in roles_menu — never
+     * the full tree. A user with no visible grants sees an empty menu.
+     */
+    @Override
+    public List<MenuTreeResponse> getForUser(UUID userId) {
+        List<UUID> roleIds = usersRolesRepository.findActiveRoleIdsByUserId(userId);
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<UUID> visibleMenuIds = rolesMenuRepository.findActiveVisibleByRoleIds(roleIds).stream()
+                .map(RolesMenuEntity::getMenu)
+                .map(MenuEntity::getId)
+                .collect(Collectors.toSet());
+        if (visibleMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<MenuEntity> visibleMenus = menuRepository.findAllActive().stream()
+                .filter(menu -> visibleMenuIds.contains(menu.getId()))
+                .toList();
+
+        return buildTree(visibleMenus);
+    }
+
+    /**
+     * Shared by getAll() and getForUser(): both need the same flat-list-to-tree
+     * assembly, only the input list differs (everything vs. what the role grants allow).
+     */
+    private List<MenuTreeResponse> buildTree(List<MenuEntity> entities) {
         Map<String, MenuTreeResponse> map = new LinkedHashMap<>();
-        for (MenuEntity entity : all) {
+        for (MenuEntity entity : entities) {
             MenuTreeResponse node = menuMapper.toTreeResponse(entity);
             node.setSubmenus(new ArrayList<>());
             map.put(entity.getId().toString(), node);
         }
 
         List<MenuTreeResponse> roots = new ArrayList<>();
-        for (MenuEntity entity : all) {
+        for (MenuEntity entity : entities) {
             MenuTreeResponse node = map.get(entity.getId().toString());
             UUID parentId = entity.getIdParentMenu();
             if (parentId == null) {

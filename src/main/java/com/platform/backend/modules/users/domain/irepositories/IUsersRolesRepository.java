@@ -21,4 +21,6 @@ public interface IUsersRolesRepository {
     void hardDelete(UsersRolesEntity usersRoles);
 
     boolean existsActiveByUserAndRole(UUID userId, UUID roleId);
+
+    List<UUID> findActiveRoleIdsByUserId(UUID userId);
 }

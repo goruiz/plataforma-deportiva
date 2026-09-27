@@ -5,12 +5,14 @@ import com.platform.backend.modules.menu.presentation.requests.CreateMenuRequest
 import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest.UpdateMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuResponse;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuTreeResponse;
+import com.platform.backend.modules.users.infrastructure.configuration.security.AuthenticatedUser;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +36,12 @@ public class MenuController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<MenuTreeResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok(menuService.getAll()));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<MenuTreeResponse>>> getForCurrentUser(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return ResponseEntity.ok(ApiResponse.ok(menuService.getForUser(principal.getId())));
     }
 
     @GetMapping("/{id}")

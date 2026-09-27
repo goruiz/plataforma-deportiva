@@ -18,6 +18,7 @@ public class MenuResponse {
     private Boolean isActive;
     private Short navOrder;
     private String translationKey;
+    private String descriptionTranslationKey;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

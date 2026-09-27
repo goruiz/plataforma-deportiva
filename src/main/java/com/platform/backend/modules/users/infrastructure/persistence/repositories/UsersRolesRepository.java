@@ -50,4 +50,9 @@ public class UsersRolesRepository implements IUsersRolesRepository {
     public boolean existsActiveByUserAndRole(UUID userId, UUID roleId) {
         return usersRolesJpaRepository.existsByUser_IdAndRole_IdAndDeletedAtIsNull(userId, roleId);
     }
+
+    @Override
+    public List<UUID> findActiveRoleIdsByUserId(UUID userId) {
+        return usersRolesJpaRepository.findActiveRoleIdsByUserId(userId);
+    }
 }

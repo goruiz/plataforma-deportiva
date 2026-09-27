@@ -19,6 +19,7 @@ public class MenuTreeResponse {
     private Boolean isActive;
     private Short navOrder;
     private String translationKey;
+    private String descriptionTranslationKey;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<MenuTreeResponse> submenus;

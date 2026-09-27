@@ -13,6 +13,8 @@ public interface MenuJpaRepository extends JpaRepository<MenuEntity, UUID> {
 
     Optional<MenuEntity> findByIdAndDeletedAtIsNull(UUID id);
 
+    Optional<MenuEntity> findByNameAndDeletedAtIsNull(String name);
+
     boolean existsByNameAndDeletedAtIsNull(String name);
 }
 

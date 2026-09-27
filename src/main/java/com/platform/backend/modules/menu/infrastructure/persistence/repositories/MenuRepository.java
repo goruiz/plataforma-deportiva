@@ -37,6 +37,11 @@ public class MenuRepository implements IMenuRepository {
     }
 
     @Override
+    public Optional<MenuEntity> findActiveByName(String name) {
+        return menuJpaRepository.findByNameAndDeletedAtIsNull(name);
+    }
+
+    @Override
     public boolean existsByName(String name) {
         return menuJpaRepository.existsByNameAndDeletedAtIsNull(name);
     }

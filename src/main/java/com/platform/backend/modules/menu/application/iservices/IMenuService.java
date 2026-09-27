@@ -12,6 +12,8 @@ public interface IMenuService {
 
     List<MenuTreeResponse> getAll();
 
+    List<MenuTreeResponse> getForUser(UUID userId);
+
     MenuResponse getById(UUID id);
 
     MenuResponse create(CreateMenuRequest request);
