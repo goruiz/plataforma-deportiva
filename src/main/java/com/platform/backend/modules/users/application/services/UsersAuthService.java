@@ -5,6 +5,7 @@ import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
@@ -15,6 +16,7 @@ import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -64,14 +66,28 @@ public class UsersAuthService implements IUsersAuthService {
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         boolean isAdmin = isAdmin(user);
+        enforceClientTypeAccess(loginRequest.getClientType(), isAdmin);
 
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("email", user.getEmail());
+        claims.put("id", user.getId().toString());
+        claims.put("firstName", user.getFirstName());
+        claims.put("middleName", user.getMiddleName());
+        claims.put("lastName", user.getLastName());
+        claims.put("secondLastName", user.getSecondLastName());
         claims.put("admin", isAdmin);
+        claims.put("clientType", loginRequest.getClientType().name());
 
         String token = jwtService.generateToken(claims, user.getEmail());
-        return new AuthResponse(token, isAdmin);
+        return new AuthResponse(
+                token,
+                isAdmin,
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getMiddleName(),
+                user.getLastName(),
+                user.getSecondLastName()
+        );
     }
 
     /**
@@ -84,6 +100,21 @@ public class UsersAuthService implements IUsersAuthService {
             return false;
         }
         return usersRolesRepository.existsActiveByUserAndRole(user.getId(), UUID.fromString(adminRoleId));
+    }
+
+    /**
+     * The admin panel and the end-user mobile app share this same login endpoint,
+     * so the declared clientType is what keeps each population in its own app:
+     * only admins may enter through the admin panel, and admins never authenticate
+     * through the mobile app.
+     */
+    private void enforceClientTypeAccess(ClientType clientType, boolean isAdmin) {
+        if (clientType == ClientType.ADMIN_PANEL && !isAdmin) {
+            throw new AccessDeniedException("This account does not have administrator access.");
+        }
+        if (clientType == ClientType.MOBILE_APP && isAdmin) {
+            throw new AccessDeniedException("Administrator accounts cannot sign in through the mobile app.");
+        }
     }
 
     @Override

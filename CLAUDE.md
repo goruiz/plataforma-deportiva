@@ -9,6 +9,12 @@
   - **Excepción:** el nombre del **archivo** debe ser claro pero **no demasiado largo** — nombres de archivo muy largos rompen la subida de cambios (límite de longitud de ruta en Windows). Si un nombre de archivo se vuelve muy largo, acortarlo sin perder claridad.
 - **Siempre respetar el orden, flujo, arquitectura y estructura de carpetas ya implementados en el proyecto.** No introducir un patrón distinto (otra forma de organizar capas, otra convención de nombres, otro estilo de respuesta HTTP) sin que se pida explícitamente. Antes de crear algo nuevo, mirar cómo está hecho en un módulo ya maduro (ej. `modules/teams`) y replicar exactamente ese patrón.
 
+## Proyectos relacionados (monorepo lógico "Plataforma deportiva")
+
+- Backend (este proyecto, Spring Boot): `C:\Users\WALDO\Documents\Proyectos\Plataforma deportiva\backend`
+- Frontend admin (Angular): `C:\Users\WALDO\Documents\Proyectos\Plataforma deportiva\frontend\administration-angular`
+- Frontend usuario (Flutter): `C:\Users\WALDO\Documents\Proyectos\Plataforma deportiva\frontend\usuario-flutter`
+
 ## Stack del proyecto
 
 - **Java 25**, **Spring Boot 4.0.6**, Maven (`mvnw`).
