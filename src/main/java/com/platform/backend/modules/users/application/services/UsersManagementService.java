@@ -13,10 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
+import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.security.password.TemporaryPasswordGenerator;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +30,8 @@ public class UsersManagementService implements IUsersManagementService {
     private final IUserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private final EmailService emailService;
 
     @Value("${app.security.admin-role-id:}")
     private String adminRoleId;
@@ -68,7 +73,13 @@ public class UsersManagementService implements IUsersManagementService {
         return userMapper.toUserResponse(user);
     }
 
+    /**
+     * The admin never chooses the password: a temporary one is generated and emailed to the new user.
+     * Transactional on purpose — if the email can't be sent the user is rolled back, so no account
+     * is left behind whose password nobody knows.
+     */
     @Override
+    @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DataIntegrityViolationException("Email already in use");
@@ -77,9 +88,14 @@ public class UsersManagementService implements IUsersManagementService {
             throw new DataIntegrityViolationException("Username already in use");
         }
 
+        String temporaryPassword = temporaryPasswordGenerator.generate();
         UsersEntity user = userMapper.toEntity(request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        return userMapper.toUserResponse(userRepository.save(user));
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
+        UsersEntity savedUser = userRepository.save(user);
+
+        emailService.sendUserCreatedWithTemporaryPassword(
+                savedUser.getEmail(), savedUser.getFirstName(), temporaryPassword);
+        return userMapper.toUserResponse(savedUser);
     }
 
     @Override

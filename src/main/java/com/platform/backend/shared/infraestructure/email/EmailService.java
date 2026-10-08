@@ -4,9 +4,11 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,12 @@ public class EmailService {
                 buildRegistrationInvitationHtml(teamName, registrationUrl));
     }
 
+    public void sendUserCreatedWithTemporaryPassword(String to, String firstName, String temporaryPassword) {
+        sendHtmlEmail(to,
+                "Tu cuenta en la Plataforma Deportiva",
+                buildUserCreatedHtml(firstName, to, temporaryPassword));
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -43,7 +51,7 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             throw new RuntimeException("Error al enviar el correo a " + to, e);
         }
     }
@@ -82,5 +90,28 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(teamName, registrationUrl, registrationUrl);
+    }
+
+    private String buildUserCreatedHtml(String firstName, String loginEmail, String temporaryPassword) {
+        return """
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                  <h2>¡Hola, %s!</h2>
+                  <p>Se ha creado tu cuenta en la <strong>Plataforma Deportiva</strong>.</p>
+                  <p>Para iniciar sesión usa estos datos:</p>
+                  <p>
+                    Correo: <strong>%s</strong><br/>
+                    Contraseña temporal:
+                    <strong style="font-family: monospace; font-size: 16px;">%s</strong>
+                  </p>
+                  <p>Esta contraseña fue generada automáticamente. No la compartas con nadie.</p>
+                  <br/>
+                  <p>Plataforma Deportiva</p>
+                </body>
+                </html>
+                """.formatted(
+                HtmlUtils.htmlEscape(firstName),
+                HtmlUtils.htmlEscape(loginEmail),
+                HtmlUtils.htmlEscape(temporaryPassword));
     }
 }
