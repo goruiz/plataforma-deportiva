@@ -12,6 +12,10 @@ public interface IUserRepository {
 
     List<UsersEntity> findAllActive();
 
+    List<UsersEntity> findAllActiveWithRole(UUID roleId);
+
+    List<UsersEntity> findAllActiveWithoutRole(UUID roleId);
+
     Optional<UsersEntity> findById(UUID id);
 
     Optional<UsersEntity> findByEmail(String email);

@@ -3,6 +3,8 @@ package com.platform.backend.modules.users.application.services;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
+import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
@@ -20,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.*;
 class UsersServiceTest {
 
     @Mock private IUserRepository userRepository;
+    @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private UserMapper userMapper;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
@@ -52,8 +56,12 @@ class UsersServiceTest {
         loginRequest = new LoginRequest();
         loginRequest.setEmail("juan@email.com");
         loginRequest.setPassword("password123");
+        // No admin role is configured in this test, so the user is never an admin
+        // and the mobile client type is the one allowed through.
+        loginRequest.setClientType(ClientType.MOBILE_APP);
 
         usersEntity = new UsersEntity();
+        usersEntity.setId(UUID.randomUUID());
         usersEntity.setEmail("juan@email.com");
         usersEntity.setUsername("jperez");
         usersEntity.setPassword("hashed_password");
@@ -81,7 +89,7 @@ class UsersServiceTest {
         when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
         when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
         when(userRepository.save(any())).thenReturn(usersEntity);
-        when(jwtService.generateToken(any(), anyString())).thenReturn("token");
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
 
         usersAuthService.register(registerRequest);
 
@@ -95,7 +103,7 @@ class UsersServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
         when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
-        when(jwtService.generateToken(usersEntity, "juan@email.com")).thenReturn("jwt-login-token");
+        when(jwtService.generateToken(anyMap(), eq("juan@email.com"))).thenReturn("jwt-login-token");
 
         AuthResponse response = usersAuthService.login(loginRequest);
 

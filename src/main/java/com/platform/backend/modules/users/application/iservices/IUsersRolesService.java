@@ -10,6 +10,8 @@ public interface IUsersRolesService {
 
     List<UsersRolesResponse> getAll();
 
+    List<UsersRolesResponse> getByUserId(UUID userId);
+
     UsersRolesResponse getById(UUID id);
 
     UsersRolesResponse create(CreateUsersRolesRequest request);

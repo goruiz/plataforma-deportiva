@@ -4,10 +4,16 @@ import com.platform.backend.modules.users.application.iservices.IUsersManagement
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
+import com.platform.backend.modules.users.presentation.requests.CreateUserRequest.CreateUserRequest;
+import com.platform.backend.modules.users.presentation.requests.UpdateUserRequest.UpdateUserRequest;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
@@ -20,12 +26,39 @@ public class UsersManagementService implements IUsersManagementService {
 
     private final IUserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.security.admin-role-id:}")
+    private String adminRoleId;
 
     @Override
     public List<UserResponse> getAllUsers() {
-        return userRepository.findAllActive().stream()
-                .map(userMapper::toUserResponse)
-                .toList();
+        return toUserResponses(userRepository.findAllActive());
+    }
+
+    /**
+     * Same admin rule as login: an active users_roles row pointing at the id in
+     * app.security.admin-role-id — never the role's name. With no admin role
+     * configured nobody is an admin (mirrors UsersAuthService#isAdmin).
+     */
+    @Override
+    public List<UserResponse> getAdminUsers() {
+        if (!isAdminRoleConfigured()) {
+            return List.of();
+        }
+        return toUserResponses(userRepository.findAllActiveWithRole(UUID.fromString(adminRoleId)));
+    }
+
+    /**
+     * Everyone who is not an admin — including users with no role at all,
+     * which is the normal state of an account created from the mobile app.
+     */
+    @Override
+    public List<UserResponse> getRegularUsers() {
+        if (!isAdminRoleConfigured()) {
+            return getAllUsers();
+        }
+        return toUserResponses(userRepository.findAllActiveWithoutRole(UUID.fromString(adminRoleId)));
     }
 
     @Override
@@ -33,6 +66,38 @@ public class UsersManagementService implements IUsersManagementService {
         UsersEntity user = userRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         return userMapper.toUserResponse(user);
+    }
+
+    @Override
+    public UserResponse createUser(CreateUserRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new DataIntegrityViolationException("Email already in use");
+        }
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new DataIntegrityViolationException("Username already in use");
+        }
+
+        UsersEntity user = userMapper.toEntity(request);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        return userMapper.toUserResponse(userRepository.save(user));
+    }
+
+    @Override
+    public UserResponse updateUser(UUID id, UpdateUserRequest request) {
+        UsersEntity user = userRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
+
+        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new DataIntegrityViolationException("Email already in use");
+        }
+        if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())
+                && userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new DataIntegrityViolationException("Username already in use");
+        }
+
+        userMapper.updateEntity(user, request);
+        return userMapper.toUserResponse(userRepository.save(user));
     }
 
     @Override
@@ -48,6 +113,16 @@ public class UsersManagementService implements IUsersManagementService {
         UsersEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         userRepository.hardDelete(user);
+    }
+
+    private boolean isAdminRoleConfigured() {
+        return StringUtils.hasText(adminRoleId);
+    }
+
+    private List<UserResponse> toUserResponses(List<UsersEntity> users) {
+        return users.stream()
+                .map(userMapper::toUserResponse)
+                .toList();
     }
 }
 

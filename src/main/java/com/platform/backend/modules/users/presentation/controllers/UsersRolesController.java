@@ -38,6 +38,11 @@ public class UsersRolesController {
         return ResponseEntity.ok(ApiResponse.ok(usersRolesService.getById(id)));
     }
 
+    @GetMapping("/by-user/{userId}")
+    public ResponseEntity<ApiResponse<List<UsersRolesResponse>>> getByUserId(@PathVariable UUID userId) {
+        return ResponseEntity.ok(ApiResponse.ok(usersRolesService.getByUserId(userId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<UsersRolesResponse>> create(@Valid @RequestBody CreateUsersRolesRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(usersRolesService.create(request)));

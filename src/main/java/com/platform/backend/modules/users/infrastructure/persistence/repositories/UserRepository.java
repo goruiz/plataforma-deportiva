@@ -27,6 +27,16 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
+    public List<UsersEntity> findAllActiveWithRole(UUID roleId) {
+        return usersJpaRepository.findAllActiveWithActiveRole(roleId);
+    }
+
+    @Override
+    public List<UsersEntity> findAllActiveWithoutRole(UUID roleId) {
+        return usersJpaRepository.findAllActiveWithoutActiveRole(roleId);
+    }
+
+    @Override
     public Optional<UsersEntity> findById(UUID id) {
         return usersJpaRepository.findById(id);
     }

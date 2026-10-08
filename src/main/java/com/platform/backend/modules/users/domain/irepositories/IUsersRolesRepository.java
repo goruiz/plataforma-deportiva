@@ -23,4 +23,6 @@ public interface IUsersRolesRepository {
     boolean existsActiveByUserAndRole(UUID userId, UUID roleId);
 
     List<UUID> findActiveRoleIdsByUserId(UUID userId);
+
+    List<UsersRolesEntity> findActiveByUserId(UUID userId);
 }

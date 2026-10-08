@@ -55,4 +55,9 @@ public class UsersRolesRepository implements IUsersRolesRepository {
     public List<UUID> findActiveRoleIdsByUserId(UUID userId) {
         return usersRolesJpaRepository.findActiveRoleIdsByUserId(userId);
     }
+
+    @Override
+    public List<UsersRolesEntity> findActiveByUserId(UUID userId) {
+        return usersRolesJpaRepository.findAllByUser_IdAndDeletedAtIsNull(userId);
+    }
 }

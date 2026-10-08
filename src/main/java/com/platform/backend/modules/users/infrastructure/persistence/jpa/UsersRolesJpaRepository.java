@@ -19,4 +19,6 @@ public interface UsersRolesJpaRepository extends JpaRepository<UsersRolesEntity,
 
     @Query("select ur.role.id from UsersRolesEntity ur where ur.user.id = :userId and ur.deletedAt is null")
     List<UUID> findActiveRoleIdsByUserId(@Param("userId") UUID userId);
+
+    List<UsersRolesEntity> findAllByUser_IdAndDeletedAtIsNull(UUID userId);
 }

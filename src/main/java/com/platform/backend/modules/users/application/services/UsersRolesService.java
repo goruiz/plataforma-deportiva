@@ -36,6 +36,14 @@ public class UsersRolesService implements IUsersRolesService {
     }
 
     @Override
+    public List<UsersRolesResponse> getByUserId(UUID userId) {
+        return usersRolesRepository.findActiveByUserId(userId)
+                .stream()
+                .map(usersRolesMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     public UsersRolesResponse getById(UUID id) {
         UsersRolesEntity usersRoles = usersRolesRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User-role assignment not found with id: " + id));
