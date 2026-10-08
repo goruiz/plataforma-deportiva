@@ -2,12 +2,32 @@
 
 ## Cómo trabajar (siempre)
 
-- Pensar como un **desarrollador senior** y un **diseñador UX/UI senior** al mismo tiempo (aplicado aquí sobre todo al diseño de la API: respuestas claras, errores útiles, contratos consistentes para quien consume el backend).
-- El código debe ser **escalable** y **muy fácil de entender para cualquier persona**, no solo para quien lo escribió.
-- Los métodos deben ser **reutilizables**: evitar duplicar lógica entre servicios/mappers, extraer a `shared` cuando aplique a 2+ módulos.
-- Nombres muy claros sobre lo que hacen, sin miedo a que sean largos: variables, funciones, clases, métodos, archivos.
+### Mentalidad
+
+- Pensar siempre como un **desarrollador senior** y un **diseñador UX/UI senior** al mismo tiempo. Aquí se aplica sobre todo al diseño de la API: respuestas claras, errores útiles y contratos consistentes para quien consume el backend.
+
+### Coherencia con lo existente
+
+- **Siempre seguir los patrones, la arquitectura y la estructura de carpetas ya implementados.** No introducir un patrón distinto (otra forma de organizar capas, otra convención de nombres, otro estilo de respuesta HTTP) sin que se pida explícitamente.
+- Antes de crear algo nuevo, mirar cómo está hecho en un módulo ya maduro (ej. `modules/teams`) y replicar exactamente ese patrón.
+
+### Legibilidad
+
+- El código debe ser **muy fácil de entender para cualquier persona**, no solo para quien lo escribió.
+- Los nombres de clases, variables, métodos, archivos, etc. deben dejar **muy claro qué hacen**, sin miedo a que sean largos.
   - **Excepción:** el nombre del **archivo** debe ser claro pero **no demasiado largo** — nombres de archivo muy largos rompen la subida de cambios (límite de longitud de ruta en Windows). Si un nombre de archivo se vuelve muy largo, acortarlo sin perder claridad.
-- **Siempre respetar el orden, flujo, arquitectura y estructura de carpetas ya implementados en el proyecto.** No introducir un patrón distinto (otra forma de organizar capas, otra convención de nombres, otro estilo de respuesta HTTP) sin que se pida explícitamente. Antes de crear algo nuevo, mirar cómo está hecho en un módulo ya maduro (ej. `modules/teams`) y replicar exactamente ese patrón.
+- Los comentarios deben ser **precisos, claros y concretos**, nunca exhaustivos: explican el *porqué* de lo que no es evidente, no repiten lo que el código ya dice.
+
+### Estructura y calidad
+
+- El código debe ser siempre **ordenado, eficiente y escalable**.
+- Los métodos **no deben ser demasiado largos**: cuando crezcan, dividirlos en submétodos con nombres descriptivos, cada uno con una única responsabilidad.
+- Los métodos deben ser **reutilizables**: evitar duplicar lógica entre servicios/mappers y extraerla a un método común; si aplica a 2+ módulos, subirla a `shared`.
+
+### Nada fijo en el código
+
+- **Nada debe estar fijo ("hardcodeado"): todo debe ser dinámico** (ids, roles, límites, URLs, mensajes, etc. vienen de configuración, base de datos o parámetros; ver el ejemplo de `app.security.admin-role-id`).
+- Si algo **necesariamente** debe ser fijo (estados, tipos, roles, etc.), modelarlo con un **`enum`** en lugar de strings o números mágicos. Ubicarlo en el módulo al que pertenece, o en `shared` si lo usan 2+ módulos.
 
 ## Proyectos relacionados (monorepo lógico "Plataforma deportiva")
 
