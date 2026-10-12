@@ -17,6 +17,7 @@ public interface ICategoriesService {
 
     CategoryResponse update(UUID id, UpdateCategoryRequest request);
 
+    /** Soft delete; refused while any active team or event still uses the category. */
     void delete(UUID id);
 
     void hardDelete(UUID id);

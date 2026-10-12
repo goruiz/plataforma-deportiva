@@ -12,4 +12,6 @@ public interface EventsCategoriesJpaRepository extends JpaRepository<EventsCateg
     List<EventsCategoriesEntity> findAllByDeletedAtIsNull();
 
     Optional<EventsCategoriesEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByCategoryIdAndDeletedAtIsNull(UUID categoryId);
 }

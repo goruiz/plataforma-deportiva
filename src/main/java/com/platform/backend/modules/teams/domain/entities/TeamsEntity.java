@@ -1,5 +1,6 @@
 package com.platform.backend.modules.teams.domain.entities;
 
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
@@ -12,7 +13,9 @@ import java.util.UUID;
 })
 public class TeamsEntity extends BaseEntity implements HasUniqueField {
 
-    @Column(length = 150, nullable = false)
+    private static final int NAME_MAX_LENGTH = 150;
+
+    @Column(length = NAME_MAX_LENGTH, nullable = false)
     private String name;
 
     @Column(name = "logo_url", length = 500)
@@ -22,7 +25,7 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField {
     private UUID categoryId;
 
     @Column(length = 20, nullable = false)
-    private String status = "ACTIVE";
+    private String status = TeamStatus.ACTIVE.name();
 
     public TeamsEntity() {}
 
@@ -38,10 +41,16 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    /**
+     * Frees the name for a new team by tagging it with this team's id. The original name is cut
+     * when needed so the tagged one still fits the column (a long name would otherwise fail the delete).
+     */
     @Override
     public void releaseUniqueFields(UUID entityId) {
         if (this.name != null) {
-            this.name = this.name + "_DELETED_" + entityId;
+            String deletedTag = "_DELETED_" + entityId;
+            int keptNameLength = Math.min(this.name.length(), NAME_MAX_LENGTH - deletedTag.length());
+            this.name = this.name.substring(0, keptNameLength) + deletedTag;
         }
     }
 }

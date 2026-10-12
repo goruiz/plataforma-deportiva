@@ -52,6 +52,11 @@ public class EventRepository implements IEventRepository {
     }
 
     @Override
+    public boolean existsActiveByEventFormatId(UUID eventFormatId) {
+        return eventsJpaRepository.existsByEventFormatIdAndDeletedAtIsNull(eventFormatId);
+    }
+
+    @Override
     public void delete(EventsEntity event) {
         eventsJpaRepository.save(event);
     }

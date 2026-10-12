@@ -109,6 +109,7 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional
     public PlayerResponse update(UUID id, UpdatePlayerRequest request) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
@@ -171,6 +172,7 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional
     public PlayerResponse removeFromTeam(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
@@ -182,6 +184,7 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional
     public PlayerResponse updateStatus(UUID id, UpdatePlayerStatusRequest request) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));

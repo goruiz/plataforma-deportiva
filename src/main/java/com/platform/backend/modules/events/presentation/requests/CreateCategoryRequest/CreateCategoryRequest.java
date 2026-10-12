@@ -10,4 +10,7 @@ public class CreateCategoryRequest {
     @NotBlank
     @Size(max = 100)
     private String name;
+
+    @Size(max = 255)
+    private String description;
 }

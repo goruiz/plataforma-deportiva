@@ -1,6 +1,7 @@
 package com.platform.backend.modules.teams.application.mappers;
 
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
 import com.platform.backend.modules.teams.presentation.requests.CreateTeamRequest.CreateTeamRequest;
 import com.platform.backend.modules.teams.presentation.requests.UpdateTeamRequest.UpdateTeamRequest;
 import com.platform.backend.modules.teams.presentation.responses.TeamResponse.TeamResponse;
@@ -13,12 +14,13 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(
         componentModel = "spring",
         unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE,
-        unmappedSourcePolicy = org.mapstruct.ReportingPolicy.IGNORE
+        unmappedSourcePolicy = org.mapstruct.ReportingPolicy.IGNORE,
+        imports = TeamStatus.class
 )
 public interface TeamMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", constant = "ACTIVE")
+    @Mapping(target = "status", expression = "java(TeamStatus.ACTIVE.name())")
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)

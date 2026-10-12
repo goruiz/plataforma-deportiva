@@ -27,6 +27,17 @@ public class StandingsService implements IStandingsService {
 
     private static final String LEAGUE_EVENT_TYPE_NAME = "liga";
 
+    /**
+     * Más puntos primero; a igualdad, mejor diferencia de goles; a igualdad, más goles a favor.
+     * El único {@code reversed()} va al final porque invierte toda la cadena: encadenar uno por
+     * criterio invertiría de nuevo los anteriores y dejaría algunos desempates al revés.
+     */
+    private static final Comparator<StandingEntryResponse> STANDINGS_ORDER = Comparator
+            .comparingInt(StandingEntryResponse::getPoints)
+            .thenComparingInt(StandingEntryResponse::getGoalDifference)
+            .thenComparingInt(StandingEntryResponse::getGoalsFor)
+            .reversed();
+
     private final IEventRepository eventRepository;
     private final IMatchRepository matchRepository;
     private final ITeamRepository teamRepository;
@@ -92,10 +103,7 @@ public class StandingsService implements IStandingsService {
             entry.setPoints(entry.getWon() * 3 + entry.getDrawn());
         });
 
-        standings.sort(Comparator
-                .comparingInt(StandingEntryResponse::getPoints).reversed()
-                .thenComparingInt(StandingEntryResponse::getGoalDifference).reversed()
-                .thenComparingInt(StandingEntryResponse::getGoalsFor).reversed());
+        standings.sort(STANDINGS_ORDER);
 
         for (int i = 0; i < standings.size(); i++) {
             standings.get(i).setPosition(i + 1);

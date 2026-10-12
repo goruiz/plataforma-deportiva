@@ -38,7 +38,12 @@ public class CategoryRepository implements ICategoryRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return categoriesJpaRepository.existsByNameAndDeletedAtIsNull(name);
+        return categoriesJpaRepository.existsByNameIgnoreCaseAndDeletedAtIsNull(name);
+    }
+
+    @Override
+    public boolean existsByNameExcludingId(String name, UUID id) {
+        return categoriesJpaRepository.existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(name, id);
     }
 
     @Override

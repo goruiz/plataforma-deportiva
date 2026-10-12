@@ -1,6 +1,7 @@
 package com.platform.backend.modules.users.presentation.controllers;
 
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
+import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Auth", description = "Authentication: login, register and profile update")
+@Tag(name = "Auth", description = "Authentication: login, register, profile update and password change")
 @RestController
 @RequestMapping("/users/auth")
 public class UsersAuthController {
@@ -45,5 +46,13 @@ public class UsersAuthController {
             @Valid @RequestBody UpdateProfileRequest request,
             @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(ApiResponse.ok(usersAuthService.updateProfile(request, principal.getUsername())));
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal UserDetails principal) {
+        usersAuthService.changePassword(request, principal.getUsername());
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

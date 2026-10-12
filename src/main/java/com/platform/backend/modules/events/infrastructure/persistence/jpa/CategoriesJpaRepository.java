@@ -13,6 +13,8 @@ public interface CategoriesJpaRepository extends JpaRepository<CategoriesEntity,
 
     Optional<CategoriesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByNameAndDeletedAtIsNull(String name);
-}
+    // Case-insensitive: "Sub-15" and "sub-15" would be indistinguishable in every category selector.
+    boolean existsByNameIgnoreCaseAndDeletedAtIsNull(String name);
 
+    boolean existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(String name, UUID id);
+}

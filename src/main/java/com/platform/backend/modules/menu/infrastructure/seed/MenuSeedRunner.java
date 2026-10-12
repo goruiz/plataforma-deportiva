@@ -17,8 +17,8 @@ import org.springframework.util.StringUtils;
 import java.util.UUID;
 
 /**
- * Seeds the admin panel's own top-level menu entries ("Usuarios", "Eventos") and grants
- * them to the fixed admin role in roles_menu, so GET /menu/me returns a non-empty sidebar
+ * Seeds the admin panel's own top-level menu entries ("Dashboard", "Usuarios", "Eventos", "Formatos de evento", "Equipos",
+ * "Categorías") and grants them to the fixed admin role in roles_menu, so GET /menu/for-current-user returns a non-empty sidebar
  * for administrators out of the box. Runs on every startup but is idempotent — checks
  * existence before inserting, so restarts never create duplicates.
  * <p>
@@ -52,6 +52,12 @@ public class MenuSeedRunner implements CommandLineRunner {
             return;
         }
 
+        // order 0 keeps Dashboard first in databases that were already seeded with Users at order 1.
+        MenuEntity dashboardMenu = ensureMenuExists(
+                "Dashboard", "Resumen general de la plataforma",
+                "menu.admin.dashboard", "menu.admin.dashboard_description",
+                "cilSpeedometer", "/dashboard", (short) 0, 0
+        );
         MenuEntity usersMenu = ensureMenuExists(
                 "Usuarios", "Gestión de usuarios del sistema",
                 "menu.admin.users", "menu.admin.users_description",
@@ -63,8 +69,30 @@ public class MenuSeedRunner implements CommandLineRunner {
                 "cilCalendar", "/events", (short) 2, 2
         );
 
+        MenuEntity eventFormatsMenu = ensureMenuExists(
+                "Formatos de evento", "Gestión de los formatos de juego de los eventos",
+                "menu.admin.event_formats", "menu.admin.event_formats_description",
+                "cilList", "/event-formats", (short) 3, 3
+        );
+
+        MenuEntity teamsMenu = ensureMenuExists(
+                "Equipos", "Gestión de equipos deportivos",
+                "menu.admin.teams", "menu.admin.teams_description",
+                "cilShieldAlt", "/teams", (short) 4, 4
+        );
+
+        MenuEntity categoriesMenu = ensureMenuExists(
+                "Categorías", "Gestión de las categorías de equipos y eventos",
+                "menu.admin.categories", "menu.admin.categories_description",
+                "cilTags", "/categories", (short) 5, 5
+        );
+
+        grantVisibilityToAdmin(adminRole, dashboardMenu);
         grantVisibilityToAdmin(adminRole, usersMenu);
         grantVisibilityToAdmin(adminRole, eventsMenu);
+        grantVisibilityToAdmin(adminRole, eventFormatsMenu);
+        grantVisibilityToAdmin(adminRole, teamsMenu);
+        grantVisibilityToAdmin(adminRole, categoriesMenu);
     }
 
     private MenuEntity ensureMenuExists(String name, String description, String nameTranslationKey,

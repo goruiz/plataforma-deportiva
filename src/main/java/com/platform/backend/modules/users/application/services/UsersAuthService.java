@@ -5,6 +5,8 @@ import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.domain.exception.PasswordChangeError;
+import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
@@ -12,6 +14,7 @@ import com.platform.backend.modules.users.presentation.requests.UpdateProfileReq
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
+import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -124,5 +127,29 @@ public class UsersAuthService implements IUsersAuthService {
         userMapper.updateEntity(user, request);
         UsersEntity saved = userRepository.save(user);
         return userMapper.toUpdateProfileResponse(saved);
+    }
+
+    /**
+     * A wrong current password is reported as a field error (400), never as BadCredentialsException (401):
+     * clients treat any 401 as an expired session and sign the user out, which a typo must not do.
+     */
+    @Override
+    public void changePassword(ChangePasswordRequest request, String email) {
+        UsersEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw fieldError(PasswordChangeError.INCORRECT_CURRENT_PASSWORD);
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw fieldError(PasswordChangeError.NEW_PASSWORD_SAME_AS_CURRENT);
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    private FieldValidationException fieldError(PasswordChangeError error) {
+        return new FieldValidationException(error.getFieldName(), error.name());
     }
 }

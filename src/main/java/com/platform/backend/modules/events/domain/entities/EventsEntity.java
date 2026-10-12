@@ -17,9 +17,6 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
     @Column(length = 255)
     private String description;
 
-    @Column(length = 30)
-    private String format;
-
     @Column(length = 20)
     private String status;
 
@@ -48,6 +45,10 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
     @JoinColumn(name = "id_event_type", foreignKey = @ForeignKey(name = "fk_events_types_events"))
     private EventTypesEntity eventType;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_event_format", foreignKey = @ForeignKey(name = "fk_events_formats_events"))
+    private EventFormatsEntity eventFormat;
+
     public EventsEntity() {
     }
 
@@ -65,14 +66,6 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public String getFormat() {
-        return format;
-    }
-
-    public void setFormat(String format) {
-        this.format = format;
     }
 
     public String getStatus() {
@@ -137,6 +130,14 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
 
     public void setEventType(EventTypesEntity eventType) {
         this.eventType = eventType;
+    }
+
+    public EventFormatsEntity getEventFormat() {
+        return eventFormat;
+    }
+
+    public void setEventFormat(EventFormatsEntity eventFormat) {
+        this.eventFormat = eventFormat;
     }
 
     @Override

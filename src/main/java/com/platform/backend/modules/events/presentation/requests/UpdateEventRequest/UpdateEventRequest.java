@@ -13,9 +13,6 @@ public class UpdateEventRequest {
     @Size(max = 200)
     private String name;
 
-    @Size(max = 30)
-    private String format;
-
     @Size(max = 20)
     private String status;
 
@@ -30,4 +27,7 @@ public class UpdateEventRequest {
     private Integer maxPlayersPerTeam;
 
     private UUID idEventType;
+
+    /** Null leaves the current format untouched, so a format already set can be changed but not cleared. */
+    private UUID idEventFormat;
 }

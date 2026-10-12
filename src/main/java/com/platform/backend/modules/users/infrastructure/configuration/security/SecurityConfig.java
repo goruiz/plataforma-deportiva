@@ -1,6 +1,7 @@
 package com.platform.backend.modules.users.infrastructure.configuration.security;
 
 import com.platform.backend.shared.infraestructure.ratelimit.LoginRateLimiterFilter;
+import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationEntryPoint;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -67,6 +68,7 @@ public class SecurityConfig {
                                                     AuthenticationProvider authenticationProvider,
                                                     CorsConfigurationSource corsConfigurationSource,
                                                     JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                                                     LoginRateLimiterFilter loginRateLimiterFilter) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -75,6 +77,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authenticationProvider(authenticationProvider)
+            .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .addFilterBefore(loginRateLimiterFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth

@@ -37,6 +37,11 @@ public class EventsCategoriesRepository implements IEventsCategoriesRepository {
     }
 
     @Override
+    public boolean existsActiveByCategoryId(UUID categoryId) {
+        return eventsCategoriesJpaRepository.existsByCategoryIdAndDeletedAtIsNull(categoryId);
+    }
+
+    @Override
     public void delete(EventsCategoriesEntity eventsCategories) {
         eventsCategoriesJpaRepository.save(eventsCategories);
     }

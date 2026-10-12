@@ -17,9 +17,6 @@ public class CreateEventRequest {
     @Size(max = 255)
     private String description;
 
-    @Size(max = 30)
-    private String format;
-
     @Size(max = 20)
     private String status;
 
@@ -35,4 +32,7 @@ public class CreateEventRequest {
 
     @NotNull
     private UUID idEventType;
+
+    /** Optional: the mobile app creates events without choosing a format. */
+    private UUID idEventFormat;
 }

@@ -16,7 +16,12 @@ public interface TeamsJpaRepository extends JpaRepository<TeamsEntity, UUID> {
 
     Optional<TeamsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByNameAndDeletedAtIsNull(String name);
+    // Case-insensitive: "Tigres" and "tigres" would be indistinguishable in every team list.
+    boolean existsByNameIgnoreCaseAndDeletedAtIsNull(String name);
+
+    boolean existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(String name, UUID id);
+
+    boolean existsByCategoryIdAndDeletedAtIsNull(UUID categoryId);
 
     @Query("SELECT t FROM TeamsEntity t WHERE t.id IN :ids AND t.deletedAt IS NULL")
     List<TeamsEntity> findAllActiveByIds(@Param("ids") Collection<UUID> ids);

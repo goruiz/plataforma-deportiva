@@ -10,7 +10,9 @@ import java.util.UUID;
 @Table(name = "categories")
 public class CategoriesEntity extends BaseTranslatableEntity implements HasUniqueField {
 
-    @Column(length = 100, nullable = false)
+    private static final int NAME_MAX_LENGTH = 100;
+
+    @Column(length = NAME_MAX_LENGTH, nullable = false)
     private String name;
 
     @Column(length = 255)
@@ -24,10 +26,16 @@ public class CategoriesEntity extends BaseTranslatableEntity implements HasUniqu
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
+    /**
+     * Frees the name for a new category by tagging it with this category's id. The original name is
+     * cut when needed so the tagged one still fits the column (a long name would otherwise fail the delete).
+     */
     @Override
     public void releaseUniqueFields(UUID entityId) {
         if (this.name != null) {
-            this.name = this.name + "_DELETED_" + entityId;
+            String deletedTag = "_DELETED_" + entityId;
+            int keptNameLength = Math.min(this.name.length(), NAME_MAX_LENGTH - deletedTag.length());
+            this.name = this.name.substring(0, keptNameLength) + deletedTag;
         }
     }
 }

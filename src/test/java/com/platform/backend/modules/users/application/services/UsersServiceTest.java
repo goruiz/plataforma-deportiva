@@ -4,11 +4,13 @@ import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -133,5 +136,65 @@ class UsersServiceTest {
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Invalid credentials");
+    }
+
+    // ─── changePassword ─────────────────────────────────────────────────────────
+
+    @Test
+    void changePassword_whenCurrentPasswordMatches_thenStoreEncodedNewPassword() {
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
+        when(passwordEncoder.matches("brand-new-pass", "hashed_password")).thenReturn(false);
+        when(passwordEncoder.encode("brand-new-pass")).thenReturn("hashed_new_password");
+
+        usersAuthService.changePassword(buildChangePasswordRequest("password123", "brand-new-pass"), "juan@email.com");
+
+        assertThat(usersEntity.getPassword()).isEqualTo("hashed_new_password");
+        verify(userRepository).save(usersEntity);
+    }
+
+    @Test
+    void changePassword_whenCurrentPasswordIsWrong_thenRejectCurrentPasswordFieldWithoutSaving() {
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(passwordEncoder.matches("wrong-password", "hashed_password")).thenReturn(false);
+
+        assertThatThrownBy(() -> usersAuthService.changePassword(
+                buildChangePasswordRequest("wrong-password", "brand-new-pass"), "juan@email.com"))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors())
+                                .containsOnly(entry("currentPassword", "INCORRECT_CURRENT_PASSWORD")));
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changePassword_whenNewPasswordEqualsCurrent_thenRejectNewPasswordFieldWithoutSaving() {
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
+
+        assertThatThrownBy(() -> usersAuthService.changePassword(
+                buildChangePasswordRequest("password123", "password123"), "juan@email.com"))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors())
+                                .containsOnly(entry("newPassword", "NEW_PASSWORD_SAME_AS_CURRENT")));
+
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    void changePassword_whenUserNoLongerExists_thenThrowsBadCredentialsException() {
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> usersAuthService.changePassword(
+                buildChangePasswordRequest("password123", "brand-new-pass"), "juan@email.com"))
+                .isInstanceOf(BadCredentialsException.class);
+    }
+
+    private ChangePasswordRequest buildChangePasswordRequest(String currentPassword, String newPassword) {
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword(currentPassword);
+        request.setNewPassword(newPassword);
+        return request;
     }
 }

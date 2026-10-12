@@ -22,6 +22,10 @@ public interface ITeamRepository {
 
     boolean existsByName(String name);
 
+    boolean existsByNameExcludingId(String name, UUID id);
+
+    boolean existsActiveByCategoryId(UUID categoryId);
+
     void delete(TeamsEntity team);
 
     void hardDelete(TeamsEntity team);

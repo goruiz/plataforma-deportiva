@@ -38,7 +38,7 @@ public class MenuController {
         return ResponseEntity.ok(ApiResponse.ok(menuService.getAll()));
     }
 
-    @GetMapping("/me")
+    @GetMapping("/for-current-user")
     public ResponseEntity<ApiResponse<List<MenuTreeResponse>>> getForCurrentUser(
             @AuthenticationPrincipal AuthenticatedUser principal) {
         return ResponseEntity.ok(ApiResponse.ok(menuService.getForUser(principal.getId())));

@@ -22,6 +22,8 @@ public interface IEventRepository {
 
     List<EventsEntity> findAllActiveByEventTypeIdAndCreatedBy(UUID eventTypeId, UUID createdBy);
 
+    boolean existsActiveByEventFormatId(UUID eventFormatId);
+
     void delete(EventsEntity event);
 
     void hardDelete(EventsEntity event);

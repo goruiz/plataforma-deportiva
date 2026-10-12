@@ -39,7 +39,17 @@ public class TeamRepository implements ITeamRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return teamsJpaRepository.existsByNameAndDeletedAtIsNull(name);
+        return teamsJpaRepository.existsByNameIgnoreCaseAndDeletedAtIsNull(name);
+    }
+
+    @Override
+    public boolean existsByNameExcludingId(String name, UUID id) {
+        return teamsJpaRepository.existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(name, id);
+    }
+
+    @Override
+    public boolean existsActiveByCategoryId(UUID categoryId) {
+        return teamsJpaRepository.existsByCategoryIdAndDeletedAtIsNull(categoryId);
     }
 
     @Override

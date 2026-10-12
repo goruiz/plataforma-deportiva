@@ -16,6 +16,8 @@ public interface IEventsCategoriesRepository {
 
     Optional<EventsCategoriesEntity> findActiveById(UUID id);
 
+    boolean existsActiveByCategoryId(UUID categoryId);
+
     void delete(EventsCategoriesEntity eventsCategories);
 
     void hardDelete(EventsCategoriesEntity eventsCategories);

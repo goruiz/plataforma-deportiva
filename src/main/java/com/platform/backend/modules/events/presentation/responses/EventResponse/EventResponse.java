@@ -1,5 +1,6 @@
 package com.platform.backend.modules.events.presentation.responses.EventResponse;
 
+import com.platform.backend.modules.events.presentation.responses.EventFormatResponse.EventFormatResponse;
 import com.platform.backend.modules.events.presentation.responses.EventTypeResponse.EventTypeResponse;
 import lombok.Data;
 
@@ -13,6 +14,7 @@ public class EventResponse {
     private UUID id;
     private String name;
     private String description;
+    /** Name of {@link #eventFormat}; kept so clients that only read the format as text (the mobile app) keep working. */
     private String format;
     private String status;
     private LocalDate startDate;
@@ -20,6 +22,7 @@ public class EventResponse {
     private Integer minPlayersPerTeam;
     private Integer maxPlayersPerTeam;
     private EventTypeResponse eventType;
+    private EventFormatResponse eventFormat;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

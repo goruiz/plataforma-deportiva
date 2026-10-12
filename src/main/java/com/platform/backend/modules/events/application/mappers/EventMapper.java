@@ -25,6 +25,7 @@ public interface EventMapper {
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "eventType", ignore = true)
+    @Mapping(target = "eventFormat", ignore = true)
     EventsEntity toEntity(CreateEventRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -36,7 +37,9 @@ public interface EventMapper {
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "eventType", ignore = true)
+    @Mapping(target = "eventFormat", ignore = true)
     void updateEntity(@MappingTarget EventsEntity entity, UpdateEventRequest request);
 
+    @Mapping(target = "format", source = "eventFormat.name")
     EventResponse toResponse(EventsEntity entity);
 }

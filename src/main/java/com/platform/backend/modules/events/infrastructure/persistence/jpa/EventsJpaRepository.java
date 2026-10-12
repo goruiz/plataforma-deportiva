@@ -18,4 +18,6 @@ public interface EventsJpaRepository extends JpaRepository<EventsEntity, UUID> {
     List<EventsEntity> findAllByEventTypeIdAndDeletedAtIsNull(UUID eventTypeId);
 
     List<EventsEntity> findAllByEventTypeIdAndCreatedByAndDeletedAtIsNull(UUID eventTypeId, UUID createdBy);
+
+    boolean existsByEventFormatIdAndDeletedAtIsNull(UUID eventFormatId);
 }

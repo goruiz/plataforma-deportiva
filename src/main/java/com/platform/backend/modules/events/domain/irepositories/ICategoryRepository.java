@@ -16,7 +16,11 @@ public interface ICategoryRepository {
 
     Optional<CategoriesEntity> findActiveById(UUID id);
 
+    /** Names are compared ignoring case. */
     boolean existsByName(String name);
+
+    /** True when an active category other than {@code id} already uses {@code name} (ignoring case). */
+    boolean existsByNameExcludingId(String name, UUID id);
 
     void delete(CategoriesEntity category);
 
