@@ -39,10 +39,11 @@
 
 - **Java 25**, **Spring Boot 4.0.6**, Maven (`mvnw`).
 - **Lombok** + **MapStruct** (`componentModel="spring"`, `unmappedTargetPolicy/unmappedSourcePolicy = IGNORE`) para mappers entidad↔DTO.
-- **PostgreSQL** + **Flyway** para migraciones (nunca editar una migración ya aplicada; siempre una nueva `V{n}__descripcion.sql`).
+- **PostgreSQL** + **Flyway** para migraciones (nunca editar una migración ya aplicada; siempre una nueva `V{n}__descripcion.sql`). Ojo: hoy Flyway está desactivado y el esquema lo crea Hibernate al arrancar; lee "Base de datos y migraciones: estado real" antes de crear una migración.
 - **Spring Security** con **JWT** (`jjwt`), stateless, `LoginRateLimiterFilter` (bucket4j) sobre login.
 - **springdoc-openapi** (Swagger UI en `/swagger-ui.html`).
 - Base path global: `server.servlet.context-path=/api`.
+- Además: Bean Validation, `spring-boot-starter-mail` (SMTP) y `dotenv-java` (declarada en el `pom.xml` pero sin uso). Versiones que importan: Lombok 1.18.46, MapStruct 1.6.3, jjwt 0.12.6, bucket4j 8.10.1, springdoc 2.8.8; Hibernate 7.2 viene con Spring Boot.
 
 ## Arquitectura: Clean Architecture + monolito modular
 
@@ -77,6 +78,15 @@ modules/<modulo>/
 
 Reglas de dependencia: `domain` no depende de nada hacia afuera; `application` depende de `domain`; `infrastructure`/`presentation` dependen de `application`+`domain`. Nunca exponer la entidad JPA directamente en un controller — siempre pasar por Request/Response + Mapper.
 
+### Piezas que viven fuera de las 4 carpetas básicas (ya existen: respétalas, no inventes otras)
+
+- `domain/exception/<Noun>Error.java`: `enum` con los códigos de error que los clientes reciben como motivo (`EventFormatError`, `CategoryError`, `TeamError`, `PasswordChangeError`). El nombre de la constante es el código estable; los frontends lo traducen.
+- `domain/enums/<Noun>Status.java`: `enum` de dominio cuando la columna sigue siendo texto libre (solo `teams`: `TeamStatus`, con `isValid(String)` para validar lo que manda el cliente).
+- `infrastructure/seed/`: `CommandLineRunner` de datos iniciales (`menu`, `users`); deben ser idempotentes.
+- `modules/users/infrastructure/configuration/security/`: `SecurityConfig`, `UserDetailsServiceImpl`, `AuthenticatedUser` y `AuditorAwareImpl` (ver deuda técnica #7).
+- Excepción: `ClientType` vive en `presentation/requests/LoginRequest/`, junto al request de login.
+- Carpetas vacías (`teams/{application/dtos, domain/policies, infrastructure/configuration, infrastructure/repositories, presentation/middlewares}` y `users/{application/dtos, presentation/middlewares}`): existen solo en disco local porque git no versiona carpetas vacías. No forman parte del patrón; no las repliques en un módulo nuevo.
+
 ### Convención de nombres (seguir exacto)
 
 - Interfaz de servicio: `I<Noun>Service` en carpeta `iservices`. Implementación: `<Noun>Service` en `services`.
@@ -84,10 +94,16 @@ Reglas de dependencia: `domain` no depende de nada hacia afuera; `application` d
 - Entidad: `<Noun>Entity`, `@Entity @Table(name="snake_case_plural")`, extiende `BaseEntity`/`BaseTranslatableEntity` (de `shared`) para heredar id UUID (`@UuidGenerator`) y auditoría (`createdBy/At`, `updatedBy/At`, soft delete vía `deletedBy/At`).
 - Mapper: `<Noun>Mapper`.
 - DTOs: `Create<Noun>Request`, `Update<Noun>Request`, `<Noun>Response` — cada uno en su propia carpeta homónima.
+- **Singular o plural (es como está en el código, no lo "normalices"):** van en **plural** la entidad, el servicio y su interfaz, el controller y el `JpaRepository` (`TeamsEntity`, `ITeamsService`, `TeamsService`, `TeamsController`, `TeamsJpaRepository`); van en **singular** el repositorio de dominio y su adaptador (`ITeamRepository`, `TeamRepository`), el mapper (`TeamMapper`) y los DTO (`CreateTeamRequest`, `TeamResponse`). Los recursos de unión (`TeamsEvents`, `EventsCategories`, `UsersRoles`, `RolesMenu`) llevan el plural en todas sus piezas.
+- Enums de códigos de error: `<Noun>Error`; enums de estado: `<Noun>Status`.
 
 ## Módulo `shared` (`com.platform.backend.shared`)
 
-Código transversal sin lógica de negocio de un módulo específico: `BaseEntity`/`BaseTranslatableEntity`, `ApiResponse<T>` (wrapper de respuesta estándar: `{success, status, message, data, timestamp}`), `GlobalException` (`@RestControllerAdvice`), JWT (`JwtAuthenticationFilter`/`JwtService`), `LoginRateLimiterFilter`, `EmailService`, configs (`JacksonConfig`, `JpaAuditConfig`, `SwaggerConfig`).
+Código transversal sin lógica de negocio de un módulo específico:
+
+- `domain/entities` (`BaseEntity`, `BaseTranslatableEntity`), `domain/interfaces` (`HasUniqueField`) y `domain/utils` (`SoftDeleteHelper`).
+- `presentation/responses`: `ApiResponse<T>`, el wrapper de respuesta estándar `{success, status, message, data, timestamp}`.
+- Bajo `infraestructure/`: `exceptions` (`GlobalException` `@RestControllerAdvice`, `FieldValidationException`), `security/jwt` (`JwtService`, `JwtAuthenticationFilter`, `JwtAuthenticationEntryPoint`), `security/password` (`PasswordPolicy`, `TemporaryPasswordGenerator`), `ratelimit` (`LoginRateLimiterFilter`), `email` (`EmailService`), `config` (`JacksonConfig`, `JpaAuditConfig`, `SwaggerConfig`) y `audit` (`ApplicationContextProvider`).
 
 **Nota de inconsistencia existente (no "corregirla" sola, es así en el repo real):** dentro de cada módulo la capa se llama `infrastructure` (inglés), pero dentro de `shared` se llama `infraestructure` (español). Al crear algo nuevo en `shared`, respeta el nombre `infraestructure` que ya existe ahí; en un módulo de negocio nuevo, usa `infrastructure`.
 
@@ -95,6 +111,7 @@ Código transversal sin lógica de negocio de un módulo específico: `BaseEntit
 
 - Todo controller retorna `ResponseEntity<ApiResponse<T>>`, nunca la entidad ni un objeto suelto. Usar los factory methods existentes de `ApiResponse` (`ok/created/deleted/error`).
 - Validación y errores de negocio se manejan centralizado en `GlobalException` (`@RestControllerAdvice`) — no capturar `Exception` genérico dentro de un controller/service si el `GlobalException` ya lo cubre; en su lugar, lanzar la excepción específica.
+- Cómo rechazar una petición por una regla de negocio (patrón de `teams`, `categories` y `event-formats`): un `enum <Noun>Error` en `domain/exception/` y `FieldValidationException(campo, CÓDIGO)` cuando el error es atribuible a un campo (400 con `data: {campo: CÓDIGO}`), o `IllegalStateException(CÓDIGO)` cuando no lo es (400 con el código en `message`, p. ej. `IN_USE`). Nunca uses `BadCredentialsException` ni nada que termine en 401 para un error de formulario: los frontends cierran la sesión ante cualquier 401.
 - El frontend Angular espera exactamente esta forma de `ApiResponse` y el campo `admin` (boolean) en la respuesta de login — no cambiar esa forma sin avisar, rompe el contrato con `administration-angular`.
 
 ## Auth / rol admin
@@ -107,14 +124,14 @@ Seguir el flujo documentado en `src/main/resources/db/migration/README.md`: corr
 
 ## Testing
 
-- JUnit 5 + Mockito + AssertJ. Hoy solo `users` y `events` tienen tests reales (no boilerplate). El resto de módulos (`teams`, `matches`, `players`, `courts`, etc.) no tiene tests todavía.
+- JUnit 5 + Mockito + AssertJ. Tienen tests reales (no boilerplate) `users`, `events`, `teams` (solo `TeamsService`), `matches` (solo `StandingsService`) y la parte de seguridad de `shared` (JWT y generador de contraseñas). Sin tests: `players`, `courts`, `sportcomplexes`, `menu`, el calendario automático, los estados de partido, el rate limiter y `EmailService` (detalle en "Tests (complementa la sección Testing)").
 - Si agregas lógica de negocio nueva en `application/services`, sigue el mismo estilo de test que `UsersServiceTest` (mockear repositorio/mapper, `MockitoExtension`) cuando se pida agregar tests.
 
 ---
 
 # Contexto de la plataforma
 
-> Sección añadida el 2026-10-12 tras analizar los 3 proyectos y la carpeta `Documentación/` del monorepo. Está verificada contra el **código**, no contra los documentos de diseño. **Si algo de aquí contradice una sección anterior de este archivo, prevalece esto**: varias secciones previas quedaron desactualizadas (se señalan en "Estado real" de cada proyecto). El bloque "Visión de la plataforma" es idéntico en los 3 CLAUDE.md: si lo cambias, cámbialo en los 3.
+> Sección añadida el 2026-10-12 tras analizar los 3 proyectos y la carpeta `Documentación/` del monorepo. Está verificada contra el **código**, no contra los documentos de diseño. Las partes propias del backend (módulos, endpoints, enums, seeds, tests, estructura de carpetas) se revisaron de nuevo contra el código el 2026-10-17. **Si algo de aquí contradice una sección anterior de este archivo, prevalece esto**: varias secciones previas quedaron desactualizadas (se señalan en "Estado real" de cada proyecto). El bloque "Visión de la plataforma" es idéntico en los 3 CLAUDE.md: si lo cambias, cámbialo en los 3.
 
 ## Visión de la plataforma (bloque común a los 3 proyectos)
 
@@ -143,10 +160,10 @@ Los 3 son repos git independientes. La carpeta `Documentación/` (en la raíz de
 
 | Dominio | Backend | Admin (Angular) | App usuario (Flutter) |
 |---|---|---|---|
-| Auth, usuarios y roles | ✅ | ✅ lista, alta con contraseña temporal por email, edición, borrado y asignación de roles | Login, registro y completar perfil |
+| Auth, usuarios y roles | ✅ | ✅ lista, alta con contraseña temporal por email, edición, borrado y asignación de roles; el administrador ve su perfil y cambia su contraseña | Login, registro y completar perfil |
 | Menú dinámico por rol | ✅ | ✅ sidebar | ✅ Home (barra inferior y acciones rápidas) |
 | Eventos y ligas | ✅ | ✅ CRUD de eventos (lista con búsqueda y filtros, alta, edición y borrado lógico); sin equipos, partidos ni calendario | ✅ **único módulo maduro** (`leagues`) |
-| Equipos, jugadores e invitaciones | ✅ | ✅ CRUD de equipos (lista con búsqueda y filtros, alta, edición, estado y borrado lógico) y lista de jugadores de cada equipo (solo lectura); sin alta de jugadores ni invitaciones | ✅ dentro de ligas |
+| Equipos, jugadores e invitaciones | ✅ | ✅ CRUD de equipos (lista con búsqueda y filtros, alta, edición, estado y borrado lógico) y jugadores de cada equipo: lista, alta por email (lo agrega o lo traslada al equipo) e invitación de registro por correo si el email no existe; sin edición ni baja de jugadores | ✅ dentro de ligas |
 | Partidos, calendario automático y posiciones | ✅ | ❌ | ✅ dentro de ligas |
 | Canchas y complejos | ✅ CRUD | ❌ | solo lectura (selector al programar) |
 | Categorías | ✅ CRUD | ✅ CRUD (lista con búsqueda, alta, edición y borrado lógico; solo si ningún equipo ni evento la usa) | ❌ |
@@ -168,7 +185,7 @@ Los 3 son repos git independientes. La carpeta `Documentación/` (en la raíz de
 
 ### Módulos y modelo de datos
 
-Los 9 módulos tienen las 4 capas con código real (sin carpetas vacías). Hay 138 endpoints; **Swagger (`/api/swagger-ui.html`) es la fuente de verdad del listado completo**, no lo repitas aquí.
+Los 9 módulos tienen las 4 capas con código real (las carpetas vacías de `teams` y `users` solo existen en disco local; ver "Piezas que viven fuera de las 4 carpetas básicas"). Hay 144 endpoints (contados el 2026-10-17 sobre las anotaciones de mapping de los controllers) y 22 entidades; **Swagger (`/api/swagger-ui.html`) es la fuente de verdad del listado completo**, no lo repitas aquí.
 
 | Módulo | Para qué | Tablas clave |
 |---|---|---|
@@ -181,9 +198,9 @@ Los 9 módulos tienen las 4 capas con código real (sin carpetas vacías). Hay 1
 | `menu` | Menú jerárquico por rol | `menu`, `roles_menu` |
 | `permissions` | CRUD de permisos por rol, **sin uso real** (nada los lee) | `permissions` |
 
-- Todas las entidades extienden `BaseEntity`. Nueve extienden `BaseTranslatableEntity`, pero **solo `menu` expone y escribe** las claves de traducción.
+- Todas las entidades extienden `BaseEntity` (`BaseTranslatableEntity` también la extiende). Diez extienden `BaseTranslatableEntity` (`actions`, `categories`, `courts`, `events`, `events_formats`, `events_types`, `menu`, `permissions`, `roles`, `sport_complexes`), pero **solo `menu` expone y escribe** las claves de traducción.
 - Las relaciones de `matches` (equipos, evento, cancha), `team_invitations.teamId` y `menu.idParentMenu` son **UUID planos sin FK ni validación**: el backend no comprueba que existan. Si lo necesitas, valídalo en el service (como hace `TeamsService` con `teams.categoryId`, que también es un UUID plano).
-- Estados y tipos son `String` libres (`"ACTIVE"`, estados de partido e invitación, `status`). Los enums del backend son `ClientType {ADMIN_PANEL, MOBILE_APP}`, `PasswordChangeError` y `EventFormatError {NAME_ALREADY_EXISTS, IN_USE}` y `CategoryError {NAME_ALREADY_EXISTS, IN_USE}` (códigos que reciben los clientes). Para eventos, los dos frontends usan `status` ∈ `UPCOMING`/`ACTIVE`/`FINISHED`/`CANCELLED` (el backend no lo valida y puede traer otro texto o `null`). El **formato** del evento ya no es texto libre: es una referencia opcional al catálogo `events_formats` (`events.id_event_format`, `idEventFormat` en los requests); la respuesta del evento trae `eventFormat` (objeto) y además `format` (solo el nombre) para la app Flutter, que lo lee como texto.
+- Estados y tipos son `String` libres (`"ACTIVE"`, estados de partido e invitación, `status`). Los enums del backend son: `ClientType {ADMIN_PANEL, MOBILE_APP}`, `TeamStatus {ACTIVE, INACTIVE}` (valida el `status` de un equipo, aunque la columna sigue siendo texto) y los códigos de error que reciben los clientes: `EventFormatError {NAME_ALREADY_EXISTS, IN_USE}`, `CategoryError {NAME_ALREADY_EXISTS, IN_USE}`, `TeamError {NAME_ALREADY_EXISTS, CATEGORY_NOT_FOUND, INVALID_STATUS}` y `PasswordChangeError {INCORRECT_CURRENT_PASSWORD, NEW_PASSWORD_SAME_AS_CURRENT}`. Para eventos, los dos frontends usan `status` ∈ `UPCOMING`/`ACTIVE`/`FINISHED`/`CANCELLED` (el backend no lo valida y puede traer otro texto o `null`). El **formato** del evento ya no es texto libre: es una referencia opcional al catálogo `events_formats` (`events.id_event_format`, `idEventFormat` en los requests); la respuesta del evento trae `eventFormat` (objeto) y además `format` (solo el nombre) para la app Flutter, que lo lee como texto.
 
 ### API
 
@@ -208,15 +225,16 @@ Los 9 módulos tienen las 4 capas con código real (sin carpetas vacías). Hay 1
 - **Invitaciones**: `EXISTING_USER` (sin token; correo informativo) y `NEW_USER` (token UUID y enlace de registro). Expiran a los `app.invite.expiration-days` (7). Solo se usan los estados `PENDING` y `USED`; la expiración se calcula por fecha.
 - **Calendario automático** (`POST /events/{id}/schedule-config/generate`): round-robin de **una sola vuelta**, exige ≥ 2 equipos inscritos; cada partido va al primer día de `playDays` (en inglés, separados por coma) no bloqueado y sin conflicto de equipos; slots consecutivos (duración + descanso entre partidos); devuelve `warning` si algo queda después de `endDate`.
 - **Estados de partido** (String): `SCHEDULED`, `POSTPONED`, `SUSPENDED`, `RESCHEDULED`, `COMPLETED`. `postpone` falla en COMPLETED/SUSPENDED, `suspend` en COMPLETED, y `reschedule` solo acepta POSTPONED/SUSPENDED.
+- **Reprogramación masiva** (`PATCH /matches/by-event/{eventId}/reschedule-date`, `MatchesService.rescheduleDate`): toma todos los partidos activos del evento en `fromDate`. Con `toDate` los mueve a ese día **conservando la hora** y los `POSTPONED` vuelven a `SCHEDULED`; con `toDate` en `null` los marca `POSTPONED`. A diferencia de `postpone`/`suspend`, **no valida el estado de cada partido** (puede dejar un `COMPLETED` en `POSTPONED`) y responde 404 si ese día no tiene partidos.
 - **Posiciones**: solo para eventos cuyo tipo se llama `"liga"` (texto fijo `LEAGUE_EVENT_TYPE_NAME`, sin distinguir mayúsculas). 3/1/0 puntos y cuenta todo partido con ambos marcadores no nulos, sin importar su estado. Orden: puntos, diferencia de goles y goles a favor, los tres descendentes (`STANDINGS_ORDER`).
 - **Menú**: `GET /menu/for-current-user` toma los roles activos del usuario, filtra `roles_menu.visible` y arma el árbol con `idParentMenu`; un hijo cuyo padre no es visible sube a la raíz. Solo `visible` se aplica: los flags `can_*` se guardan pero no se usan.
-- **Seeds** (sin `@Order`): `MenuSeedRunner` corre en **todos** los perfiles (incluido `prd`) y siembra "Usuarios" (`/users`), "Eventos" (`/events`) y "Formatos de evento" (`/event-formats`) , "Equipos" (`/teams`) y "Categorías" (`/categories`, icono `cilTags`) para el rol admin (cada ítem se busca por su nombre: uno ya existente llamado igual, p. ej. creado a mano para la app Flutter, se reutiliza y entonces también lo ven sus otros roles). `UsersSeedRunner` corre en todos menos `prd` y crea el rol admin y los usuarios demo `admin@algo.com` y `usuario@algo.com`.
+- **Seeds** (sin `@Order`; ambos son `CommandLineRunner` idempotentes): `MenuSeedRunner` corre en **todos** los perfiles (incluido `prd`) y siembra para el rol admin "Dashboard" (`/dashboard`, `cilSpeedometer`, orden 0), "Usuarios" (`/users`), "Eventos" (`/events`), "Formatos de evento" (`/event-formats`), "Equipos" (`/teams`) y "Categorías" (`/categories`, `cilTags`). Cada ítem se busca por su nombre: uno ya existente llamado igual, p. ej. creado a mano para la app Flutter, se reutiliza y entonces también lo ven sus otros roles. `UsersSeedRunner` corre en todos menos `prd` y crea el rol admin (con `JdbcTemplate`, porque el `@UuidGenerator` de Hibernate sobrescribe cualquier id asignado y aquí debe coincidir con `app.security.admin-role-id`) y los usuarios demo `admin@algo.com` y `usuario@algo.com`. **Consecuencia en `prd`:** nadie crea el rol admin y `MenuSeedRunner` sale sin sembrar mientras ese rol no exista; hay que insertarlo a mano con el UUID configurado y reiniciar.
 
 ### Seguridad: estado real (no "arreglar" sin que se pida, pero tenerlo presente)
 
 - JWT stateless (jjwt 0.12.6, HMAC). Claims: `id`, `firstName`, `middleName`, `lastName`, `secondLastName`, `admin`, `clientType`; subject = email.
 - **No hay autorización por rol**: ni `@PreAuthorize` ni `@EnableMethodSecurity`, y `JwtAuthenticationFilter` asigna siempre `ROLE_USER` (el claim `admin` no se usa para autorizar). Cualquier usuario autenticado, también uno de la app móvil, puede crear o borrar usuarios, asignarse el rol admin con `POST /users-roles` o editar menús y roles.
-- `LoginRateLimiterFilter`: 5 intentos/min por IP, fijo en código (bucket4j en memoria; toma la IP de `X-Forwarded-For`, así que es falsificable). Responde 429 con un JSON propio, no `ApiResponse`.
+- `LoginRateLimiterFilter`: 5 intentos/min por IP, fijo en código (bucket4j en memoria; toma la IP de `X-Forwarded-For` o `X-Real-IP`, así que es falsificable). Responde 429 con un JSON propio, no `ApiResponse`.
 - CORS abierto (`*` con credenciales) y Swagger público en todos los perfiles.
 - Un token vencido, mal formado o con firma inválida no autentica la petición (el filtro lo ignora) y un endpoint protegido responde entonces **401** con `ApiResponse` (`JwtAuthenticationEntryPoint`). Antes respondía 403 sin token y reventaba el filtro con uno vencido. Los endpoints públicos siguen funcionando aunque llegue un token viejo. Cubierto por `JwtSecurityChainTest`.
 
@@ -237,8 +255,10 @@ Los 9 módulos tienen las 4 capas con código real (sin carpetas vacías). Hay 1
 ### Tests (complementa la sección Testing)
 
 - Hay 15 clases: `EventFormatsServiceTest` y `EventFormatsControllerTest` (24 tests, todos pasan; verificados con `-Dtest` el 2026-10-12), `CategoriesServiceTest` y `CategoriesControllerTest` (27 tests, todos pasan; mismo método y fecha), `TeamsServiceTest` (19 tests, todos pasan; mismo método y fecha), `EventTypesServiceTest`, `EventTypesControllerTest`, `UsersServiceTest` (en realidad prueba `UsersAuthService`), `UsersManagementServiceTest`, `UsersControllerTest`, `TemporaryPasswordGeneratorTest`, `StandingsServiceTest`, `JwtAuthenticationFilterTest`, `JwtSecurityChainTest` (levanta la cadena de seguridad real con un controller de mentira; no requiere `spring-security-test`) y `BackendApplicationTests`. Los tests de controller usan `MockMvc` standalone con `GlobalException`.
-- **Sin ningún test**: teams (salvo `TeamsService`), players e invitaciones, matches (calendario y estados de partido), courts, sportcomplexes, menu, rate limiter y `EmailService`.
-- Estado verificado con `./mvnw test` el 2026-10-12: 80 tests y **3 fallan (ya fallaban antes)**: `BackendApplicationTests.contextLoads` (no hay bean `JavaMailSender`: los `application*.properties` de test no definen `spring.mail.*`) y 2 de `EventTypesControllerTest`, que esperan `$.errors` cuando `GlobalException` devuelve los errores en `$.data`.
+- **Sin ningún test**: teams (salvo `TeamsService`), players e invitaciones, matches (calendario, estados de partido y reprogramación masiva; solo hay de posiciones), courts, sportcomplexes, menu, los seeds, rate limiter y `EmailService`.
+- Estado verificado con `./mvnw test` el 2026-10-17, en una compilación limpia: **150 tests, 147 pasan y 3 fallan (ya fallaban el 2026-10-12)**: `BackendApplicationTests.contextLoads` (no hay bean `JavaMailSender`: los `application*.properties` de test no definen `spring.mail.*`) y 2 de `EventTypesControllerTest` (`create_whenMissingRequiredFields_thenReturn400` y `create_whenNameIsBlank_thenReturn400WithFieldError`), que esperan `$.errors` cuando `GlobalException` devuelve los errores en `$.data`.
+- **`contextLoads` usa la BD local real:** los `application*.properties` de test apuntan a la misma BD que dev (`sports_platform` en `localhost:5432`, `ddl-auto=update`) y ese test llega a conectarse (se ve en el log) antes de fallar en `EmailService`. Es el único que abre un pool de conexiones; el resto es Mockito o `MockMvc` standalone.
+- Si `./mvnw test` o `spring-boot:run` falla con `ClassFormatError: Invalid method Code length 0` (visto el 2026-10-17: 75 clases de `target/classes` con el constructor generado por Lombok vacío; también falla al cargarlas con `java` suelto), borra `target/` y vuelve a compilar (`./mvnw clean test`): una compilación limpia con Maven de las mismas fuentes sí generó clases válidas. Maven no las recompila porque las ve al día; el origen probable es otra herramienta que escribió en `target/classes` (el IDE), pero no está verificado.
 
 ### Deuda técnica conocida (no replicar; corregir solo si se pide)
 
@@ -252,3 +272,6 @@ Los 9 módulos tienen las 4 capas con código real (sin carpetas vacías). Hay 1
 8. Los `String` de estado/tipo y las constantes fijas (rate limit, CORS, 5 años de búsqueda del calendario) contradicen la regla "nada hardcodeado": el código nuevo debe usar `enum` y configuración.
 9. Los textos de `documentation` y `modules/documentation` describen módulos que no existen (venue, ranking, report, audit).
 10. Sin `@Order` en los seeds: en una BD vacía, si `MenuSeedRunner` corre antes de que exista el rol admin, no otorga los ítems hasta el siguiente arranque (deducido, no probado).
+11. Doce entidades implementan `HasUniqueField`, pero solo `EventsService`, `EventFormatsService`, `CategoriesService` y `TeamsService` llaman a `SoftDeleteHelper.prepareForDeletion` al borrar. Los servicios de `actions`, `courts`, `event_types`, `menu`, `players`, `roles`, `sport_complexes` y `users` ponen `deletedAt` a mano (varios importan `SoftDeleteHelper` sin usarlo), así que el valor único de un registro borrado sigue ocupado.
+12. La lectura de `app.security.admin-role-id` y la comprobación de admin se repiten en `UsersAuthService`, `UserDetailsServiceImpl`, `UsersManagementService` y los dos seeds (cada uno con su `@Value`): extraerla a un único componente antes de añadir un uso más, como piden las reglas de reutilización.
+13. Los `application*.properties` de test son copia de los de `main`: apuntan a la BD de dev y `contextLoads` se conecta a ella (ver "Tests").
