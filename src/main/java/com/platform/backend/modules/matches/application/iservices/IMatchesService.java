@@ -29,6 +29,15 @@ public interface IMatchesService {
 
     MatchResponse rescheduleMatch(UUID id, RescheduleMatchRequest request);
 
+    /**
+     * Marks as FINISHED every match whose time is over and that was still waiting to be played or being played.
+     * Returns how many it finished. Safe to repeat.
+     */
+    int finishEndedMatches();
+
+    /** Same, for the matches of one event. */
+    int finishEndedMatches(UUID eventId);
+
     void delete(UUID id);
 
     void hardDelete(UUID id);

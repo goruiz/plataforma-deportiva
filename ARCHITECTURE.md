@@ -11,7 +11,7 @@ com.platform.backend
 ├── BackendApplication
 ├── modules/        # un paquete por dominio de negocio, cada uno con las 4 capas
 │   ├── users  players  teams  events  matches
-│   └── courts  sportcomplexes  menu  permissions
+│   └── courts  sportcomplexes  holidays  menu  permissions
 └── shared/         # código transversal sin lógica de ningún módulo
 ```
 
@@ -23,10 +23,11 @@ com.platform.backend
 | `events` | Eventos, tipos de evento (liga, torneo…) y categorías |
 | `matches` | Partidos, calendario automático y tabla de posiciones |
 | `courts`, `sportcomplexes` | Canchas dentro de complejos deportivos |
+| `holidays` | Feriados y días sin juego que el calendario automático omite |
 | `menu` | Menú jerárquico por rol (alimenta la navegación de ambos frontends) |
 | `permissions` | CRUD de permisos por rol, sin uso real |
 
-Los nueve módulos tienen las cuatro capas con código. `modules/documentation` es un archivo de texto, no un módulo.
+Los diez módulos tienen las cuatro capas con código. `modules/documentation` es un archivo de texto, no un módulo.
 
 ## Capas de un módulo
 

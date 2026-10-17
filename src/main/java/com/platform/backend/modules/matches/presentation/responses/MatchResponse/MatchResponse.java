@@ -18,6 +18,8 @@ public class MatchResponse {
     private Integer awayScore;
     private UUID eventId;
     private UUID courtId;
+    /** When the match is over (kick-off + duration + break): from then on its result can be recorded. */
+    private LocalDateTime endsAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

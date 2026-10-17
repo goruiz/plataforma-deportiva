@@ -18,7 +18,7 @@ import java.util.UUID;
 
 /**
  * Seeds the admin panel's own top-level menu entries ("Dashboard", "Usuarios", "Eventos", "Formatos de evento", "Equipos",
- * "Categorías") and grants them to the fixed admin role in roles_menu, so GET /menu/for-current-user returns a non-empty sidebar
+ * "Categorías", "Canchas", "Feriados") and grants them to the fixed admin role in roles_menu, so GET /menu/for-current-user returns a non-empty sidebar
  * for administrators out of the box. Runs on every startup but is idempotent — checks
  * existence before inserting, so restarts never create duplicates.
  * <p>
@@ -87,12 +87,25 @@ public class MenuSeedRunner implements CommandLineRunner {
                 "cilTags", "/categories", (short) 5, 5
         );
 
+        MenuEntity courtsMenu = ensureMenuExists(
+                "Canchas", "Gestión de las canchas donde se juegan los partidos",
+                "menu.admin.courts", "menu.admin.courts_description",
+                "cilLocationPin", "/courts", (short) 6, 6
+        );
+        MenuEntity holidaysMenu = ensureMenuExists(
+                "Feriados", "Gestión de los feriados y los días en que no se juega",
+                "menu.admin.holidays", "menu.admin.holidays_description",
+                "cilFlagAlt", "/holidays", (short) 7, 7
+        );
+
         grantVisibilityToAdmin(adminRole, dashboardMenu);
         grantVisibilityToAdmin(adminRole, usersMenu);
         grantVisibilityToAdmin(adminRole, eventsMenu);
         grantVisibilityToAdmin(adminRole, eventFormatsMenu);
         grantVisibilityToAdmin(adminRole, teamsMenu);
         grantVisibilityToAdmin(adminRole, categoriesMenu);
+        grantVisibilityToAdmin(adminRole, courtsMenu);
+        grantVisibilityToAdmin(adminRole, holidaysMenu);
     }
 
     private MenuEntity ensureMenuExists(String name, String description, String nameTranslationKey,
