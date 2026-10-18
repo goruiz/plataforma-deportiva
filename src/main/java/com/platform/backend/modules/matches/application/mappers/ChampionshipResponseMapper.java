@@ -43,6 +43,7 @@ public class ChampionshipResponseMapper {
         response.setStructure(rules.structure());
         response.setGroupsDrawn(progress.areGroupsDrawn());
         response.setKnockoutTeamCount(expectedKnockoutTeams(rules, teams.size()));
+        response.setTeamsAdvancingPerTable(teamsAdvancingPerTable(rules));
         response.setChampionTeamId(progress.champion().orElse(null));
         response.setNextStep(toNextStep(progress.nextStep()));
         response.setPhases(progress.phases().stream().map(this::toPhase).toList());
@@ -73,6 +74,15 @@ public class ChampionshipResponseMapper {
             case KNOCKOUT -> registeredTeams;
             case GROUPS_KNOCKOUT -> rules.groupCount() * rules.teamsAdvancingPerGroup();
             default -> rules.playoffTeams();
+        };
+    }
+
+    /** The teams that leave each points table for the knockout rounds (null when the format has none after its tables). */
+    private Integer teamsAdvancingPerTable(ChampionshipRules rules) {
+        return switch (rules.structure()) {
+            case GROUPS_KNOCKOUT -> rules.teamsAdvancingPerGroup();
+            case LEAGUE_KNOCKOUT, SWISS_KNOCKOUT -> rules.playoffTeams();
+            default -> null;
         };
     }
 

@@ -30,6 +30,8 @@ public class ChampionshipResponse {
     private boolean groupsDrawn;
     /** How many teams reach the knockout rounds (null when the format has none): the bracket shows its rounds from this. */
     private Integer knockoutTeamCount;
+    /** How many teams of each points table (each group, the league, the Swiss table) go on to the knockout rounds; null when none do. */
+    private Integer teamsAdvancingPerTable;
     private UUID championTeamId;
     private NextStepResponse nextStep;
     private List<PhaseResponse> phases;
