@@ -10,8 +10,10 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+// `uses`: the event's nested format is converted by EventFormatMapper, which knows how its rules are stored.
 @Mapper(
         componentModel = "spring",
+        uses = EventFormatMapper.class,
         unmappedTargetPolicy = org.mapstruct.ReportingPolicy.IGNORE,
         unmappedSourcePolicy = org.mapstruct.ReportingPolicy.IGNORE
 )

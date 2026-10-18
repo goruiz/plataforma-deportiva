@@ -16,6 +16,12 @@ public class FieldValidationException extends RuntimeException {
         this.fieldErrors = Map.of(fieldName, reason);
     }
 
+    /** For a rule that rejects several fields at once, so the client can mark all of them in one answer. */
+    public FieldValidationException(Map<String, String> fieldErrors) {
+        super(fieldErrors.toString());
+        this.fieldErrors = Map.copyOf(fieldErrors);
+    }
+
     public Map<String, String> getFieldErrors() {
         return fieldErrors;
     }

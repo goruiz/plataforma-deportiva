@@ -4,11 +4,13 @@ import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.holidays.application.iservices.IHolidaysService;
 import com.platform.backend.modules.matches.application.iservices.IEventScheduleConfigService;
+import com.platform.backend.modules.matches.application.engine.MatchDraft;
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.EventScheduleConfigEntity;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.enums.MatchStatus;
+import com.platform.backend.modules.matches.domain.exception.ChampionshipError;
 import com.platform.backend.modules.matches.domain.irepositories.IEventScheduleConfigRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.SaveScheduleConfigRequest.SaveScheduleConfigRequest;
@@ -26,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -188,18 +191,55 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         List<MatchResponse> created = new ArrayList<>();
 
         for (UUID[] pairing : pairings) {
-            LocalDateTime kickOff = findFreeSlot(pairing[0], pairing[1], rules, occupancy)
-                    .orElseThrow(() -> new IllegalStateException(
-                        "Could not schedule all matches within " + MAX_SEARCH_YEARS +
-                        " years from " + rules.startDate() + ". Check your play days configuration."));
-
-            MatchesEntity match = newScheduledMatch(eventId, config, pairing, kickOff);
-            MatchResponse response = matchMapper.toResponse(matchRepository.save(match));
-            response.setEndsAt(kickOff.plusMinutes(rules.slotDurationMinutes()));
-            created.add(response);
-            occupancy.add(kickOff.toLocalDate(), pairing[0], pairing[1]);
+            created.add(createScheduledMatch(eventId, config, pairing, rules, occupancy, match -> { }));
         }
         return created;
+    }
+
+    /**
+     * Creates the matches a championship phase needs, each on the first free slot of the event's calendar (the same
+     * rules as {@link #generateMatches}: play days, no holidays, nobody plays twice in a day). The matches already
+     * in the event keep their slots; nothing is replaced.
+     */
+    @Override
+    public List<MatchResponse> scheduleDrafts(UUID eventId, List<MatchDraft> drafts) {
+        EventsEntity event = eventRepository.findActiveById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        EventScheduleConfigEntity config = configRepository.findActiveByEventId(eventId)
+                .orElseThrow(() -> new IllegalStateException(ChampionshipError.SCHEDULE_CONFIG_REQUIRED.name()));
+
+        ScheduleRules rules = buildRules(config, firstSchedulableDate(event));
+        DayOccupancy occupancy = occupancyOf(matchRepository.findAllActiveByEventId(eventId), rules.startDate());
+        List<MatchResponse> created = new ArrayList<>();
+
+        for (MatchDraft draft : drafts) {
+            UUID[] pairing = {draft.homeTeamId(), draft.awayTeamId()};
+            created.add(createScheduledMatch(eventId, config, pairing, rules, occupancy, match -> tagWithChampionshipPlace(match, draft)));
+        }
+        return created;
+    }
+
+    private MatchResponse createScheduledMatch(UUID eventId, EventScheduleConfigEntity config, UUID[] pairing,
+                                               ScheduleRules rules, DayOccupancy occupancy, Consumer<MatchesEntity> tagger) {
+        LocalDateTime kickOff = findFreeSlot(pairing[0], pairing[1], rules, occupancy)
+                .orElseThrow(() -> new IllegalStateException(
+                    "Could not schedule all matches within " + MAX_SEARCH_YEARS +
+                    " years from " + rules.startDate() + ". Check your play days configuration."));
+
+        MatchesEntity match = newScheduledMatch(eventId, config, pairing, kickOff);
+        tagger.accept(match);
+        MatchResponse response = matchMapper.toResponse(matchRepository.save(match));
+        response.setEndsAt(kickOff.plusMinutes(rules.slotDurationMinutes()));
+        occupancy.add(kickOff.toLocalDate(), pairing[0], pairing[1]);
+        return response;
+    }
+
+    private void tagWithChampionshipPlace(MatchesEntity match, MatchDraft draft) {
+        match.setStage(draft.stage());
+        match.setRoundNumber(draft.roundNumber());
+        match.setGroupNumber(draft.groupNumber());
+        match.setTieNumber(draft.tieNumber());
+        match.setLegNumber(draft.legNumber());
     }
 
     /** The matches that were already played or called off occupy their days too: a team can't play twice in one day. */

@@ -18,4 +18,8 @@ public class StandingEntryResponse {
     private int goalsAgainst;
     private int goalDifference;
     private int points;
+    /** The sum of the points of the teams it has faced (Buchholz), the usual tie-breaker of Swiss rounds. */
+    private int opponentsPoints;
+    /** In a group stage, the group this line belongs to; null in any other table. */
+    private Integer groupNumber;
 }

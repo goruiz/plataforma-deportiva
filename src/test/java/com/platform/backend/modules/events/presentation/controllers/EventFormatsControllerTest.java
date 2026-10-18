@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.platform.backend.modules.events.application.iservices.IEventFormatsService;
+import com.platform.backend.modules.events.domain.enums.EventFormatStructure;
 import com.platform.backend.modules.events.domain.exception.EventFormatError;
 import com.platform.backend.modules.events.presentation.requests.CreateEventFormatRequest.CreateEventFormatRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventFormatRequest.UpdateEventFormatRequest;
@@ -24,6 +25,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -133,6 +135,44 @@ class EventFormatsControllerTest {
                 .andExpect(jsonPath("$.data.name").value(EventFormatError.NAME_ALREADY_EXISTS.name()));
     }
 
+    @Test
+    void create_whenStructureIsMissing_thenReturn400WithFieldError() throws Exception {
+        CreateEventFormatRequest request = buildCreateRequest("Liga");
+        request.setStructure(null);
+
+        mockMvc.perform(post("/event-formats")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data.structure").exists());
+    }
+
+    @Test
+    void create_whenPointsAreOutOfRange_thenReturn400OnThatField() throws Exception {
+        CreateEventFormatRequest request = buildCreateRequest("Liga");
+        request.setPointsForWin(11);
+
+        mockMvc.perform(post("/event-formats")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data.pointsForWin").exists());
+    }
+
+    @Test
+    void create_whenRulesAreRejected_thenReturn400WithEveryFieldAndItsCode() throws Exception {
+        when(eventFormatsService.create(any())).thenThrow(new FieldValidationException(Map.of(
+                "pointsForWin", EventFormatError.RULE_REQUIRED.name(),
+                "tiebreakers", EventFormatError.TIEBREAKERS_DUPLICATED.name())));
+
+        mockMvc.perform(post("/event-formats")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(buildCreateRequest("Liga"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data.pointsForWin").value(EventFormatError.RULE_REQUIRED.name()))
+                .andExpect(jsonPath("$.data.tiebreakers").value(EventFormatError.TIEBREAKERS_DUPLICATED.name()));
+    }
+
     // ─── PUT /event-formats/{id} ────────────────────────────────────────────────
 
     @Test
@@ -218,6 +258,7 @@ class EventFormatsControllerTest {
     private CreateEventFormatRequest buildCreateRequest(String name) {
         CreateEventFormatRequest request = new CreateEventFormatRequest();
         request.setName(name);
+        request.setStructure(EventFormatStructure.ROUND_ROBIN);
         return request;
     }
 }

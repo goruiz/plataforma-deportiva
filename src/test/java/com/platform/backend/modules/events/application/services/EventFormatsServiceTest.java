@@ -1,5 +1,6 @@
 package com.platform.backend.modules.events.application.services;
 
+import com.platform.backend.modules.events.application.iservices.IEventFormatRulesService;
 import com.platform.backend.modules.events.application.mappers.EventFormatMapper;
 import com.platform.backend.modules.events.domain.entities.EventFormatsEntity;
 import com.platform.backend.modules.events.domain.exception.EventFormatError;
@@ -24,6 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +36,7 @@ class EventFormatsServiceTest {
     @Mock private IEventFormatRepository eventFormatRepository;
     @Mock private IEventRepository eventRepository;
     @Mock private EventFormatMapper eventFormatMapper;
+    @Mock private IEventFormatRulesService eventFormatRulesService;
 
     @InjectMocks
     private EventFormatsService eventFormatsService;
@@ -108,7 +111,21 @@ class EventFormatsServiceTest {
 
         assertThat(result).isSameAs(eventFormatResponse);
         assertThat(eventFormatEntity.getName()).isEqualTo("Liga");
+        verify(eventFormatRulesService).validateAndNormalize(eventFormatEntity);
         verify(eventFormatRepository).save(eventFormatEntity);
+    }
+
+    @Test
+    void create_whenRulesAreInvalid_thenThrowAndDoNotSave() {
+        when(eventFormatRepository.existsByName("Liga")).thenReturn(false);
+        when(eventFormatMapper.toEntity(createRequest)).thenReturn(eventFormatEntity);
+        doThrow(new FieldValidationException("pointsForWin", EventFormatError.RULE_REQUIRED.name()))
+                .when(eventFormatRulesService).validateAndNormalize(eventFormatEntity);
+
+        assertThatThrownBy(() -> eventFormatsService.create(createRequest))
+                .isInstanceOf(FieldValidationException.class);
+
+        verify(eventFormatRepository, never()).save(any());
     }
 
     @Test
@@ -137,6 +154,21 @@ class EventFormatsServiceTest {
 
         assertThat(result).isSameAs(eventFormatResponse);
         verify(eventFormatMapper).updateEntity(eventFormatEntity, updateRequest);
+        verify(eventFormatRulesService).validateAndNormalize(eventFormatEntity);
+    }
+
+    @Test
+    void update_whenMergedRulesAreInvalid_thenThrowAndDoNotSave() {
+        UUID id = eventFormatEntity.getId();
+        when(eventFormatRepository.findActiveById(id)).thenReturn(Optional.of(eventFormatEntity));
+        when(eventFormatRepository.existsByNameExcludingId("Eliminación directa", id)).thenReturn(false);
+        doThrow(new FieldValidationException("groupCount", EventFormatError.RULE_REQUIRED.name()))
+                .when(eventFormatRulesService).validateAndNormalize(eventFormatEntity);
+
+        assertThatThrownBy(() -> eventFormatsService.update(id, updateRequest))
+                .isInstanceOf(FieldValidationException.class);
+
+        verify(eventFormatRepository, never()).save(any());
     }
 
     @Test

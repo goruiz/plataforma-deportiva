@@ -16,6 +16,14 @@ public class TeamsEventsEntity extends BaseEntity {
     @JoinColumn(name = "event_id", foreignKey = @ForeignKey(name = "fk_events_teams_events_1"))
     private EventsEntity event;
 
+    /** The group the team was drawn into, in an event whose format has a group stage. */
+    @Column(name = "group_number")
+    private Integer groupNumber;
+
+    /** The team's place when the elimination rounds started (1 is the best), used to build the bracket. */
+    @Column(name = "seed")
+    private Integer seed;
+
     public TeamsEventsEntity() {}
 
     public TeamsEntity getTeam() { return team; }
@@ -23,4 +31,10 @@ public class TeamsEventsEntity extends BaseEntity {
 
     public EventsEntity getEvent() { return event; }
     public void setEvent(EventsEntity event) { this.event = event; }
+
+    public Integer getGroupNumber() { return groupNumber; }
+    public void setGroupNumber(Integer groupNumber) { this.groupNumber = groupNumber; }
+
+    public Integer getSeed() { return seed; }
+    public void setSeed(Integer seed) { this.seed = seed; }
 }

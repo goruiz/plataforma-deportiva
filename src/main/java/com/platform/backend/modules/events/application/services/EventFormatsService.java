@@ -1,5 +1,6 @@
 package com.platform.backend.modules.events.application.services;
 
+import com.platform.backend.modules.events.application.iservices.IEventFormatRulesService;
 import com.platform.backend.modules.events.application.iservices.IEventFormatsService;
 import com.platform.backend.modules.events.application.mappers.EventFormatMapper;
 import com.platform.backend.modules.events.domain.entities.EventFormatsEntity;
@@ -28,6 +29,7 @@ public class EventFormatsService implements IEventFormatsService {
     private final IEventFormatRepository eventFormatRepository;
     private final IEventRepository eventRepository;
     private final EventFormatMapper eventFormatMapper;
+    private final IEventFormatRulesService eventFormatRulesService;
 
     @Transactional(readOnly = true)
     @Override
@@ -53,6 +55,7 @@ public class EventFormatsService implements IEventFormatsService {
         }
         EventFormatsEntity eventFormat = eventFormatMapper.toEntity(request);
         eventFormat.setName(name);
+        eventFormatRulesService.validateAndNormalize(eventFormat);
         return eventFormatMapper.toResponse(eventFormatRepository.save(eventFormat));
     }
 
@@ -68,6 +71,8 @@ public class EventFormatsService implements IEventFormatsService {
             request.setName(name);
         }
         eventFormatMapper.updateEntity(eventFormat, request);
+        // The update only changes what was sent, so the rules are judged as the whole set they now form.
+        eventFormatRulesService.validateAndNormalize(eventFormat);
         return eventFormatMapper.toResponse(eventFormatRepository.save(eventFormat));
     }
 

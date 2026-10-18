@@ -1,7 +1,6 @@
 package com.platform.backend.modules.events.presentation.requests.CreateEventRequest;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -30,7 +29,10 @@ public class CreateEventRequest {
     @Min(1)
     private Integer maxPlayersPerTeam;
 
-    @NotNull
+    /**
+     * Optional: the event type is what the mobile app lists events by, and it still sends it. The admin panel does not
+     * ask for it (what it calls the event type is the format) and the event gets the configured default type.
+     */
     private UUID idEventType;
 
     /** Optional: the mobile app creates events without choosing a format. */
