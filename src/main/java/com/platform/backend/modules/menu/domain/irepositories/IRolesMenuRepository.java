@@ -21,6 +21,4 @@ public interface IRolesMenuRepository {
     void hardDelete(RolesMenuEntity rolesMenu);
 
     List<RolesMenuEntity> findActiveVisibleByRoleIds(List<UUID> roleIds);
-
-    boolean existsActiveByRoleAndMenu(UUID roleId, UUID menuId);
 }

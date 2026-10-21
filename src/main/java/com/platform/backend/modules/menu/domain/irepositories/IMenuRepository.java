@@ -16,8 +16,6 @@ public interface IMenuRepository {
 
     Optional<MenuEntity> findActiveById(UUID id);
 
-    Optional<MenuEntity> findActiveByName(String name);
-
     boolean existsByName(String name);
 
     void delete(MenuEntity menu);

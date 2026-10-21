@@ -61,10 +61,10 @@
             <artifactId>postgresql</artifactId>
         </dependency>
 
-        <!-- Flyway - migraciones de base de datos -->
+        <!-- Flyway - migraciones de base de datos (en Spring Boot 4 el autoconfigure vive en este starter) -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

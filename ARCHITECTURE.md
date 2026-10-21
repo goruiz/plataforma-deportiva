@@ -89,7 +89,7 @@ Ojo con la ortografía: dentro de un módulo la capa se llama `infrastructure`, 
 
 ## Persistencia
 
-- **Base de datos:** PostgreSQL. Hoy **Hibernate crea y altera el esquema al arrancar** (`ddl-auto=update`) y Flyway está desactivado; las migraciones `V1`–`V6` no reflejan el modelo actual. Antes de crear una `V{n}`, ver "Base de datos y migraciones" en CLAUDE.md.
+- **Base de datos:** PostgreSQL. **Flyway es el único dueño del esquema y de los datos iniciales**: hay una sola migración, `db/migration/V1__migracion_inicial.sql`, y Hibernate solo valida (`ddl-auto=validate`). Nada de scripts ni de seeders en Java: todo cambio es una nueva `V{n}`. Ver "Base de datos y migraciones: estado real" en CLAUDE.md.
 - **`BaseEntity`:** id UUID generado, `createdBy/At`, `updatedBy/At` y `deletedBy/At`. El auditor sale de `AuditorAwareImpl`, que vive en `users`.
 - **Soft delete:** borrar es marcar `deletedAt` y guardar; el método `delete` del adaptador hace un `save`. Todas las consultas de lectura filtran `...DeletedAtIsNull`. Cada recurso expone además `DELETE /x/{id}/hard` (borrado físico).
 - **Campos únicos y borrado:** `HasUniqueField.releaseUniqueFields` renombra los campos únicos al borrar para poder reutilizarlos, pero hoy **solo `EventsService.delete` llama a `SoftDeleteHelper`**. En el resto, borrar y recrear el mismo nombre o email choca con el unique de la base (409).
@@ -120,7 +120,7 @@ Los frontends desenvuelven `data` a mano y no hay cliente generado: **un cambio 
 5. `Create/Update<Noun>Request` y `<Noun>Response`, cada uno en su carpeta, más el `<Noun>Mapper`.
 6. Controller con `ResponseEntity<ApiResponse<T>>` y los factory methods de `ApiResponse`.
 7. Estados y tipos fijos: `enum`, no `String` suelto; ids y límites: configuración (`app.*`), no constantes.
-8. Si el recurso es una pantalla del panel, sembrar un ítem de `menu` con la `url` del frontend y reflejar el contrato en Angular y Flutter.
+8. Si el recurso es una pantalla del panel, sembrar un ítem de `menu` con la `url` del frontend (en una migración nueva) y reflejar el contrato en Angular y Flutter.
 9. Tests siguiendo el estilo de `UsersServiceTest` (Mockito) o de los tests de controller con `MockMvc` standalone y `GlobalException`.
 
 ## Desviaciones conocidas de la arquitectura

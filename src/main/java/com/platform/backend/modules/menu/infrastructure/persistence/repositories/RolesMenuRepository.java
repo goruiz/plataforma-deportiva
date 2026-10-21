@@ -50,9 +50,4 @@ public class RolesMenuRepository implements IRolesMenuRepository {
     public List<RolesMenuEntity> findActiveVisibleByRoleIds(List<UUID> roleIds) {
         return rolesMenuJpaRepository.findAllByRole_IdInAndVisibleTrueAndDeletedAtIsNull(roleIds);
     }
-
-    @Override
-    public boolean existsActiveByRoleAndMenu(UUID roleId, UUID menuId) {
-        return rolesMenuJpaRepository.existsByRole_IdAndMenu_IdAndDeletedAtIsNull(roleId, menuId);
-    }
 }
