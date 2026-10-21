@@ -19,6 +19,11 @@ public class SportComplexesEntity extends BaseTranslatableEntity implements HasU
     @Column(length = 500)
     private String location;
 
+    // Exact position on the map; both are set or both are null (a CHECK in the database enforces it).
+    private Double latitude;
+
+    private Double longitude;
+
     public SportComplexesEntity() {}
 
     public String getName() { return name; }
@@ -29,6 +34,12 @@ public class SportComplexesEntity extends BaseTranslatableEntity implements HasU
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

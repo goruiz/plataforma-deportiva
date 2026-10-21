@@ -13,6 +13,16 @@ public interface CourtsJpaRepository extends JpaRepository<CourtsEntity, UUID> {
 
     Optional<CourtsEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByNameAndDeletedAtIsNull(String name);
+    // A court name only has to be free inside its own complex ("Cancha 1" exists in every complex), and
+    // case-insensitive like the other catalogs. Courts without a complex share one pool of names.
+    boolean existsByNameIgnoreCaseAndSportComplex_IdAndDeletedAtIsNull(String name, UUID sportComplexId);
+
+    boolean existsByNameIgnoreCaseAndSportComplexIsNullAndDeletedAtIsNull(String name);
+
+    boolean existsByNameIgnoreCaseAndSportComplex_IdAndIdNotAndDeletedAtIsNull(String name, UUID sportComplexId, UUID id);
+
+    boolean existsByNameIgnoreCaseAndSportComplexIsNullAndIdNotAndDeletedAtIsNull(String name, UUID id);
+
+    boolean existsBySportComplex_IdAndDeletedAtIsNull(UUID sportComplexId);
 }
 

@@ -12,6 +12,8 @@ public class SportComplexResponse {
     private String name;
     private String description;
     private String location;
+    private Double latitude;
+    private Double longitude;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

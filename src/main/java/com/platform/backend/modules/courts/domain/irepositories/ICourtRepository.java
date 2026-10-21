@@ -16,7 +16,12 @@ public interface ICourtRepository {
 
     Optional<CourtsEntity> findActiveById(UUID id);
 
-    boolean existsByName(String name);
+    /** Whether an active court of that complex already has the name; a null complex means "courts without a complex". */
+    boolean existsByNameInSportComplex(String name, UUID sportComplexId);
+
+    boolean existsByNameInSportComplexExcludingId(String name, UUID sportComplexId, UUID id);
+
+    boolean existsActiveBySportComplexId(UUID sportComplexId);
 
     void delete(CourtsEntity court);
 

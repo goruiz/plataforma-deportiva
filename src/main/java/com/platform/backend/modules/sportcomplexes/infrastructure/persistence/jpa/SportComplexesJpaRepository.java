@@ -13,6 +13,9 @@ public interface SportComplexesJpaRepository extends JpaRepository<SportComplexe
 
     Optional<SportComplexesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByNameAndDeletedAtIsNull(String name);
+    // Case-insensitive: "Complejo Norte" and "complejo norte" would be indistinguishable in every complex selector.
+    boolean existsByNameIgnoreCaseAndDeletedAtIsNull(String name);
+
+    boolean existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(String name, UUID id);
 }
 

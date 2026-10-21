@@ -18,6 +18,8 @@ public interface ISportComplexRepository {
 
     boolean existsByName(String name);
 
+    boolean existsByNameExcludingId(String name, UUID id);
+
     void delete(SportComplexesEntity sportComplex);
 
     void hardDelete(SportComplexesEntity sportComplex);

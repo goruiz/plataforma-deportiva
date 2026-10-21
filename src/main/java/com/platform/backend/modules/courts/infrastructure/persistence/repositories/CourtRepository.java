@@ -37,8 +37,22 @@ public class CourtRepository implements ICourtRepository {
     }
 
     @Override
-    public boolean existsByName(String name) {
-        return courtsJpaRepository.existsByNameAndDeletedAtIsNull(name);
+    public boolean existsByNameInSportComplex(String name, UUID sportComplexId) {
+        return sportComplexId == null
+                ? courtsJpaRepository.existsByNameIgnoreCaseAndSportComplexIsNullAndDeletedAtIsNull(name)
+                : courtsJpaRepository.existsByNameIgnoreCaseAndSportComplex_IdAndDeletedAtIsNull(name, sportComplexId);
+    }
+
+    @Override
+    public boolean existsByNameInSportComplexExcludingId(String name, UUID sportComplexId, UUID id) {
+        return sportComplexId == null
+                ? courtsJpaRepository.existsByNameIgnoreCaseAndSportComplexIsNullAndIdNotAndDeletedAtIsNull(name, id)
+                : courtsJpaRepository.existsByNameIgnoreCaseAndSportComplex_IdAndIdNotAndDeletedAtIsNull(name, sportComplexId, id);
+    }
+
+    @Override
+    public boolean existsActiveBySportComplexId(UUID sportComplexId) {
+        return courtsJpaRepository.existsBySportComplex_IdAndDeletedAtIsNull(sportComplexId);
     }
 
     @Override

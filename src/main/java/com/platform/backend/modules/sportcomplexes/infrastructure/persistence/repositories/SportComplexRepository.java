@@ -38,7 +38,12 @@ public class SportComplexRepository implements ISportComplexRepository {
 
     @Override
     public boolean existsByName(String name) {
-        return sportComplexesJpaRepository.existsByNameAndDeletedAtIsNull(name);
+        return sportComplexesJpaRepository.existsByNameIgnoreCaseAndDeletedAtIsNull(name);
+    }
+
+    @Override
+    public boolean existsByNameExcludingId(String name, UUID id) {
+        return sportComplexesJpaRepository.existsByNameIgnoreCaseAndIdNotAndDeletedAtIsNull(name, id);
     }
 
     @Override
