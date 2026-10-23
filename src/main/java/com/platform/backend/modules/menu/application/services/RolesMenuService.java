@@ -174,20 +174,7 @@ public class RolesMenuService implements IRolesMenuService {
 
         visibleMenuIds.stream()
                 .filter(menuId -> !alreadyAssignedMenuIds.contains(menuId))
-                .forEach(menuId -> rolesMenuRepository.save(newVisibleAssignment(role, menusById.get(menuId))));
-    }
-
-    private RolesMenuEntity newVisibleAssignment(RolesEntity role, MenuEntity menu) {
-        RolesMenuEntity assignment = new RolesMenuEntity();
-        assignment.setRole(role);
-        assignment.setMenu(menu);
-        assignment.setVisible(true);
-        // Like the seeded ones: only `visible` is applied today, the rest is stored for when it is.
-        assignment.setCanRead(true);
-        assignment.setCanCreat(true);
-        assignment.setCanUpdate(true);
-        assignment.setCanDelete(true);
-        return assignment;
+                .forEach(menuId -> rolesMenuRepository.save(RolesMenuEntity.visibleFor(role, menusById.get(menuId))));
     }
 
     /**

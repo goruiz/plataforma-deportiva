@@ -6,6 +6,7 @@ import com.platform.backend.modules.menu.infrastructure.persistence.jpa.RolesMen
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,5 +55,10 @@ public class RolesMenuRepository implements IRolesMenuRepository {
     @Override
     public List<RolesMenuEntity> findActiveByRoleId(UUID roleId) {
         return rolesMenuJpaRepository.findAllByRole_IdAndDeletedAtIsNull(roleId);
+    }
+
+    @Override
+    public List<RolesMenuEntity> findActiveByMenuIds(Collection<UUID> menuIds) {
+        return menuIds.isEmpty() ? List.of() : rolesMenuJpaRepository.findAllByMenu_IdInAndDeletedAtIsNull(menuIds);
     }
 }

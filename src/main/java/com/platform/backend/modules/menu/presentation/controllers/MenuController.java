@@ -4,6 +4,7 @@ import com.platform.backend.shared.infraestructure.security.AccessRules;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.menu.application.iservices.IMenuService;
 import com.platform.backend.modules.menu.presentation.requests.CreateMenuRequest.CreateMenuRequest;
+import com.platform.backend.modules.menu.presentation.requests.ReorderMenusRequest.ReorderMenusRequest;
 import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest.UpdateMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuResponse;
 import com.platform.backend.modules.menu.presentation.responses.MenuResponse.MenuTreeResponse;
@@ -55,6 +56,12 @@ public class MenuController {
     @PostMapping
     public ResponseEntity<ApiResponse<MenuResponse>> create(@Valid @RequestBody CreateMenuRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(menuService.create(request)));
+    }
+
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
+    @PutMapping("/reorder")
+    public ResponseEntity<ApiResponse<List<MenuTreeResponse>>> reorder(@Valid @RequestBody ReorderMenusRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(menuService.reorder(request)));
     }
 
     @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)

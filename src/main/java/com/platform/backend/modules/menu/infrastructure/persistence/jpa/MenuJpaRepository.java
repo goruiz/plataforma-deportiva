@@ -9,7 +9,8 @@ import java.util.UUID;
 
 public interface MenuJpaRepository extends JpaRepository<MenuEntity, UUID> {
 
-    List<MenuEntity> findAllByDeletedAtIsNullOrderByOrderAsc();
+    // The name breaks the tie between siblings that share an order, so the menu never shuffles between requests.
+    List<MenuEntity> findAllByDeletedAtIsNullOrderByOrderAscNameAsc();
 
     Optional<MenuEntity> findByIdAndDeletedAtIsNull(UUID id);
 

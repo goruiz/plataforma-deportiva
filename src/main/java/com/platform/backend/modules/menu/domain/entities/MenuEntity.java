@@ -38,6 +38,10 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
     @Column(name = "owner_only", nullable = false)
     private boolean ownerOnly;
 
+    /** A screen the platform itself needs (the ones that manage the menu): it cannot be deleted, hidden or lose its url. */
+    @Column(name = "is_system", nullable = false)
+    private boolean system;
+
     public MenuEntity() {}
 
     public String getName() { return name; }
@@ -66,6 +70,9 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
 
     public boolean isOwnerOnly() { return ownerOnly; }
     public void setOwnerOnly(boolean ownerOnly) { this.ownerOnly = ownerOnly; }
+
+    public boolean isSystem() { return system; }
+    public void setSystem(boolean system) { this.system = system; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

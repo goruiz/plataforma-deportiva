@@ -33,6 +33,19 @@ public class RolesMenuEntity extends BaseEntity {
 
     public RolesMenuEntity() {}
 
+    /** The role sees the menu item. Like the seeded ones, only `visible` is applied today; the rest is stored for when it is. */
+    public static RolesMenuEntity visibleFor(RolesEntity role, MenuEntity menu) {
+        RolesMenuEntity assignment = new RolesMenuEntity();
+        assignment.setRole(role);
+        assignment.setMenu(menu);
+        assignment.setVisible(true);
+        assignment.setCanRead(true);
+        assignment.setCanCreat(true);
+        assignment.setCanUpdate(true);
+        assignment.setCanDelete(true);
+        return assignment;
+    }
+
     public RolesEntity getRole() { return role; }
     public void setRole(RolesEntity role) { this.role = role; }
 

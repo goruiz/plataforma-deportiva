@@ -28,7 +28,7 @@ public class MenuRepository implements IMenuRepository {
 
     @Override
     public List<MenuEntity> findAllActive() {
-        return menuJpaRepository.findAllByDeletedAtIsNullOrderByOrderAsc();
+        return menuJpaRepository.findAllByDeletedAtIsNullOrderByOrderAscNameAsc();
     }
 
     @Override

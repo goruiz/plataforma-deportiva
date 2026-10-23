@@ -22,6 +22,8 @@ public class MenuTreeResponse {
     private String descriptionTranslationKey;
     /** A screen of the platform owner: only its role can see it. */
     private boolean ownerOnly;
+    /** A screen the platform itself needs: it cannot be deleted, hidden or lose its url. */
+    private boolean system;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<MenuTreeResponse> submenus;

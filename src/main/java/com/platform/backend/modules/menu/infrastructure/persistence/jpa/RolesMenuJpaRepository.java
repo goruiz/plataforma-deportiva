@@ -3,6 +3,7 @@ package com.platform.backend.modules.menu.infrastructure.persistence.jpa;
 import com.platform.backend.modules.menu.domain.entities.RolesMenuEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +17,6 @@ public interface RolesMenuJpaRepository extends JpaRepository<RolesMenuEntity, U
     List<RolesMenuEntity> findAllByRole_IdInAndVisibleTrueAndDeletedAtIsNull(List<UUID> roleIds);
 
     List<RolesMenuEntity> findAllByRole_IdAndDeletedAtIsNull(UUID roleId);
+
+    List<RolesMenuEntity> findAllByMenu_IdInAndDeletedAtIsNull(Collection<UUID> menuIds);
 }

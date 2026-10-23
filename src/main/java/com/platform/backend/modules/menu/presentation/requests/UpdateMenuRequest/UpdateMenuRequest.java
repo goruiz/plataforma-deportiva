@@ -31,6 +31,13 @@ public class UpdateMenuRequest {
     @Size(max = 255)
     private String translationKey;
 
+    // Like translationKey, a blank text takes the translation away, so the item shows its own description.
+    @Size(max = 255)
+    private String descriptionTranslationKey;
+
     // Null leaves it as it is (false for a new item).
     private Boolean ownerOnly;
+
+    // idParentMenu null means "leave it where it is", so taking an item out of its parent needs its own flag.
+    private Boolean topLevel;
 }
