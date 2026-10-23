@@ -1,5 +1,7 @@
 package com.platform.backend.modules.players.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
@@ -8,6 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "team_invitations")
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_TEAM, deduceAliasInjectionPoints = false)
 public class TeamInvitationsEntity extends BaseEntity {
 
     @Column(nullable = false, length = 255)

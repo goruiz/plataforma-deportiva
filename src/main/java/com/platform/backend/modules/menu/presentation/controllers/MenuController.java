@@ -1,5 +1,7 @@
 package com.platform.backend.modules.menu.presentation.controllers;
 
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.menu.application.iservices.IMenuService;
 import com.platform.backend.modules.menu.presentation.requests.CreateMenuRequest.CreateMenuRequest;
 import com.platform.backend.modules.menu.presentation.requests.UpdateMenuRequest.UpdateMenuRequest;
@@ -49,23 +51,27 @@ public class MenuController {
         return ResponseEntity.ok(ApiResponse.ok(menuService.getById(id)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<MenuResponse>> create(@Valid @RequestBody CreateMenuRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(menuService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<MenuResponse>> update(@PathVariable UUID id,
                                                             @Valid @RequestBody UpdateMenuRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(menuService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         menuService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         menuService.hardDelete(id);

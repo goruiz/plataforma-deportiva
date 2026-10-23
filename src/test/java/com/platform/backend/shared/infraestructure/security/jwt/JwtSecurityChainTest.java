@@ -1,12 +1,14 @@
 package com.platform.backend.shared.infraestructure.security.jwt;
 
 import com.platform.backend.modules.users.infrastructure.configuration.security.SecurityConfig;
+import com.platform.backend.shared.infraestructure.security.AccessRules;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.test.context.TestPropertySource;
@@ -48,6 +50,8 @@ class JwtSecurityChainTest {
 
     private static final String PROTECTED_PATH = "/protected";
     private static final String PUBLIC_LOGIN_PATH = "/users/auth/login";
+    private static final String OWNER_ONLY_PATH = "/owner-only";
+    private static final String ADMIN_ONLY_PATH = "/admin-only";
 
     @Autowired private WebApplicationContext webApplicationContext;
     @Autowired private JwtService jwtService;
@@ -95,11 +99,51 @@ class JwtSecurityChainTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void ownerOnlyEndpoint_whenTheCallerIsAnOrganizationAdministrator_thenRespondForbidden() throws Exception {
+        mockMvc.perform(get(OWNER_ONLY_PATH).header("Authorization",
+                        "Bearer " + issueToken(60_000, Map.of("admin", true, "organizationId", UUID.randomUUID().toString()))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ownerOnlyEndpoint_whenTheCallerIsAPlainAccount_thenRespondForbidden() throws Exception {
+        mockMvc.perform(get(OWNER_ONLY_PATH).header("Authorization", "Bearer " + issueToken(60_000)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ownerOnlyEndpoint_whenTheCallerIsThePlatformOwner_thenRespondOk() throws Exception {
+        mockMvc.perform(get(OWNER_ONLY_PATH).header("Authorization",
+                        "Bearer " + issueToken(60_000, Map.of("admin", true, "platformOwner", true))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void ownerOnlyEndpoint_whenThereIsNoToken_thenRespondUnauthorized() throws Exception {
+        mockMvc.perform(get(OWNER_ONLY_PATH)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminEndpoint_whenTheCallerIsAMobileAccount_thenRespondForbiddenAndAnAdministratorPasses() throws Exception {
+        mockMvc.perform(get(ADMIN_ONLY_PATH).header("Authorization", "Bearer " + issueToken(60_000)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(ADMIN_ONLY_PATH).header("Authorization",
+                        "Bearer " + issueToken(60_000, Map.of("admin", true, "organizationId", UUID.randomUUID().toString()))))
+                .andExpect(status().isOk());
+    }
+
     private String issueToken(long expirationMillis) {
+        return issueToken(expirationMillis, Map.of());
+    }
+
+    private String issueToken(long expirationMillis, Map<String, Object> extraClaims) {
         JwtService issuer = new JwtService();
         ReflectionTestUtils.setField(issuer, "secret", ReflectionTestUtils.getField(jwtService, "secret"));
         ReflectionTestUtils.setField(issuer, "jwtExpiration", expirationMillis);
-        return issuer.generateToken(Map.of("id", UUID.randomUUID().toString()), "juan@email.com");
+        Map<String, Object> claims = new java.util.HashMap<>(extraClaims);
+        claims.put("id", UUID.randomUUID().toString());
+        return issuer.generateToken(claims, "juan@email.com");
     }
 
     @Configuration
@@ -118,7 +162,7 @@ class JwtSecurityChainTest {
     }
 
     @RestController
-    static class StubController {
+    public static class StubController {
 
         @GetMapping(PROTECTED_PATH)
         String protectedEndpoint() {
@@ -127,6 +171,18 @@ class JwtSecurityChainTest {
 
         @PostMapping(PUBLIC_LOGIN_PATH)
         String login() {
+            return "ok";
+        }
+
+        @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
+        @GetMapping(OWNER_ONLY_PATH)
+        public String ownerOnlyEndpoint() {
+            return "ok";
+        }
+
+        @PreAuthorize(AccessRules.ADMIN_ONLY)
+        @GetMapping(ADMIN_ONLY_PATH)
+        public String adminOnlyEndpoint() {
             return "ok";
         }
     }

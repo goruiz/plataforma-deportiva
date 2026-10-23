@@ -15,6 +15,9 @@ public class EventFormatResponse {
     private String name;
     private String description;
 
+    // Null in the predefined formats: they belong to nobody, every organization uses them and only the platform owner changes them.
+    private UUID organizationId;
+
     // Null in formats created before rules existed, and in every rule the structure does not use.
     private EventFormatStructure structure;
     private Boolean roundTrip;

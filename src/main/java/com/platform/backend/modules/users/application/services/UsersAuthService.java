@@ -1,11 +1,15 @@
 package com.platform.backend.modules.users.application.services;
 
+import com.platform.backend.modules.organizations.domain.entities.OrganizationsEntity;
+import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.domain.exception.LoginError;
 import com.platform.backend.modules.users.domain.exception.PasswordChangeError;
+import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
@@ -15,6 +19,7 @@ import com.platform.backend.modules.users.presentation.responses.AuthResponse.Au
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.security.jwt.JwtClaims;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +42,8 @@ public class UsersAuthService implements IUsersAuthService {
 
     private final IUserRepository userRepository;
     private final IUsersRolesRepository usersRolesRepository;
+    private final IOrganizationRepository organizationRepository;
+    private final PlatformOwnerRole platformOwnerRole;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -68,8 +75,10 @@ public class UsersAuthService implements IUsersAuthService {
         UsersEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        boolean isAdmin = isAdmin(user);
+        boolean isPlatformOwner = platformOwnerRole.isOwner(user.getId());
+        boolean isAdmin = isPlatformOwner || hasAdminRole(user);
         enforceClientTypeAccess(loginRequest.getClientType(), isAdmin);
+        enforceOrganizationAccess(loginRequest.getClientType(), user, isPlatformOwner);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getId().toString());
@@ -77,13 +86,17 @@ public class UsersAuthService implements IUsersAuthService {
         claims.put("middleName", user.getMiddleName());
         claims.put("lastName", user.getLastName());
         claims.put("secondLastName", user.getSecondLastName());
-        claims.put("admin", isAdmin);
+        claims.put(JwtClaims.ADMIN, isAdmin);
+        claims.put(JwtClaims.PLATFORM_OWNER, isPlatformOwner);
+        claims.put(JwtClaims.ORGANIZATION_ID, user.getOrganizationId() == null ? null : user.getOrganizationId().toString());
         claims.put("clientType", loginRequest.getClientType().name());
 
         String token = jwtService.generateToken(claims, user.getEmail());
         return new AuthResponse(
                 token,
                 isAdmin,
+                isPlatformOwner,
+                user.getOrganizationId(),
                 user.getId(),
                 user.getEmail(),
                 user.getFirstName(),
@@ -94,11 +107,11 @@ public class UsersAuthService implements IUsersAuthService {
     }
 
     /**
-     * Admin is determined solely by whether the user has an active users_roles
-     * row pointing at the fixed admin role id configured in app.security.admin-role-id —
-     * never by role name, since role names are editable, translatable data.
+     * An administrator is a user with an active users_roles row pointing at the fixed admin role id configured in
+     * app.security.admin-role-id — never by role name, since role names are editable, translatable data. The platform
+     * owner has its own role instead and counts as an administrator without this one (see {@link #login}).
      */
-    private boolean isAdmin(UsersEntity user) {
+    private boolean hasAdminRole(UsersEntity user) {
         if (!StringUtils.hasText(adminRoleId)) {
             return false;
         }
@@ -113,10 +126,32 @@ public class UsersAuthService implements IUsersAuthService {
      */
     private void enforceClientTypeAccess(ClientType clientType, boolean isAdmin) {
         if (clientType == ClientType.ADMIN_PANEL && !isAdmin) {
-            throw new AccessDeniedException("This account does not have administrator access.");
+            throw new AccessDeniedException(LoginError.ADMIN_ACCESS_REQUIRED.name());
         }
         if (clientType == ClientType.MOBILE_APP && isAdmin) {
-            throw new AccessDeniedException("Administrator accounts cannot sign in through the mobile app.");
+            throw new AccessDeniedException(LoginError.ADMIN_CANNOT_USE_MOBILE_APP.name());
+        }
+    }
+
+    /**
+     * Whoever is not the platform owner works for an organization, and that organization has to exist and not be
+     * suspended: an administrator can only enter the panel through one, and a mobile-app account that belongs to one
+     * is cut off with it. Mobile-app accounts without an organization are not affected.
+     */
+    private void enforceOrganizationAccess(ClientType clientType, UsersEntity user, boolean isPlatformOwner) {
+        if (isPlatformOwner) {
+            return;
+        }
+        if (user.getOrganizationId() == null) {
+            if (clientType == ClientType.ADMIN_PANEL) {
+                throw new AccessDeniedException(LoginError.ORGANIZATION_REQUIRED.name());
+            }
+            return;
+        }
+        OrganizationsEntity organization = organizationRepository.findActiveById(user.getOrganizationId())
+                .orElseThrow(() -> new AccessDeniedException(LoginError.ORGANIZATION_NOT_FOUND.name()));
+        if (organization.isSuspended()) {
+            throw new AccessDeniedException(LoginError.ORGANIZATION_SUSPENDED.name());
         }
     }
 

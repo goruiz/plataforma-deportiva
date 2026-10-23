@@ -1,10 +1,13 @@
 package com.platform.backend.modules.events.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "events_categories")
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_EVENT_BY_ID_EVENT, deduceAliasInjectionPoints = false)
 public class EventsCategoriesEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

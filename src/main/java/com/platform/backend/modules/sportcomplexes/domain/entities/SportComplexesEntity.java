@@ -1,5 +1,9 @@
 package com.platform.backend.modules.sportcomplexes.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
@@ -8,7 +12,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "sport_complexes")
-public class SportComplexesEntity extends BaseTranslatableEntity implements HasUniqueField {
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+public class SportComplexesEntity extends BaseTranslatableEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(length = 200, nullable = false)
     private String name;
@@ -23,6 +29,10 @@ public class SportComplexesEntity extends BaseTranslatableEntity implements HasU
     private Double latitude;
 
     private Double longitude;
+
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
 
     public SportComplexesEntity() {}
 
@@ -47,4 +57,10 @@ public class SportComplexesEntity extends BaseTranslatableEntity implements HasU
             this.name = this.name + "_DELETED_" + entityId;
         }
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }

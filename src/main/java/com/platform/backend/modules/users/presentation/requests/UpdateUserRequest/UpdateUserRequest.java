@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UpdateUserRequest {
 
@@ -25,4 +27,8 @@ public class UpdateUserRequest {
     @Email
     @Size(max = 255)
     private String email;
+
+    // Only the platform owner moves an account to another organization; null leaves it where it is (so an account can't
+    // be taken back to "no organization" from here), and for an organization's administrator it is ignored.
+    private UUID organizationId;
 }

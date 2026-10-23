@@ -1,5 +1,9 @@
 package com.platform.backend.modules.users.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
@@ -8,7 +12,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class UsersEntity extends BaseEntity implements HasUniqueField {
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+public class UsersEntity extends BaseEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(name = "first_name", length = 255)
     private String firstName;
@@ -30,6 +36,10 @@ public class UsersEntity extends BaseEntity implements HasUniqueField {
 
     @Column(length = 255)
     private String password;
+
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
 
     public UsersEntity() {}
 
@@ -60,4 +70,10 @@ public class UsersEntity extends BaseEntity implements HasUniqueField {
             this.email = this.email + "_DELETED_" + entityId;
         }
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }

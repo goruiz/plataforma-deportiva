@@ -32,6 +32,13 @@ public class HolidayRepository implements IHolidayRepository {
     }
 
     @Override
+    public List<HolidaysEntity> findAllActiveOfOrganization(UUID organizationId) {
+        return organizationId == null
+                ? holidaysJpaRepository.findAllByOrganizationIdIsNullAndDeletedAtIsNull()
+                : holidaysJpaRepository.findAllByOrganizationIdAndDeletedAtIsNull(organizationId);
+    }
+
+    @Override
     public void delete(HolidaysEntity holiday) {
         holidaysJpaRepository.save(holiday);
     }

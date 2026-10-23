@@ -1,10 +1,13 @@
 package com.platform.backend.modules.users.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "users_roles")
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_USER, deduceAliasInjectionPoints = false)
 public class UsersRolesEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

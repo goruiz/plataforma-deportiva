@@ -21,4 +21,7 @@ public interface IRolesMenuRepository {
     void hardDelete(RolesMenuEntity rolesMenu);
 
     List<RolesMenuEntity> findActiveVisibleByRoleIds(List<UUID> roleIds);
+
+    /** Every active assignment of the role, visible or not. */
+    List<RolesMenuEntity> findActiveByRoleId(UUID roleId);
 }

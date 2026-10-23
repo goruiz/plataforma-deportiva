@@ -1,5 +1,7 @@
 package com.platform.backend.modules.events.presentation.controllers;
 
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.events.application.iservices.IEventTypesService;
 import com.platform.backend.modules.events.presentation.requests.CreateEventTypeRequest.CreateEventTypeRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventTypeRequest.UpdateEventTypeRequest;
@@ -39,23 +41,27 @@ public class EventTypesController {
         return ResponseEntity.ok(ApiResponse.ok(eventTypesService.getEventsByType(id)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<EventTypeResponse>> create(@Valid @RequestBody CreateEventTypeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(eventTypesService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<EventTypeResponse>> update(@PathVariable UUID id,
                                                                  @Valid @RequestBody UpdateEventTypeRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(eventTypesService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         eventTypesService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         eventTypesService.hardDelete(id);

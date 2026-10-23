@@ -38,6 +38,8 @@ class HolidaysServiceTest {
     @InjectMocks
     private HolidaysService holidaysService;
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
+
     private HolidaysEntity christmas;
 
     @BeforeEach
@@ -348,9 +350,10 @@ class HolidaysServiceTest {
     void getNonPlayDatesBetween_whenHolidaysAreOneOffAndRecurring_thenEveryDayInTheRange() {
         HolidaysEntity oneOff = holidayEntity("Mantenimiento", LocalDate.of(2026, 11, 3), false);
         HolidaysEntity outOfRange = holidayEntity("Fuera", LocalDate.of(2030, 5, 1), false);
-        when(holidayRepository.findAllActive()).thenReturn(List.of(christmas, oneOff, outOfRange));
+        when(holidayRepository.findAllActiveOfOrganization(ORGANIZATION_ID)).thenReturn(List.of(christmas, oneOff, outOfRange));
 
-        Set<LocalDate> dates = holidaysService.getNonPlayDatesBetween(LocalDate.of(2026, 10, 1), LocalDate.of(2027, 12, 31));
+        Set<LocalDate> dates = holidaysService.getNonPlayDatesBetween(
+                ORGANIZATION_ID, LocalDate.of(2026, 10, 1), LocalDate.of(2027, 12, 31));
 
         assertThat(dates).containsExactlyInAnyOrder(
                 LocalDate.of(2026, 11, 3), LocalDate.of(2026, 12, 25), LocalDate.of(2027, 12, 25));
@@ -359,17 +362,29 @@ class HolidaysServiceTest {
     @Test
     void getNonPlayDatesBetween_whenAHolidayIsARange_thenEveryDayOfItInsideTheWindow() {
         HolidaysEntity carnival = holidayEntity("Carnaval", LocalDate.of(2027, 2, 8), LocalDate.of(2027, 2, 10), false);
-        when(holidayRepository.findAllActive()).thenReturn(List.of(carnival));
+        when(holidayRepository.findAllActiveOfOrganization(ORGANIZATION_ID)).thenReturn(List.of(carnival));
 
-        Set<LocalDate> dates = holidaysService.getNonPlayDatesBetween(LocalDate.of(2027, 2, 9), LocalDate.of(2027, 3, 1));
+        Set<LocalDate> dates = holidaysService.getNonPlayDatesBetween(
+                ORGANIZATION_ID, LocalDate.of(2027, 2, 9), LocalDate.of(2027, 3, 1));
 
         assertThat(dates).containsExactlyInAnyOrder(LocalDate.of(2027, 2, 9), LocalDate.of(2027, 2, 10));
     }
 
     @Test
     void getNonPlayDatesBetween_whenThereAreNoHolidays_thenEmpty() {
-        when(holidayRepository.findAllActive()).thenReturn(List.of());
+        when(holidayRepository.findAllActiveOfOrganization(ORGANIZATION_ID)).thenReturn(List.of());
 
-        assertThat(holidaysService.getNonPlayDatesBetween(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31))).isEmpty();
+        assertThat(holidaysService.getNonPlayDatesBetween(
+                ORGANIZATION_ID, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31))).isEmpty();
+    }
+
+    @Test
+    void getNonPlayDatesBetween_whenTheOrganizationIsNull_thenAsksForTheHolidaysOfThePlatformOwner() {
+        when(holidayRepository.findAllActiveOfOrganization(null)).thenReturn(List.of(christmas));
+
+        Set<LocalDate> dates = holidaysService.getNonPlayDatesBetween(null, LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 31));
+
+        assertThat(dates).containsExactly(LocalDate.of(2026, 12, 25));
+        verify(holidayRepository, never()).findAllActive();
     }
 }

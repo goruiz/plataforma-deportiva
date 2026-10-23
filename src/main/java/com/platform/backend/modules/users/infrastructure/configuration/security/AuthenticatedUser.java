@@ -1,13 +1,17 @@
 package com.platform.backend.modules.users.infrastructure.configuration.security;
 
+import com.platform.backend.shared.domain.tenancy.TenantPrincipal;
+import com.platform.backend.shared.infraestructure.security.Authority;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public class AuthenticatedUser implements UserDetails {
+public class AuthenticatedUser implements UserDetails, TenantPrincipal {
 
     private final UUID id;
 
@@ -19,6 +23,9 @@ public class AuthenticatedUser implements UserDetails {
 
     private final String email;
 
+    private final UUID organizationId;
+    private final boolean platformOwner;
+
     private final Collection<? extends GrantedAuthority> authorities;
 
     public AuthenticatedUser(
@@ -28,6 +35,8 @@ public class AuthenticatedUser implements UserDetails {
             String lastName,
             String secondLastName,
             String email,
+            UUID organizationId,
+            boolean platformOwner,
             Collection<? extends GrantedAuthority> authorities
     ) {
         this.id = id;
@@ -39,6 +48,9 @@ public class AuthenticatedUser implements UserDetails {
         this.secondLastName = secondLastName;
 
         this.email = email;
+
+        this.organizationId = organizationId;
+        this.platformOwner = platformOwner;
 
         this.authorities = authorities;
     }
@@ -65,6 +77,16 @@ public class AuthenticatedUser implements UserDetails {
 
     public String getEmail() {
         return email;
+    }
+
+    @Override
+    public UUID getOrganizationId() {
+        return organizationId;
+    }
+
+    @Override
+    public boolean isPlatformOwner() {
+        return platformOwner;
     }
 
     @Override
@@ -110,6 +132,10 @@ public class AuthenticatedUser implements UserDetails {
         return true;
     }
 
+    /**
+     * Builds the caller from what the login put in the token. Every account is a USER; an administrator also gets
+     * ADMIN and the platform owner also PLATFORM_OWNER.
+     */
     public static AuthenticatedUser from(
             UUID id,
             String firstName,
@@ -117,9 +143,10 @@ public class AuthenticatedUser implements UserDetails {
             String lastName,
             String secondLastName,
             String email,
-            String role
+            UUID organizationId,
+            boolean admin,
+            boolean platformOwner
     ) {
-
         return new AuthenticatedUser(
                 id,
                 firstName,
@@ -127,7 +154,21 @@ public class AuthenticatedUser implements UserDetails {
                 lastName,
                 secondLastName,
                 email,
-                List.of(() -> role)
+                organizationId,
+                platformOwner,
+                authoritiesFor(admin, platformOwner)
         );
+    }
+
+    private static List<GrantedAuthority> authoritiesFor(boolean admin, boolean platformOwner) {
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(Authority.USER.roleName()));
+        if (admin) {
+            authorities.add(new SimpleGrantedAuthority(Authority.ADMIN.roleName()));
+        }
+        if (platformOwner) {
+            authorities.add(new SimpleGrantedAuthority(Authority.PLATFORM_OWNER.roleName()));
+        }
+        return authorities;
     }
 }

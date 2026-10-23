@@ -1,5 +1,7 @@
 package com.platform.backend.modules.matches.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.modules.matches.domain.enums.MatchStage;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
@@ -9,6 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "matches")
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_EVENT, deduceAliasInjectionPoints = false)
 public class MatchesEntity extends BaseEntity {
 
     @Column(name = "home_team_id", nullable = false)

@@ -1,5 +1,11 @@
 package com.platform.backend.modules.holidays.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
+import jakarta.persistence.EntityListeners;
+import java.util.UUID;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,7 +26,9 @@ import java.util.stream.Stream;
  */
 @Entity
 @Table(name = "holidays")
-public class HolidaysEntity extends BaseEntity {
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+public class HolidaysEntity extends BaseEntity implements OrganizationOwned {
 
     /**
      * The longest a break can last after its first day. With this cap a recurring break reaches at most into
@@ -45,6 +53,10 @@ public class HolidaysEntity extends BaseEntity {
     /** True when the holiday repeats on the same month and day every year (Christmas); false for a one-off day. */
     @Column(nullable = false)
     private boolean recurring;
+
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
 
     public HolidaysEntity() {}
 
@@ -101,4 +113,10 @@ public class HolidaysEntity extends BaseEntity {
     private LocalDate occurrenceIn(int year) {
         return MonthDay.from(date).atYear(year);
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }

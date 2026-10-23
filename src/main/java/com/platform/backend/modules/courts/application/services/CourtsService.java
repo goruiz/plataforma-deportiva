@@ -58,6 +58,7 @@ public class CourtsService implements ICourtsService {
         CourtsEntity court = courtMapper.toEntity(request);
         court.setName(name);
         court.setSportComplex(complex);
+        court.setOrganizationId(organizationOf(complex));
         return courtMapper.toResponse(courtRepository.save(court));
     }
 
@@ -124,6 +125,14 @@ public class CourtsService implements ICourtsService {
         if (request.getName() != null) {
             request.setName(name);
         }
+    }
+
+    /**
+     * A court belongs to the organization of its complex. Without a complex (or when the caller is restricted to an
+     * organization, which then decides it) it is left null and the organization of whoever creates it applies.
+     */
+    private UUID organizationOf(SportComplexesEntity sportComplex) {
+        return sportComplex == null ? null : sportComplex.getOrganizationId();
     }
 
     private UUID idOf(SportComplexesEntity sportComplex) {

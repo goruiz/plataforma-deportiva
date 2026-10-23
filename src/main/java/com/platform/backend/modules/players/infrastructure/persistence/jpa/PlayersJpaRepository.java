@@ -1,7 +1,7 @@
 package com.platform.backend.modules.players.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface PlayersJpaRepository extends JpaRepository<PlayersEntity, UUID> {
+public interface PlayersJpaRepository extends TenantScopedJpaRepository<PlayersEntity> {
 
     List<PlayersEntity> findAllByDeletedAtIsNull();
 

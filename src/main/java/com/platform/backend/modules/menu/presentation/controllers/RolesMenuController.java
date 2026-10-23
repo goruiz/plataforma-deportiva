@@ -1,7 +1,10 @@
 package com.platform.backend.modules.menu.presentation.controllers;
 
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.menu.application.iservices.IRolesMenuService;
 import com.platform.backend.modules.menu.presentation.requests.CreateRolesMenuRequest.CreateRolesMenuRequest;
+import com.platform.backend.modules.menu.presentation.requests.SaveRoleMenusRequest.SaveRoleMenusRequest;
 import com.platform.backend.modules.menu.presentation.requests.UpdateRolesMenuRequest.UpdateRolesMenuRequest;
 import com.platform.backend.modules.menu.presentation.responses.RolesMenuResponse.RolesMenuResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
@@ -40,23 +43,34 @@ public class RolesMenuController {
         return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.getById(id)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<RolesMenuResponse>> create(@Valid @RequestBody CreateRolesMenuRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(rolesMenuService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
+    @PutMapping("/by-role/{roleId}")
+    public ResponseEntity<ApiResponse<List<RolesMenuResponse>>> saveForRole(
+            @PathVariable UUID roleId, @Valid @RequestBody SaveRoleMenusRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.saveForRole(roleId, request)));
+    }
+
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<RolesMenuResponse>> update(@PathVariable UUID id,
                                                                  @Valid @RequestBody UpdateRolesMenuRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(rolesMenuService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         rolesMenuService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         rolesMenuService.hardDelete(id);

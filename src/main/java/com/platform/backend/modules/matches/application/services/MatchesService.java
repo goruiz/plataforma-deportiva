@@ -1,5 +1,7 @@
 package com.platform.backend.modules.matches.application.services;
 
+import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.matches.application.iservices.IMatchTimingService;
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
@@ -12,7 +14,9 @@ import com.platform.backend.modules.matches.presentation.requests.RescheduleDate
 import com.platform.backend.modules.matches.presentation.requests.RescheduleMatchRequest.RescheduleMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.TenantReferences;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,9 +38,16 @@ public class MatchesService implements IMatchesService {
 
     private static final String HOME_SCORE_FIELD = "homeScore";
     private static final String AWAY_SCORE_FIELD = "awayScore";
+    private static final String EVENT_FIELD = "eventId";
+    private static final String HOME_TEAM_FIELD = "homeTeamId";
+    private static final String AWAY_TEAM_FIELD = "awayTeamId";
+    private static final String COURT_FIELD = "courtId";
 
     private final IMatchRepository matchRepository;
     private final IMatchTimingService matchTimingService;
+    private final IEventRepository eventRepository;
+    private final ITeamRepository teamRepository;
+    private final ICourtRepository courtRepository;
     private final MatchMapper matchMapper;
 
     @Override
@@ -56,6 +67,8 @@ public class MatchesService implements IMatchesService {
 
     @Override
     public MatchResponse create(CreateMatchRequest request) {
+        validateReferencesAreVisible(request.getEventId(), request.getHomeTeamId(), request.getAwayTeamId(),
+                request.getCourtId(), true);
         MatchesEntity match = matchMapper.toEntity(request);
         return toResponse(matchRepository.save(match));
     }
@@ -68,6 +81,8 @@ public class MatchesService implements IMatchesService {
     @Override
     public MatchResponse update(UUID id, UpdateMatchRequest request) {
         MatchesEntity match = findActiveOrThrow(id);
+        validateReferencesAreVisible(request.getEventId(), request.getHomeTeamId(), request.getAwayTeamId(),
+                request.getCourtId(), false);
         validateDataIsStillEditable(match, request);
         matchMapper.updateEntity(match, request);
 
@@ -193,6 +208,23 @@ public class MatchesService implements IMatchesService {
         return ended.size();
     }
 
+    /**
+     * The event, teams and court of a match are plain ids, so nothing else checks them. An administrator of an
+     * organization may only use their own, and a new match needs an event: without one nobody of that organization
+     * would see it again.
+     */
+    private void validateReferencesAreVisible(UUID eventId, UUID homeTeamId, UUID awayTeamId, UUID courtId,
+                                              boolean eventRequired) {
+        TenantReferences.requireVisible(eventId, eventRequired, id -> eventRepository.findActiveById(id).isPresent(),
+                () -> new FieldValidationException(EVENT_FIELD, MatchError.EVENT_NOT_FOUND.name()));
+        TenantReferences.requireVisible(homeTeamId, false, id -> teamRepository.findActiveById(id).isPresent(),
+                () -> new FieldValidationException(HOME_TEAM_FIELD, MatchError.TEAM_NOT_FOUND.name()));
+        TenantReferences.requireVisible(awayTeamId, false, id -> teamRepository.findActiveById(id).isPresent(),
+                () -> new FieldValidationException(AWAY_TEAM_FIELD, MatchError.TEAM_NOT_FOUND.name()));
+        TenantReferences.requireVisible(courtId, false, id -> courtRepository.findActiveById(id).isPresent(),
+                () -> new FieldValidationException(COURT_FIELD, MatchError.COURT_NOT_FOUND.name()));
+    }
+
     /** Checked before the mapper overwrites the stored values: a value sent unchanged (as the mobile app does) is fine. */
     private void validateDataIsStillEditable(MatchesEntity match, UpdateMatchRequest request) {
         if (!hasStarted(match, LocalDateTime.now())) {
@@ -209,12 +241,12 @@ public class MatchesService implements IMatchesService {
     /** For each data field the request may change: whether it asks for a value different from the stored one. */
     private Map<String, Boolean> requestedDataChanges(MatchesEntity match, UpdateMatchRequest request) {
         Map<String, Boolean> changes = new LinkedHashMap<>();
-        changes.put("homeTeamId", isChange(request.getHomeTeamId(), match.getHomeTeamId()));
-        changes.put("awayTeamId", isChange(request.getAwayTeamId(), match.getAwayTeamId()));
+        changes.put(HOME_TEAM_FIELD, isChange(request.getHomeTeamId(), match.getHomeTeamId()));
+        changes.put(AWAY_TEAM_FIELD, isChange(request.getAwayTeamId(), match.getAwayTeamId()));
         changes.put("matchDate", isChange(request.getMatchDate(), match.getMatchDate()));
         changes.put("location", isChange(request.getLocation(), match.getLocation()));
-        changes.put("courtId", isChange(request.getCourtId(), match.getCourtId()));
-        changes.put("eventId", isChange(request.getEventId(), match.getEventId()));
+        changes.put(COURT_FIELD, isChange(request.getCourtId(), match.getCourtId()));
+        changes.put(EVENT_FIELD, isChange(request.getEventId(), match.getEventId()));
         return changes;
     }
 

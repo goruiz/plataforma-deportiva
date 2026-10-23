@@ -1,12 +1,17 @@
 package com.platform.backend.modules.users.infrastructure.persistence.repositories;
 
+import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.entities.UsersRolesEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.users.infrastructure.persistence.jpa.UsersRolesJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,5 +64,17 @@ public class UsersRolesRepository implements IUsersRolesRepository {
     @Override
     public List<UsersRolesEntity> findActiveByUserId(UUID userId) {
         return usersRolesJpaRepository.findAllByUser_IdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
+    public Map<UUID, List<RolesEntity>> findActiveRolesByUserIds(Collection<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<RolesEntity>> rolesByUserId = new HashMap<>();
+        for (Object[] userAndRole : usersRolesJpaRepository.findActiveRolesByUserIds(userIds)) {
+            rolesByUserId.computeIfAbsent((UUID) userAndRole[0], userId -> new ArrayList<>()).add((RolesEntity) userAndRole[1]);
+        }
+        return rolesByUserId;
     }
 }

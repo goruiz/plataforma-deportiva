@@ -14,5 +14,8 @@ public interface IHolidayRepository {
 
     Optional<HolidaysEntity> findActiveById(UUID id);
 
+    /** The holidays of one organization; a null organization means the ones that belong to the platform owner. */
+    List<HolidaysEntity> findAllActiveOfOrganization(UUID organizationId);
+
     void delete(HolidaysEntity holiday);
 }

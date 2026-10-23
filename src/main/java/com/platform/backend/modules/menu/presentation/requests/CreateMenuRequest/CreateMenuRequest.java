@@ -32,4 +32,7 @@ public class CreateMenuRequest {
 
     @Size(max = 255)
     private String translationKey;
+
+    // Null leaves it as it is (false for a new item).
+    private Boolean ownerOnly;
 }

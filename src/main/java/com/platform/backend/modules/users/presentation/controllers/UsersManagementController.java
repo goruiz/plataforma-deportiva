@@ -1,14 +1,22 @@
 package com.platform.backend.modules.users.presentation.controllers;
 
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
+import com.platform.backend.modules.users.domain.enums.UserSection;
 import com.platform.backend.modules.users.presentation.requests.CreateUserRequest.CreateUserRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateUserRequest.UpdateUserRequest;
+import com.platform.backend.modules.users.presentation.responses.UserCountsResponse.UserCountsResponse;
+import com.platform.backend.modules.users.presentation.responses.UserListItemResponse.UserListItemResponse;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
+import com.platform.backend.shared.infraestructure.pagination.ListQueryResolver;
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import com.platform.backend.shared.presentation.requests.ListRequest.ListRequest;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import com.platform.backend.shared.presentation.responses.PageResponse.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Users", description = "User management")
@@ -27,24 +34,44 @@ import java.util.UUID;
 public class UsersManagementController {
 
     private final IUsersManagementService usersManagementService;
+    private final ListQueryResolver listQueryResolver;
 
-    public UsersManagementController(IUsersManagementService usersManagementService) {
+    public UsersManagementController(IUsersManagementService usersManagementService, ListQueryResolver listQueryResolver) {
         this.usersManagementService = usersManagementService;
+        this.listQueryResolver = listQueryResolver;
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getAllUsers()));
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    public ResponseEntity<ApiResponse<PageResponse<UserListItemResponse>>> getAllUsers(ListRequest request) {
+        return listUsers(UserSection.ALL, request);
+    }
+
+    /** Accounts of the platform owner: only the owner sees them (an organization's administrator has none of these). */
+    @GetMapping("/owners")
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
+    public ResponseEntity<ApiResponse<PageResponse<UserListItemResponse>>> getOwnerUsers(ListRequest request) {
+        return listUsers(UserSection.OWNERS, request);
     }
 
     @GetMapping("/admins")
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getAdminUsers() {
-        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getAdminUsers()));
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    public ResponseEntity<ApiResponse<PageResponse<UserListItemResponse>>> getAdminUsers(ListRequest request) {
+        return listUsers(UserSection.ADMINS, request);
     }
 
     @GetMapping("/regular")
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getRegularUsers() {
-        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getRegularUsers()));
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    public ResponseEntity<ApiResponse<PageResponse<UserListItemResponse>>> getRegularUsers(ListRequest request) {
+        return listUsers(UserSection.APP_USERS, request);
+    }
+
+    /** The number on each tab of the users screen; only {@code search} is read from the request. */
+    @GetMapping("/counts")
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    public ResponseEntity<ApiResponse<UserCountsResponse>> countUsersBySection(ListRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                usersManagementService.countUsersBySection(listQueryResolver.searchTerms(request.getSearch()))));
     }
 
     @GetMapping("/{id}")
@@ -73,5 +100,12 @@ public class UsersManagementController {
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         usersManagementService.hardDelete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
+    }
+
+    private ResponseEntity<ApiResponse<PageResponse<UserListItemResponse>>> listUsers(UserSection section, ListRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getUsers(
+                section,
+                listQueryResolver.pageQuery(request.getPage(), request.getSize()),
+                listQueryResolver.searchTerms(request.getSearch()))));
     }
 }

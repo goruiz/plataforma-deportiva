@@ -1,5 +1,7 @@
 package com.platform.backend.modules.players.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
@@ -11,6 +13,7 @@ import java.util.UUID;
 @Table(name = "players", uniqueConstraints = {
         @UniqueConstraint(name = "players_email_key", columnNames = "email")
 })
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.PLAYER_WITHOUT_TEAM_OR_OF_OWN_TEAM, deduceAliasInjectionPoints = false)
 public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     @ManyToOne(fetch = FetchType.LAZY)

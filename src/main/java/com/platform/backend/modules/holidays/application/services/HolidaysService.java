@@ -86,8 +86,8 @@ public class HolidaysService implements IHolidaysService {
 
     @Transactional(readOnly = true)
     @Override
-    public Set<LocalDate> getNonPlayDatesBetween(LocalDate from, LocalDate to) {
-        return holidayRepository.findAllActive()
+    public Set<LocalDate> getNonPlayDatesBetween(UUID organizationId, LocalDate from, LocalDate to) {
+        return holidayRepository.findAllActiveOfOrganization(organizationId)
                 .stream()
                 .flatMap(holiday -> holiday.occurrencesBetween(from, to).stream())
                 .collect(Collectors.toSet());

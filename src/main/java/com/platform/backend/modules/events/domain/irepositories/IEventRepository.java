@@ -24,6 +24,8 @@ public interface IEventRepository {
 
     boolean existsActiveByEventFormatId(UUID eventFormatId);
 
+    boolean existsActiveByOrganizationId(UUID organizationId);
+
     void delete(EventsEntity event);
 
     void hardDelete(EventsEntity event);

@@ -1,13 +1,13 @@
 package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaRepository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface CourtsJpaRepository extends JpaRepository<CourtsEntity, UUID> {
+public interface CourtsJpaRepository extends TenantScopedJpaRepository<CourtsEntity> {
 
     List<CourtsEntity> findAllByDeletedAtIsNull();
 

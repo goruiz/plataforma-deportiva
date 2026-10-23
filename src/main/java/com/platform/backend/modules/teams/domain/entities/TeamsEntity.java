@@ -1,5 +1,9 @@
 package com.platform.backend.modules.teams.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.modules.teams.domain.enums.TeamStatus;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
@@ -8,10 +12,11 @@ import jakarta.persistence.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "teams", uniqueConstraints = {
-        @UniqueConstraint(name = "teams_name_key", columnNames = "name")
-})
-public class TeamsEntity extends BaseEntity implements HasUniqueField {
+// The name is unique inside each organization (a unique index created by the migrations), not in the whole system.
+@Table(name = "teams")
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+public class TeamsEntity extends BaseEntity implements HasUniqueField, OrganizationOwned {
 
     private static final int NAME_MAX_LENGTH = 150;
 
@@ -26,6 +31,10 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField {
 
     @Column(length = 20, nullable = false)
     private String status = TeamStatus.ACTIVE.name();
+
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
 
     public TeamsEntity() {}
 
@@ -53,4 +62,10 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField {
             this.name = this.name.substring(0, keptNameLength) + deletedTag;
         }
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }

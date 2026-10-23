@@ -26,6 +26,8 @@ public interface ITeamRepository {
 
     boolean existsActiveByCategoryId(UUID categoryId);
 
+    boolean existsActiveByOrganizationId(UUID organizationId);
+
     void delete(TeamsEntity team);
 
     void hardDelete(TeamsEntity team);

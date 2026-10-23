@@ -1,5 +1,7 @@
 package com.platform.backend.modules.matches.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
@@ -7,6 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "match_details")
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_MATCH_BY_ID_MATCH, deduceAliasInjectionPoints = false)
 public class MatchDetailsEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

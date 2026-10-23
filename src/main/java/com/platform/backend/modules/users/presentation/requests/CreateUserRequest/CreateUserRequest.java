@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class CreateUserRequest {
 
@@ -30,4 +32,8 @@ public class CreateUserRequest {
     @Email
     @Size(max = 255)
     private String email;
+
+    // Only the platform owner chooses the organization of the new account; an organization's administrator always
+    // creates inside their own, whatever is sent here.
+    private UUID organizationId;
 }

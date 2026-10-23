@@ -45,6 +45,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -56,6 +57,7 @@ class EventScheduleConfigServiceTest {
 
     // Far in the future, so "matches are never placed in the past" doesn't interfere unless a test asks for it.
     private static final LocalDate EVENT_START = LocalDate.of(2099, 3, 1);
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final LocalDate FIRST_SATURDAY = EVENT_START.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
 
     @Mock private IEventScheduleConfigRepository configRepository;
@@ -81,6 +83,7 @@ class EventScheduleConfigServiceTest {
         event.setId(eventId);
         event.setStartDate(EVENT_START);
         event.setEndDate(EVENT_START.plusYears(1));
+        event.setOrganizationId(ORGANIZATION_ID);
 
         // Saturdays only, 09:00, 60-minute matches with 15 minutes in between: two matches per round fit 09:00 and 10:15.
         config = new EventScheduleConfigEntity();
@@ -93,7 +96,7 @@ class EventScheduleConfigServiceTest {
         lenient().when(eventRepository.findActiveById(eventId)).thenReturn(Optional.of(event));
         lenient().when(configRepository.findActiveByEventId(eventId)).thenReturn(Optional.of(config));
         lenient().when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of());
-        lenient().when(holidaysService.getNonPlayDatesBetween(any(), any())).thenReturn(Set.of());
+        lenient().when(holidaysService.getNonPlayDatesBetween(any(), any(), any())).thenReturn(Set.of());
         lenient().when(matchRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -220,7 +223,7 @@ class EventScheduleConfigServiceTest {
     @Test
     void generate_whenAHolidayFallsOnAPlayDay_thenThatDayIsSkipped() {
         LocalDate holiday = FIRST_SATURDAY.plusWeeks(1);
-        when(holidaysService.getNonPlayDatesBetween(any(), any())).thenReturn(Set.of(holiday));
+        when(holidaysService.getNonPlayDatesBetween(any(), any(), any())).thenReturn(Set.of(holiday));
         registerTeams(4);
 
         Set<LocalDate> days = byDate(service.generateMatches(eventId).getMatches()).keySet();
@@ -245,7 +248,16 @@ class EventScheduleConfigServiceTest {
 
         service.generateMatches(eventId);
 
-        verify(holidaysService).getNonPlayDatesBetween(EVENT_START, EVENT_START.plusYears(5));
+        verify(holidaysService).getNonPlayDatesBetween(ORGANIZATION_ID, EVENT_START, EVENT_START.plusYears(5));
+    }
+
+    @Test
+    void generate_usesTheHolidaysOfTheOrganizationOfTheEvent() {
+        registerTeams(4);
+
+        service.generateMatches(eventId);
+
+        verify(holidaysService).getNonPlayDatesBetween(eq(ORGANIZATION_ID), any(), any());
     }
 
     // ─── never in the past ──────────────────────────────────────────────────────

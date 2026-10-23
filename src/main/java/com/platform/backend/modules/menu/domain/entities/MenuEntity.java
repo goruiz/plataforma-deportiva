@@ -34,6 +34,10 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
     @Column(name = "nav_order")
     private Short navOrder;
 
+    /** A screen of the platform owner: only its role can see it, and the owner role always does. */
+    @Column(name = "owner_only", nullable = false)
+    private boolean ownerOnly;
+
     public MenuEntity() {}
 
     public String getName() { return name; }
@@ -59,6 +63,9 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
 
     public Short getNavOrder() { return navOrder; }
     public void setNavOrder(Short navOrder) { this.navOrder = navOrder; }
+
+    public boolean isOwnerOnly() { return ownerOnly; }
+    public void setOwnerOnly(boolean ownerOnly) { this.ownerOnly = ownerOnly; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

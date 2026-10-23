@@ -12,8 +12,10 @@ import com.platform.backend.modules.events.presentation.requests.UpdateEventForm
 import com.platform.backend.modules.events.presentation.responses.EventFormatResponse.EventFormatResponse;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +65,7 @@ public class EventFormatsService implements IEventFormatsService {
     @Override
     public EventFormatResponse update(UUID id, UpdateEventFormatRequest request) {
         EventFormatsEntity eventFormat = findActiveOrThrow(id);
+        requireCallerMayChange(eventFormat);
         if (request.getName() != null) {
             String name = request.getName().trim();
             if (eventFormatRepository.existsByNameExcludingId(name, id)) {
@@ -80,6 +83,7 @@ public class EventFormatsService implements IEventFormatsService {
     @Override
     public void delete(UUID id) {
         EventFormatsEntity eventFormat = findActiveOrThrow(id);
+        requireCallerMayChange(eventFormat);
         if (eventRepository.existsActiveByEventFormatId(id)) {
             throw new IllegalStateException(EventFormatError.IN_USE.name());
         }
@@ -90,6 +94,16 @@ public class EventFormatsService implements IEventFormatsService {
     private EventFormatsEntity findActiveOrThrow(UUID id) {
         return eventFormatRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event format not found with id: " + id));
+    }
+
+    /**
+     * The seeded formats have no organization: every organization uses them, so only the platform owner (whoever sees
+     * everything) may change or delete them. An organization's own formats are theirs to change.
+     */
+    private void requireCallerMayChange(EventFormatsEntity eventFormat) {
+        if (eventFormat.getOrganizationId() == null && CurrentTenant.scope().restricted()) {
+            throw new AccessDeniedException("The predefined event formats can only be changed by the platform owner.");
+        }
     }
 
     private FieldValidationException nameAlreadyExists() {

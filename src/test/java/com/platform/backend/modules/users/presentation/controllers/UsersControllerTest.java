@@ -266,6 +266,6 @@ class UsersControllerTest {
     }
 
     private AuthResponse buildAuthResponse(String token, boolean admin) {
-        return new AuthResponse(token, admin, UUID.randomUUID(), "juan@email.com", "Juan", null, "Perez", null);
+        return new AuthResponse(token, admin, false, null, UUID.randomUUID(), "juan@email.com", "Juan", null, "Perez", null);
     }
 }

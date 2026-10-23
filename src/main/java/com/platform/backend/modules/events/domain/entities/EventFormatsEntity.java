@@ -1,5 +1,9 @@
 package com.platform.backend.modules.events.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.modules.events.domain.enums.EventFormatStructure;
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
@@ -10,7 +14,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "events_formats")
-public class EventFormatsEntity extends BaseTranslatableEntity implements HasUniqueField {
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_OR_SHARED, deduceAliasInjectionPoints = false)
+public class EventFormatsEntity extends BaseTranslatableEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(length = 100, nullable = false)
     private String name;
@@ -74,6 +80,10 @@ public class EventFormatsEntity extends BaseTranslatableEntity implements HasUni
     @OneToMany(mappedBy = "eventFormat", fetch = FetchType.LAZY)
     private List<EventsEntity> events;
 
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
+
     public EventFormatsEntity() {}
 
     public String getName() { return name; }
@@ -130,4 +140,10 @@ public class EventFormatsEntity extends BaseTranslatableEntity implements HasUni
             this.name = this.name + "_DELETED_" + entityId;
         }
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }

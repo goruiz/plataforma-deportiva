@@ -1,13 +1,22 @@
 package com.platform.backend.modules.matches.application.services;
 
+import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
+import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
+import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.matches.application.iservices.IMatchTimingService;
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.exception.MatchError;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
+import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,10 +36,12 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +52,9 @@ class MatchesServiceTest {
 
     @Mock private IMatchRepository matchRepository;
     @Mock private IMatchTimingService matchTimingService;
+    @Mock private IEventRepository eventRepository;
+    @Mock private ITeamRepository teamRepository;
+    @Mock private ICourtRepository courtRepository;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -89,6 +103,131 @@ class MatchesServiceTest {
 
     private static LocalDateTime hoursAgo(int hours) {
         return LocalDateTime.now().minusHours(hours);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        TenantTestSupport.actAsNobody();
+    }
+
+    // ─── the event, teams and court of a match must be the caller's own ─────────
+
+    private static final UUID OWN_EVENT_ID = UUID.randomUUID();
+    private static final UUID OWN_HOME_TEAM_ID = UUID.randomUUID();
+    private static final UUID OWN_AWAY_TEAM_ID = UUID.randomUUID();
+    private static final UUID OWN_COURT_ID = UUID.randomUUID();
+
+    private void givenTheOrganizationOwnsTheEventTheTeamsAndTheCourt() {
+        lenient().when(eventRepository.findActiveById(OWN_EVENT_ID)).thenReturn(Optional.of(new EventsEntity()));
+        lenient().when(teamRepository.findActiveById(OWN_HOME_TEAM_ID)).thenReturn(Optional.of(new TeamsEntity()));
+        lenient().when(teamRepository.findActiveById(OWN_AWAY_TEAM_ID)).thenReturn(Optional.of(new TeamsEntity()));
+        lenient().when(courtRepository.findActiveById(OWN_COURT_ID)).thenReturn(Optional.of(new CourtsEntity()));
+    }
+
+    private static CreateMatchRequest newMatchOf(UUID eventId, UUID homeTeamId, UUID awayTeamId, UUID courtId) {
+        CreateMatchRequest request = new CreateMatchRequest();
+        request.setEventId(eventId);
+        request.setHomeTeamId(homeTeamId);
+        request.setAwayTeamId(awayTeamId);
+        request.setCourtId(courtId);
+        request.setMatchDate(LocalDateTime.now().plusDays(3));
+        return request;
+    }
+
+    @Test
+    void create_whenAnOrganizationAdministratorUsesTheirOwnEventTeamsAndCourt_thenTheMatchIsSaved() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        givenTheOrganizationOwnsTheEventTheTeamsAndTheCourt();
+
+        matchesService.create(newMatchOf(OWN_EVENT_ID, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, OWN_COURT_ID));
+
+        verify(matchRepository).save(any(MatchesEntity.class));
+    }
+
+    @Test
+    void create_whenAnOrganizationAdministratorUsesAnEventOfAnotherOrganization_thenRejectTheEventWithoutSaving() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        givenTheOrganizationOwnsTheEventTheTeamsAndTheCourt();
+        UUID foreignEventId = UUID.randomUUID();
+        when(eventRepository.findActiveById(foreignEventId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> matchesService.create(
+                newMatchOf(foreignEventId, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null)))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("eventId", "EVENT_NOT_FOUND")));
+
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void create_whenAnOrganizationAdministratorSendsNoEvent_thenRejectTheEvent() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+
+        assertThatThrownBy(() -> matchesService.create(newMatchOf(null, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null)))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("eventId", "EVENT_NOT_FOUND")));
+    }
+
+    @Test
+    void create_whenAnOrganizationAdministratorUsesATeamOfAnotherOrganization_thenRejectThatTeam() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        givenTheOrganizationOwnsTheEventTheTeamsAndTheCourt();
+        UUID foreignTeamId = UUID.randomUUID();
+        when(teamRepository.findActiveById(foreignTeamId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> matchesService.create(newMatchOf(OWN_EVENT_ID, OWN_HOME_TEAM_ID, foreignTeamId, null)))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("awayTeamId", "TEAM_NOT_FOUND")));
+    }
+
+    @Test
+    void create_whenAnOrganizationAdministratorUsesACourtOfAnotherOrganization_thenRejectThatCourt() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        givenTheOrganizationOwnsTheEventTheTeamsAndTheCourt();
+        UUID foreignCourtId = UUID.randomUUID();
+        when(courtRepository.findActiveById(foreignCourtId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> matchesService.create(
+                newMatchOf(OWN_EVENT_ID, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, foreignCourtId)))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("courtId", "COURT_NOT_FOUND")));
+    }
+
+    @Test
+    void create_whenTheCallerSeesEverything_thenTheReferencesAreNotLookedUp() {
+        TenantTestSupport.actAsPlatformOwner();
+
+        matchesService.create(newMatchOf(null, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null));
+
+        verifyNoInteractions(eventRepository, teamRepository, courtRepository);
+        verify(matchRepository).save(any(MatchesEntity.class));
+    }
+
+    @Test
+    void update_whenAnOrganizationAdministratorMovesTheMatchToAnotherOrganizationsEvent_thenRejectTheEvent() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        MatchesEntity stored = storedMatch(LocalDateTime.now().plusDays(2), "SCHEDULED");
+        UUID foreignEventId = UUID.randomUUID();
+        when(eventRepository.findActiveById(foreignEventId)).thenReturn(Optional.empty());
+        UpdateMatchRequest request = new UpdateMatchRequest();
+        request.setEventId(foreignEventId);
+
+        assertThatThrownBy(() -> matchesService.update(stored.getId(), request))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("eventId", "EVENT_NOT_FOUND")));
+
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void update_whenAnOrganizationAdministratorOnlyChangesTheScore_thenNoReferenceIsLookedUp() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        MatchesEntity stored = storedMatch(hoursAgo(5), "SCHEDULED");
+
+        matchesService.update(stored.getId(), scores(2, 1));
+
+        verifyNoInteractions(eventRepository, teamRepository, courtRepository);
+        assertThat(stored.getHomeScore()).isEqualTo(2);
     }
 
     // ─── recording a result ─────────────────────────────────────────────────────

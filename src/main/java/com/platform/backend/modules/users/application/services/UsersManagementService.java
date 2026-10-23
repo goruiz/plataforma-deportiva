@@ -1,12 +1,23 @@
 package com.platform.backend.modules.users.application.services;
 
+import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.users.application.iservices.IUsersManagementService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
+import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.enums.UserSection;
+import com.platform.backend.modules.users.domain.filters.UserListFilter;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
+import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.modules.users.presentation.requests.CreateUserRequest.CreateUserRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateUserRequest.UpdateUserRequest;
+import com.platform.backend.modules.users.presentation.responses.UserCountsResponse.UserCountsResponse;
+import com.platform.backend.modules.users.presentation.responses.UserListItemResponse.UserListItemResponse;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
+import com.platform.backend.shared.domain.pagination.PageQuery;
+import com.platform.backend.shared.domain.pagination.PageResult;
+import com.platform.backend.shared.presentation.responses.PageResponse.PageResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,9 +29,14 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
+import com.platform.backend.shared.domain.tenancy.TenantScope;
 import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import com.platform.backend.shared.infraestructure.security.password.TemporaryPasswordGenerator;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -28,6 +44,9 @@ import java.util.UUID;
 public class UsersManagementService implements IUsersManagementService {
 
     private final IUserRepository userRepository;
+    private final IUsersRolesRepository usersRolesRepository;
+    private final IOrganizationRepository organizationRepository;
+    private final PlatformOwnerRole platformOwnerRole;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
@@ -36,34 +55,27 @@ public class UsersManagementService implements IUsersManagementService {
     @Value("${app.security.admin-role-id:}")
     private String adminRoleId;
 
+    /** Only the page asked for is read, and the roles of its accounts in one more query (never one per account). */
     @Override
-    public List<UserResponse> getAllUsers() {
-        return toUserResponses(userRepository.findAllActive());
+    @Transactional(readOnly = true)
+    public PageResponse<UserListItemResponse> getUsers(UserSection section, PageQuery pageQuery, List<String> searchTerms) {
+        PageResult<UsersEntity> page = listFilterOf(section, searchTerms)
+                .map(filter -> userRepository.findActivePage(filter, pageQuery))
+                .orElseGet(() -> PageResult.empty(pageQuery));
+        return PageResponse.from(withRoles(page));
     }
 
     /**
-     * Same admin rule as login: an active users_roles row pointing at the id in
-     * app.security.admin-role-id — never the role's name. With no admin role
-     * configured nobody is an admin (mirrors UsersAuthService#isAdmin).
+     * Three counts are enough: the sections split every account (the owner role wins over the administrator one), so
+     * the app users are what is left of the total.
      */
     @Override
-    public List<UserResponse> getAdminUsers() {
-        if (!isAdminRoleConfigured()) {
-            return List.of();
-        }
-        return toUserResponses(userRepository.findAllActiveWithRole(UUID.fromString(adminRoleId)));
-    }
-
-    /**
-     * Everyone who is not an admin — including users with no role at all,
-     * which is the normal state of an account created from the mobile app.
-     */
-    @Override
-    public List<UserResponse> getRegularUsers() {
-        if (!isAdminRoleConfigured()) {
-            return getAllUsers();
-        }
-        return toUserResponses(userRepository.findAllActiveWithoutRole(UUID.fromString(adminRoleId)));
+    @Transactional(readOnly = true)
+    public UserCountsResponse countUsersBySection(List<String> searchTerms) {
+        long total = countOf(UserSection.ALL, searchTerms);
+        long owners = countOf(UserSection.OWNERS, searchTerms);
+        long admins = countOf(UserSection.ADMINS, searchTerms);
+        return new UserCountsResponse(owners, admins, total - owners - admins);
     }
 
     @Override
@@ -90,6 +102,7 @@ public class UsersManagementService implements IUsersManagementService {
 
         String temporaryPassword = temporaryPasswordGenerator.generate();
         UsersEntity user = userMapper.toEntity(request);
+        user.setOrganizationId(resolveOrganizationOfNewUser(request.getOrganizationId()));
         user.setPassword(passwordEncoder.encode(temporaryPassword));
         UsersEntity savedUser = userRepository.save(user);
 
@@ -113,6 +126,7 @@ public class UsersManagementService implements IUsersManagementService {
         }
 
         userMapper.updateEntity(user, request);
+        moveToOrganization(user, request.getOrganizationId());
         return userMapper.toUserResponse(userRepository.save(user));
     }
 
@@ -131,14 +145,86 @@ public class UsersManagementService implements IUsersManagementService {
         userRepository.hardDelete(user);
     }
 
-    private boolean isAdminRoleConfigured() {
-        return StringUtils.hasText(adminRoleId);
+    /**
+     * An administrator of an organization creates staff inside it, whatever the request says. Whoever sees everything
+     * (the platform owner) chooses the organization, or none: an account without one belongs to the platform.
+     */
+    private UUID resolveOrganizationOfNewUser(UUID requestedOrganizationId) {
+        TenantScope scope = CurrentTenant.scope();
+        if (scope.restricted()) {
+            return scope.organizationId();
+        }
+        if (requestedOrganizationId != null) {
+            requireOrganizationToExist(requestedOrganizationId);
+        }
+        return requestedOrganizationId;
     }
 
-    private List<UserResponse> toUserResponses(List<UsersEntity> users) {
-        return users.stream()
-                .map(userMapper::toUserResponse)
-                .toList();
+    /**
+     * Only whoever sees everything (the platform owner) moves an account to another organization: an administrator of
+     * an organization only ever sees their own staff, so for them the field is ignored, as when creating. A null leaves
+     * the account where it is, like every other field of an update. The account's open sessions keep the old
+     * organization in their token until they sign in again.
+     */
+    private void moveToOrganization(UsersEntity user, UUID requestedOrganizationId) {
+        if (requestedOrganizationId == null
+                || CurrentTenant.scope().restricted()
+                || requestedOrganizationId.equals(user.getOrganizationId())) {
+            return;
+        }
+        requireOrganizationToExist(requestedOrganizationId);
+        user.setOrganizationId(requestedOrganizationId);
+    }
+
+    private void requireOrganizationToExist(UUID organizationId) {
+        organizationRepository.findActiveById(organizationId)
+                .orElseThrow(() -> new EntityNotFoundException("Organization not found with id: " + organizationId));
+    }
+
+    /**
+     * What each section is made of, by role id (never by role name, as in login): the owners hold the owner role, the
+     * administrators hold the administrator role and not the owner's, and the app users hold neither. A section whose
+     * role is not configured has nobody, hence the empty result.
+     */
+    private Optional<UserListFilter> listFilterOf(UserSection section, List<String> searchTerms) {
+        Optional<UUID> ownerRole = platformOwnerRole.id();
+        Optional<UUID> administratorRole = configuredAdministratorRoleId();
+        return switch (section) {
+            case ALL -> Optional.of(new UserListFilter(List.of(), List.of(), searchTerms));
+            case OWNERS -> ownerRole.map(owner -> new UserListFilter(List.of(owner), List.of(), searchTerms));
+            case ADMINS -> administratorRole.map(administrator ->
+                    new UserListFilter(List.of(administrator), ownerRole.stream().toList(), searchTerms));
+            case APP_USERS -> Optional.of(new UserListFilter(List.of(), staffRoleIds(), searchTerms));
+        };
+    }
+
+    private long countOf(UserSection section, List<String> searchTerms) {
+        return listFilterOf(section, searchTerms).map(userRepository::countActive).orElse(0L);
+    }
+
+    /** The accounts of the page with their roles, read for all of them at once. */
+    private PageResult<UserListItemResponse> withRoles(PageResult<UsersEntity> page) {
+        List<UUID> userIds = page.content().stream().map(UsersEntity::getId).toList();
+        Map<UUID, List<RolesEntity>> rolesByUserId = usersRolesRepository.findActiveRolesByUserIds(userIds);
+        return page.map(user -> {
+            UserListItemResponse item = userMapper.toUserListItemResponse(user);
+            item.setRoles(rolesByUserId.getOrDefault(user.getId(), List.of()).stream()
+                    .map(userMapper::toUserRoleResponse)
+                    .toList());
+            return item;
+        });
+    }
+
+    private Optional<UUID> configuredAdministratorRoleId() {
+        return StringUtils.hasText(adminRoleId) ? Optional.of(UUID.fromString(adminRoleId)) : Optional.empty();
+    }
+
+    /** The roles that make an account staff: the customers' administrator role and the owner's. */
+    private List<UUID> staffRoleIds() {
+        List<UUID> roleIds = new ArrayList<>();
+        configuredAdministratorRoleId().ifPresent(roleIds::add);
+        platformOwnerRole.id().ifPresent(roleIds::add);
+        return roleIds;
     }
 }
 

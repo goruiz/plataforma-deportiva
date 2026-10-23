@@ -90,6 +90,55 @@ class JwtAuthenticationFilterTest {
         assertContinuesWithoutAuthentication();
     }
 
+    @Test
+    void doFilter_whenTokenIsOfAnOrganizationAdministrator_thenThePrincipalBelongsToThatOrganizationWithAdminAuthority() throws Exception {
+        UUID organizationId = UUID.randomUUID();
+        request.addHeader("Authorization", bearerWith(Map.of(
+                "admin", true, "platformOwner", false, "organizationId", organizationId.toString())));
+
+        filter.doFilter(request, response, chain);
+
+        AuthenticatedUser principal = authenticatedUser();
+        assertThat(principal.getOrganizationId()).isEqualTo(organizationId);
+        assertThat(principal.isPlatformOwner()).isFalse();
+        assertThat(principal.getAuthorities()).extracting("authority").containsExactly("ROLE_USER", "ROLE_ADMIN");
+    }
+
+    @Test
+    void doFilter_whenTokenIsOfThePlatformOwner_thenThePrincipalHasTheOwnerAuthority() throws Exception {
+        request.addHeader("Authorization", bearerWith(Map.of("admin", true, "platformOwner", true)));
+
+        filter.doFilter(request, response, chain);
+
+        AuthenticatedUser principal = authenticatedUser();
+        assertThat(principal.getOrganizationId()).isNull();
+        assertThat(principal.isPlatformOwner()).isTrue();
+        assertThat(principal.getAuthorities()).extracting("authority")
+                .containsExactly("ROLE_USER", "ROLE_ADMIN", "ROLE_PLATFORM_OWNER");
+    }
+
+    @Test
+    void doFilter_whenTokenHasNoOrganizationClaims_thenThePrincipalIsAPlainUser() throws Exception {
+        request.addHeader("Authorization", bearer(buildJwtService(SECRET, VALID_FOR_MILLIS)));
+
+        filter.doFilter(request, response, chain);
+
+        AuthenticatedUser principal = authenticatedUser();
+        assertThat(principal.getOrganizationId()).isNull();
+        assertThat(principal.isPlatformOwner()).isFalse();
+        assertThat(principal.getAuthorities()).extracting("authority").containsExactly("ROLE_USER");
+    }
+
+    private AuthenticatedUser authenticatedUser() {
+        return (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private String bearerWith(Map<String, Object> extraClaims) {
+        Map<String, Object> claims = new java.util.HashMap<>(extraClaims);
+        claims.put("id", UUID.randomUUID().toString());
+        return "Bearer " + buildJwtService(SECRET, VALID_FOR_MILLIS).generateToken(claims, USER_EMAIL);
+    }
+
     private void assertContinuesWithoutAuthentication() {
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         assertThat(chain.getRequest()).isNotNull();

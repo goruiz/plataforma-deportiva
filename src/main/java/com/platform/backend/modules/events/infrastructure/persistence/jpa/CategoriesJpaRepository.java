@@ -1,13 +1,13 @@
 package com.platform.backend.modules.events.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaRepository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface CategoriesJpaRepository extends JpaRepository<CategoriesEntity, UUID> {
+public interface CategoriesJpaRepository extends TenantScopedJpaRepository<CategoriesEntity> {
 
     List<CategoriesEntity> findAllByDeletedAtIsNull();
 

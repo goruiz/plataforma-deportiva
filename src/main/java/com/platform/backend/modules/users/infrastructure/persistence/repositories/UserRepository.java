@@ -1,18 +1,27 @@
 package com.platform.backend.modules.users.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.filters.UserListFilter;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
+import com.platform.backend.modules.users.infrastructure.persistence.jpa.UserSpecifications;
 import com.platform.backend.modules.users.infrastructure.persistence.jpa.UsersJpaRepository;
+import com.platform.backend.shared.domain.pagination.PageQuery;
+import com.platform.backend.shared.domain.pagination.PageResult;
+import com.platform.backend.shared.infraestructure.pagination.SpringPagination;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
 public class UserRepository implements IUserRepository {
+
+    /** Same order as the index created for it in migration V8, so the first pages come straight from the index. */
+    private static final Sort LIST_ORDER = Sort.by("firstName", "lastName", "email", "id");
 
     private final UsersJpaRepository usersJpaRepository;
 
@@ -22,18 +31,14 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
-    public List<UsersEntity> findAllActive() {
-        return usersJpaRepository.findAllByDeletedAtIsNull();
+    public PageResult<UsersEntity> findActivePage(UserListFilter filter, PageQuery pageQuery) {
+        Pageable pageable = SpringPagination.toPageable(pageQuery, LIST_ORDER);
+        return SpringPagination.toResult(usersJpaRepository.findAll(UserSpecifications.matching(filter), pageable), pageQuery);
     }
 
     @Override
-    public List<UsersEntity> findAllActiveWithRole(UUID roleId) {
-        return usersJpaRepository.findAllActiveWithActiveRole(roleId);
-    }
-
-    @Override
-    public List<UsersEntity> findAllActiveWithoutRole(UUID roleId) {
-        return usersJpaRepository.findAllActiveWithoutActiveRole(roleId);
+    public long countActive(UserListFilter filter) {
+        return usersJpaRepository.count(UserSpecifications.matching(filter));
     }
 
     @Override
@@ -48,7 +53,7 @@ public class UserRepository implements IUserRepository {
 
     @Override
     public Optional<UsersEntity> findByUsername(String username) {
-        return usersJpaRepository.findByUsername(username);
+        return usersJpaRepository.findAnyByUsername(username);
     }
 
     @Override
@@ -58,7 +63,12 @@ public class UserRepository implements IUserRepository {
 
     @Override
     public boolean existsByEmail(String email) {
-        return usersJpaRepository.existsByEmailAndDeletedAtIsNull(email);
+        return usersJpaRepository.existsActiveByEmailInAnyOrganization(email);
+    }
+
+    @Override
+    public boolean existsActiveByOrganizationId(UUID organizationId) {
+        return usersJpaRepository.existsByOrganizationIdAndDeletedAtIsNull(organizationId);
     }
 
     @Override
@@ -66,4 +76,3 @@ public class UserRepository implements IUserRepository {
         usersJpaRepository.delete(user);
     }
 }
-

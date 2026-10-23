@@ -14,4 +14,6 @@ public interface RolesMenuJpaRepository extends JpaRepository<RolesMenuEntity, U
     Optional<RolesMenuEntity> findByIdAndDeletedAtIsNull(UUID id);
 
     List<RolesMenuEntity> findAllByRole_IdInAndVisibleTrueAndDeletedAtIsNull(List<UUID> roleIds);
+
+    List<RolesMenuEntity> findAllByRole_IdAndDeletedAtIsNull(UUID roleId);
 }

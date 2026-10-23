@@ -53,6 +53,11 @@ public class TeamRepository implements ITeamRepository {
     }
 
     @Override
+    public boolean existsActiveByOrganizationId(UUID organizationId) {
+        return teamsJpaRepository.existsByOrganizationIdAndDeletedAtIsNull(organizationId);
+    }
+
+    @Override
     public void delete(TeamsEntity team) {
         teamsJpaRepository.save(team);
     }

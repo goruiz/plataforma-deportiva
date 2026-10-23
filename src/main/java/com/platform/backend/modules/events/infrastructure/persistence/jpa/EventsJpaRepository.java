@@ -1,13 +1,13 @@
 package com.platform.backend.modules.events.infrastructure.persistence.jpa;
 
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaRepository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface EventsJpaRepository extends JpaRepository<EventsEntity, UUID> {
+public interface EventsJpaRepository extends TenantScopedJpaRepository<EventsEntity> {
 
     List<EventsEntity> findAllByDeletedAtIsNull();
 
@@ -20,4 +20,6 @@ public interface EventsJpaRepository extends JpaRepository<EventsEntity, UUID> {
     List<EventsEntity> findAllByEventTypeIdAndCreatedByAndDeletedAtIsNull(UUID eventTypeId, UUID createdBy);
 
     boolean existsByEventFormatIdAndDeletedAtIsNull(UUID eventFormatId);
+
+    boolean existsByOrganizationIdAndDeletedAtIsNull(UUID organizationId);
 }

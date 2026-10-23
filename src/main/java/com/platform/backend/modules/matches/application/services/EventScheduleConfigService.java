@@ -1,5 +1,6 @@
 package com.platform.backend.modules.matches.application.services;
 
+import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.holidays.application.iservices.IHolidaysService;
@@ -11,6 +12,7 @@ import com.platform.backend.modules.matches.domain.entities.EventScheduleConfigE
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.enums.MatchStatus;
 import com.platform.backend.modules.matches.domain.exception.ChampionshipError;
+import com.platform.backend.modules.matches.domain.exception.MatchError;
 import com.platform.backend.modules.matches.domain.irepositories.IEventScheduleConfigRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.SaveScheduleConfigRequest.SaveScheduleConfigRequest;
@@ -18,6 +20,8 @@ import com.platform.backend.modules.matches.presentation.responses.EventSchedule
 import com.platform.backend.modules.matches.presentation.responses.GenerateMatchesResponse.GenerateMatchesResponse;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamsEventsRepository;
+import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.TenantReferences;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,6 +47,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
     private final IEventRepository eventRepository;
     private final ITeamsEventsRepository teamsEventsRepository;
     private final IMatchRepository matchRepository;
+    private final ICourtRepository courtRepository;
     private final IHolidaysService holidaysService;
     private final IMatchesService matchesService;
     private final MatchMapper matchMapper;
@@ -51,6 +56,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
     public EventScheduleConfigResponse saveConfig(UUID eventId, SaveScheduleConfigRequest request) {
         eventRepository.findActiveById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        requireCourtIsVisible(request.getCourtId());
 
         EventScheduleConfigEntity config = configRepository.findActiveByEventId(eventId)
                 .orElseGet(EventScheduleConfigEntity::new);
@@ -74,6 +80,12 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         }
 
         return toResponse(configRepository.save(config));
+    }
+
+    // The court is a plain id: a restricted caller may only schedule on their own organization's courts.
+    private void requireCourtIsVisible(UUID courtId) {
+        TenantReferences.requireVisible(courtId, false, id -> courtRepository.findActiveById(id).isPresent(),
+                () -> new FieldValidationException("courtId", MatchError.COURT_NOT_FOUND.name()));
     }
 
     @Override
@@ -107,7 +119,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         List<MatchesEntity> settledMatches = existingMatches.stream().filter(match -> !isPending(match)).toList();
 
         LocalDate startDate = firstSchedulableDate(event);
-        ScheduleRules rules = buildRules(config, startDate);
+        ScheduleRules rules = buildRules(event, config, startDate);
         List<UUID[]> pairings = withoutSettledPairings(buildRoundRobinPairings(teamIds), settledMatches);
 
         discardMatches(pendingMatches);
@@ -144,12 +156,12 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         return eventStartDate != null && eventStartDate.isAfter(today) ? eventStartDate : today;
     }
 
-    private ScheduleRules buildRules(EventScheduleConfigEntity config, LocalDate startDate) {
+    private ScheduleRules buildRules(EventsEntity event, EventScheduleConfigEntity config, LocalDate startDate) {
         LocalDate searchLimit = startDate.plusYears(MAX_SEARCH_YEARS);
 
-        // The event's own blocked dates plus every holiday the administrator registered.
+        // The event's own blocked dates plus every holiday its organization registered (each one has its own).
         Set<LocalDate> blockedDates = new HashSet<>(parseBlockedDates(config.getBlockedDates()));
-        blockedDates.addAll(holidaysService.getNonPlayDatesBetween(startDate, searchLimit));
+        blockedDates.addAll(holidaysService.getNonPlayDatesBetween(event.getOrganizationId(), startDate, searchLimit));
 
         return new ScheduleRules(
                 parsePlayDays(config.getPlayDays()),
@@ -208,7 +220,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         EventScheduleConfigEntity config = configRepository.findActiveByEventId(eventId)
                 .orElseThrow(() -> new IllegalStateException(ChampionshipError.SCHEDULE_CONFIG_REQUIRED.name()));
 
-        ScheduleRules rules = buildRules(config, firstSchedulableDate(event));
+        ScheduleRules rules = buildRules(event, config, firstSchedulableDate(event));
         DayOccupancy occupancy = occupancyOf(matchRepository.findAllActiveByEventId(eventId), rules.startDate());
         List<MatchResponse> created = new ArrayList<>();
 

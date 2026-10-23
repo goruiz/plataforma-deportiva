@@ -57,6 +57,11 @@ public class EventRepository implements IEventRepository {
     }
 
     @Override
+    public boolean existsActiveByOrganizationId(UUID organizationId) {
+        return eventsJpaRepository.existsByOrganizationIdAndDeletedAtIsNull(organizationId);
+    }
+
+    @Override
     public void delete(EventsEntity event) {
         eventsJpaRepository.save(event);
     }

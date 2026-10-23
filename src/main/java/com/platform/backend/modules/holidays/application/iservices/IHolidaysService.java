@@ -23,6 +23,9 @@ public interface IHolidaysService {
     /** Soft delete. Matches already scheduled on that day are not moved. */
     void delete(UUID id);
 
-    /** Every day within {@code [from, to]} (both included) on which no match may be scheduled, recurring holidays included. */
-    Set<LocalDate> getNonPlayDatesBetween(LocalDate from, LocalDate to);
+    /**
+     * Every day within {@code [from, to]} (both included) on which no match of that organization may be scheduled,
+     * recurring holidays included. Each organization has its own holidays; a null organization means the platform owner's.
+     */
+    Set<LocalDate> getNonPlayDatesBetween(UUID organizationId, LocalDate from, LocalDate to);
 }

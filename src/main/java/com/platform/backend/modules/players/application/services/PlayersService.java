@@ -16,6 +16,7 @@ import com.platform.backend.modules.players.presentation.responses.PlayerRespons
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,7 @@ public class PlayersService implements IPlayersService {
     public List<PlayerResponse> getAll() {
         return playerRepository.findAllActive()
                 .stream()
+                .filter(this::isListedForCaller)
                 .map(playerMapper::toResponse)
                 .toList();
     }
@@ -205,6 +207,14 @@ public class PlayersService implements IPlayersService {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         playerRepository.hardDelete(player);
+    }
+
+    /**
+     * A player with no team is visible to everyone so that it can be found by email and added to a team, but it is
+     * not listed to an organization's administrator: that list is for their own teams' players.
+     */
+    private boolean isListedForCaller(PlayersEntity player) {
+        return CurrentTenant.scope().isUnrestricted() || player.getTeam() != null;
     }
 
     private TeamsEntity resolveTeam(UUID teamId) {

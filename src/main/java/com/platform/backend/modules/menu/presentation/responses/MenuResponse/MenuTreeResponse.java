@@ -20,6 +20,8 @@ public class MenuTreeResponse {
     private Short navOrder;
     private String translationKey;
     private String descriptionTranslationKey;
+    /** A screen of the platform owner: only its role can see it. */
+    private boolean ownerOnly;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<MenuTreeResponse> submenus;

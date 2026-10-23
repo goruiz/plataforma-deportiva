@@ -80,6 +80,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String secondLastName = (String) claims.get("secondLastName");
         String email = claims.getSubject();
 
-        return AuthenticatedUser.from(id, firstName, middleName, lastName, secondLastName, email, "ROLE_USER");
+        return AuthenticatedUser.from(
+                id, firstName, middleName, lastName, secondLastName, email,
+                readOrganizationId(claims),
+                isClaimTrue(claims, JwtClaims.ADMIN),
+                isClaimTrue(claims, JwtClaims.PLATFORM_OWNER)
+        );
+    }
+
+    /** A token issued before organizations existed (or to an account without one) has no organization. */
+    private UUID readOrganizationId(Claims claims) {
+        Object organizationId = claims.get(JwtClaims.ORGANIZATION_ID);
+        return organizationId == null ? null : UUID.fromString(organizationId.toString());
+    }
+
+    private boolean isClaimTrue(Claims claims, String claimName) {
+        return Boolean.TRUE.equals(claims.get(claimName, Boolean.class));
     }
 }

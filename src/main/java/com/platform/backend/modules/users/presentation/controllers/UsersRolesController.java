@@ -1,5 +1,7 @@
 package com.platform.backend.modules.users.presentation.controllers;
 
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.users.application.iservices.IUsersRolesService;
 import com.platform.backend.modules.users.presentation.requests.CreateUsersRolesRequest.CreateUsersRolesRequest;
 import com.platform.backend.modules.users.presentation.responses.UsersRolesResponse.UsersRolesResponse;
@@ -43,17 +45,20 @@ public class UsersRolesController {
         return ResponseEntity.ok(ApiResponse.ok(usersRolesService.getByUserId(userId)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<UsersRolesResponse>> create(@Valid @RequestBody CreateUsersRolesRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(usersRolesService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         usersRolesService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         usersRolesService.hardDelete(id);

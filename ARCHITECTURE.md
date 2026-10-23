@@ -11,7 +11,7 @@ com.platform.backend
 ├── BackendApplication
 ├── modules/        # un paquete por dominio de negocio, cada uno con las 4 capas
 │   ├── users  players  teams  events  matches
-│   └── courts  sportcomplexes  holidays  menu  permissions
+│   └── courts  sportcomplexes  holidays  menu  permissions  organizations
 └── shared/         # código transversal sin lógica de ningún módulo
 ```
 
@@ -26,8 +26,9 @@ com.platform.backend
 | `holidays` | Feriados y días sin juego que el calendario automático omite |
 | `menu` | Menú jerárquico por rol (alimenta la navegación de ambos frontends) |
 | `permissions` | CRUD de permisos por rol, sin uso real |
+| `organizations` | Los clientes de la plataforma; cada uno solo ve sus datos (ver «Organizaciones») |
 
-Los diez módulos tienen las cuatro capas con código. `modules/documentation` es un archivo de texto, no un módulo.
+Los once módulos tienen las cuatro capas con código. `modules/documentation` es un archivo de texto, no un módulo.
 
 ## Capas de un módulo
 
@@ -70,7 +71,10 @@ Ejemplo, `POST /events`:
 |---|---|
 | `domain/entities` | `BaseEntity` (id UUID, auditoría y soft delete) y `BaseTranslatableEntity` (suma claves de traducción) |
 | `domain/interfaces`, `domain/utils` | `HasUniqueField` y `SoftDeleteHelper` |
-| `presentation/responses` | `ApiResponse<T>` con `ok`, `created`, `deleted` y `error` |
+| `domain/pagination` | `PageQuery` y `PageResult<T>`: la página que el dominio pide y recibe, sin depender de Spring Data |
+| `presentation/responses` | `ApiResponse<T>` con `ok`, `created`, `deleted` y `error`, y `PageResponse<T>` (el `data` de toda lista paginada) |
+| `presentation/requests` | `ListRequest`: el query string común de las listas paginadas (`page`, `size`, `search`) |
+| `infraestructure/pagination` | `ListQueryResolver` (valida página, tamaño y búsqueda con los límites de `app.pagination.*`) y `SpringPagination` (traduce los tipos de página a los de Spring Data) |
 | `infraestructure/exceptions` | `GlobalException`, `FieldValidationException` |
 | `infraestructure/security` | `jwt/` (`JwtService`, `JwtAuthenticationFilter`, `JwtAuthenticationEntryPoint`) y `password/` (`PasswordPolicy`, `TemporaryPasswordGenerator`) |
 | `infraestructure/ratelimit` | `LoginRateLimiterFilter` |
@@ -85,7 +89,7 @@ Ojo con la ortografía: dentro de un módulo la capa se llama `infrastructure`, 
 - `SecurityFilterChain` (en `modules/users/infrastructure/configuration/security/SecurityConfig`): `LoginRateLimiterFilter` y `JwtAuthenticationFilter` se registran antes de `UsernamePasswordAuthenticationFilter`.
 - **Públicos:** `POST /users/auth/login`, `POST /users/auth/register`, `POST /players/auth/register` y Swagger (`/swagger-ui/**`, `/swagger-ui.html`, `/v3/api-docs/**`). Todo lo demás exige un JWT válido.
 - Sin token, o con uno vencido o inválido, `JwtAuthenticationEntryPoint` responde **401** con `ApiResponse`; los dos frontends usan ese 401 para cerrar la sesión.
-- **No hay autorización por rol**: basta un JWT válido (ver CLAUDE.md, "Seguridad: estado real"). El flag `admin` solo lo usa el login para decidir quién entra a qué app, según `app.security.admin-role-id`.
+- **Autorización parcial por rol**: `@EnableMethodSecurity` y `@PreAuthorize` (expresiones en `AccessRules`) protegen solo lo de la plataforma (organizaciones, roles, menú, permisos, tipos de evento, acciones y asignar roles); el resto basta con un JWT válido. El JWT lleva `admin`, `platformOwner` y `organizationId` y el filtro los convierte en `ROLE_ADMIN`, `ROLE_PLATFORM_OWNER` y en el ámbito de datos de quien llama (ver CLAUDE.md, «Organizaciones»).
 
 ## Persistencia
 
@@ -94,6 +98,7 @@ Ojo con la ortografía: dentro de un módulo la capa se llama `infrastructure`, 
 - **Soft delete:** borrar es marcar `deletedAt` y guardar; el método `delete` del adaptador hace un `save`. Todas las consultas de lectura filtran `...DeletedAtIsNull`. Cada recurso expone además `DELETE /x/{id}/hard` (borrado físico).
 - **Campos únicos y borrado:** `HasUniqueField.releaseUniqueFields` renombra los campos únicos al borrar para poder reutilizarlos, pero hoy **solo `EventsService.delete` llama a `SoftDeleteHelper`**. En el resto, borrar y recrear el mismo nombre o email choca con el unique de la base (409).
 - **Relaciones:** las de `matches` (equipos, evento, cancha), `team_invitations.teamId`, `teams.categoryId` y `menu.idParentMenu` son UUID planos, sin FK. Solo `teams.categoryId` se valida (en `TeamsService`).
+- **Organizaciones:** cada consulta de las entidades con propietario pasa por un filtro de Hibernate (`shared/domain/tenancy`, activo en todas las sesiones) que deja ver solo las filas de la organización de quien llama; el propietario de la plataforma lo ve todo. Un `@PrePersist` (`OrganizationOwnerListener`) pone la organización al crear, y los repositorios filtrados extienden `TenantScopedJpaRepository` para que ni la búsqueda por id se salte el filtro. Una entidad nueva que pertenezca a una organización necesita su columna `organization_id` (migración), `OrganizationOwned`, el `@Filter` y esa base de repositorio.
 
 ## Errores y contrato de respuesta
 

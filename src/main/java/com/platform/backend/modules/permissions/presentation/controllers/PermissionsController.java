@@ -1,5 +1,7 @@
 package com.platform.backend.modules.permissions.presentation.controllers;
 
+import com.platform.backend.shared.infraestructure.security.AccessRules;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.platform.backend.modules.permissions.application.iservices.IPermissionsService;
 import com.platform.backend.modules.permissions.presentation.requests.CreatePermissionRequest.CreatePermissionRequest;
 import com.platform.backend.modules.permissions.presentation.requests.UpdatePermissionRequest.UpdatePermissionRequest;
@@ -40,23 +42,27 @@ public class PermissionsController {
         return ResponseEntity.ok(ApiResponse.ok(permissionsService.getById(id)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<PermissionResponse>> create(@Valid @RequestBody CreatePermissionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(permissionsService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<PermissionResponse>> update(@PathVariable UUID id,
                                                                   @Valid @RequestBody UpdatePermissionRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(permissionsService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         permissionsService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         permissionsService.hardDelete(id);

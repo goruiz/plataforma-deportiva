@@ -10,13 +10,16 @@ import com.platform.backend.modules.events.presentation.requests.CreateEventForm
 import com.platform.backend.modules.events.presentation.requests.UpdateEventFormatRequest.UpdateEventFormatRequest;
 import com.platform.backend.modules.events.presentation.responses.EventFormatResponse.EventFormatResponse;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -138,6 +141,59 @@ class EventFormatsServiceTest {
                         .containsEntry("name", EventFormatError.NAME_ALREADY_EXISTS.name()));
 
         verify(eventFormatRepository, never()).save(any());
+    }
+
+    // ─── the predefined formats belong to nobody: only the platform owner changes them ──────────────
+
+    @AfterEach
+    void clearSecurityContext() {
+        TenantTestSupport.actAsNobody();
+    }
+
+    @Test
+    void update_whenAnOrganizationAdministratorChangesAPredefinedFormat_thenAccessIsDeniedAndNothingIsSaved() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        UUID id = eventFormatEntity.getId();
+        when(eventFormatRepository.findActiveById(id)).thenReturn(Optional.of(eventFormatEntity));
+
+        assertThatThrownBy(() -> eventFormatsService.update(id, updateRequest)).isInstanceOf(AccessDeniedException.class);
+
+        verify(eventFormatRepository, never()).save(any());
+    }
+
+    @Test
+    void update_whenAnOrganizationAdministratorChangesTheirOwnFormat_thenItIsUpdated() {
+        UUID organizationId = UUID.randomUUID();
+        TenantTestSupport.actAsOrganizationAdmin(organizationId);
+        eventFormatEntity.setOrganizationId(organizationId);
+        UUID id = eventFormatEntity.getId();
+        when(eventFormatRepository.findActiveById(id)).thenReturn(Optional.of(eventFormatEntity));
+        when(eventFormatRepository.save(eventFormatEntity)).thenReturn(eventFormatEntity);
+        when(eventFormatMapper.toResponse(eventFormatEntity)).thenReturn(eventFormatResponse);
+
+        assertThat(eventFormatsService.update(id, updateRequest)).isSameAs(eventFormatResponse);
+    }
+
+    @Test
+    void update_whenThePlatformOwnerChangesAPredefinedFormat_thenItIsUpdated() {
+        TenantTestSupport.actAsPlatformOwner();
+        UUID id = eventFormatEntity.getId();
+        when(eventFormatRepository.findActiveById(id)).thenReturn(Optional.of(eventFormatEntity));
+        when(eventFormatRepository.save(eventFormatEntity)).thenReturn(eventFormatEntity);
+        when(eventFormatMapper.toResponse(eventFormatEntity)).thenReturn(eventFormatResponse);
+
+        assertThat(eventFormatsService.update(id, updateRequest)).isSameAs(eventFormatResponse);
+    }
+
+    @Test
+    void delete_whenAnOrganizationAdministratorDeletesAPredefinedFormat_thenAccessIsDeniedAndItIsKept() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        UUID id = eventFormatEntity.getId();
+        when(eventFormatRepository.findActiveById(id)).thenReturn(Optional.of(eventFormatEntity));
+
+        assertThatThrownBy(() -> eventFormatsService.delete(id)).isInstanceOf(AccessDeniedException.class);
+
+        verify(eventFormatRepository, never()).delete(any());
     }
 
     // ─── update ─────────────────────────────────────────────────────────────────

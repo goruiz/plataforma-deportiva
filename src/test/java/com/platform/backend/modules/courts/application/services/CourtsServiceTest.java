@@ -67,6 +67,32 @@ class CourtsServiceTest {
     // ─── create ─────────────────────────────────────────────────────────────────
 
     @Test
+    void create_whenTheComplexBelongsToAnOrganization_thenTheCourtBelongsToIt() {
+        UUID organizationId = UUID.randomUUID();
+        northComplex.setOrganizationId(organizationId);
+        when(sportComplexRepository.findActiveById(northComplex.getId())).thenReturn(Optional.of(northComplex));
+        CourtsEntity newCourt = new CourtsEntity();
+        when(courtMapper.toEntity(createRequest)).thenReturn(newCourt);
+        when(courtRepository.save(newCourt)).thenReturn(newCourt);
+
+        courtsService.create(createRequest);
+
+        assertThat(newCourt.getOrganizationId()).isEqualTo(organizationId);
+    }
+
+    @Test
+    void create_whenThereIsNoComplex_thenTheCourtHasNoOrganizationOfItsOwnYet() {
+        createRequest.setIdSportComplex(null);
+        CourtsEntity newCourt = new CourtsEntity();
+        when(courtMapper.toEntity(createRequest)).thenReturn(newCourt);
+        when(courtRepository.save(newCourt)).thenReturn(newCourt);
+
+        courtsService.create(createRequest);
+
+        assertThat(newCourt.getOrganizationId()).isNull();
+    }
+
+    @Test
     void create_whenNameIsFreeInTheComplex_thenSaveWithTrimmedNameAndComplex() {
         when(sportComplexRepository.findActiveById(northComplex.getId())).thenReturn(Optional.of(northComplex));
         when(courtRepository.existsByNameInSportComplex("Cancha 1", northComplex.getId())).thenReturn(false);

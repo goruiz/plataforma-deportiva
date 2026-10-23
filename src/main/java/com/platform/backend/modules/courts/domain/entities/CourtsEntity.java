@@ -1,5 +1,9 @@
 package com.platform.backend.modules.courts.domain.entities;
 
+import org.hibernate.annotations.Filter;
+import com.platform.backend.shared.domain.tenancy.TenantFilters;
+import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
+import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.modules.sportcomplexes.domain.entities.SportComplexesEntity;
 import com.platform.backend.shared.domain.entities.BaseTranslatableEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
@@ -9,7 +13,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "courts")
-public class CourtsEntity extends BaseTranslatableEntity implements HasUniqueField {
+@EntityListeners(OrganizationOwnerListener.class)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+public class CourtsEntity extends BaseTranslatableEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(length = 150, nullable = false)
     private String name;
@@ -23,6 +29,10 @@ public class CourtsEntity extends BaseTranslatableEntity implements HasUniqueFie
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_sport_complex", foreignKey = @ForeignKey(name = "fk_courts_sport_complexes"))
     private SportComplexesEntity sportComplex;
+
+    /** The customer this record belongs to; null when it belongs to the platform owner. */
+    @Column(name = "organization_id")
+    private UUID organizationId;
 
     public CourtsEntity() {}
 
@@ -44,4 +54,10 @@ public class CourtsEntity extends BaseTranslatableEntity implements HasUniqueFie
             this.name = this.name + "_DELETED_" + entityId;
         }
     }
+
+    @Override
+    public UUID getOrganizationId() { return organizationId; }
+
+    @Override
+    public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
 }
