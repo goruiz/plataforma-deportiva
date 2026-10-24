@@ -185,7 +185,7 @@ class MenuServiceTest {
     }
 
     @Test
-    void create_whenItIsAnOrdinaryGroup_thenNobodyIsGrantedIt() {
+    void create_whenItIsAnOrdinaryGroup_thenItGetsNoDirectRoleAssignment() {
         menuService.create(createRequest("Reports", null, null));
 
         assertThat(storedAssignments).isEmpty();
@@ -548,6 +548,20 @@ class MenuServiceTest {
 
         assertThat(menu).extracting(MenuTreeResponse::getName).containsExactly("Dashboard", "Competition");
         assertThat(menu.get(1).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Events");
+    }
+
+    @Test
+    void getForUser_whenTheUserHasThePlatformOwnerRole_thenEveryActiveMenuIsVisible() {
+        UUID userId = UUID.randomUUID();
+        lenient().when(usersRolesRepository.findActiveRoleIdsByUserId(userId)).thenReturn(List.of(ownerRole.getId()));
+        lenient().when(rolesMenuRepository.findActiveVisibleByRoleIds(any())).thenReturn(List.of());
+        formats.setIsActive(false);
+
+        List<MenuTreeResponse> menu = menuService.getForUser(userId);
+
+        assertThat(menu).extracting(MenuTreeResponse::getName).containsExactly("Dashboard", "Competition", "Platform");
+        assertThat(menu.get(1).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Events");
+        assertThat(menu.get(2).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Menus");
     }
 
     @Test

@@ -186,20 +186,22 @@ class RolesMenuServiceTest {
     }
 
     @Test
-    void saveForRole_whenTheOwnerRoleLeavesItsOwnerOnlyScreenOut_thenItIsKeptAnyway() {
+    void saveForRole_whenTheOwnerRoleLeavesScreensOut_thenItKeepsEveryMenu() {
         RolesMenuEntity screenAssignment = assignment(ownerRole, roleMenusScreen, true);
 
         List<RolesMenuResponse> result = rolesMenuService.saveForRole(ownerRole.getId(), menusOf(events));
 
         assertThat(screenAssignment.getVisible()).isTrue();
-        assertThat(result).extracting(RolesMenuResponse::getMenuId).containsExactlyInAnyOrder(roleMenusScreen.getId(), events.getId());
+        assertThat(result).extracting(RolesMenuResponse::getMenuId)
+                .containsExactlyInAnyOrder(roleMenusScreen.getId(), events.getId(), teams.getId());
     }
 
     @Test
-    void saveForRole_whenTheOwnerRoleHadNoAssignmentForItsScreen_thenItIsCreated() {
+    void saveForRole_whenTheOwnerRoleHasNoAssignments_thenEveryMenuIsCreatedVisible() {
         List<RolesMenuResponse> result = rolesMenuService.saveForRole(ownerRole.getId(), menusOf());
 
-        assertThat(result).extracting(RolesMenuResponse::getMenuId).containsExactly(roleMenusScreen.getId());
+        assertThat(result).extracting(RolesMenuResponse::getMenuId)
+                .containsExactlyInAnyOrder(roleMenusScreen.getId(), events.getId(), teams.getId());
     }
 
     // ─── create and update keep the same rule ───────────────────────────────────
@@ -241,8 +243,17 @@ class RolesMenuServiceTest {
     }
 
     @Test
-    void update_whenTheOwnerRoleHidesItsScreen_thenItIsRefused() {
-        RolesMenuEntity screenAssignment = assignment(ownerRole, roleMenusScreen, true);
+    void create_whenTheOwnerRoleIsGivenAnOrdinaryScreenHidden_thenItIsRefused() {
+        CreateRolesMenuRequest request = grant(ownerRole, events, false);
+
+        assertThatThrownBy(() -> rolesMenuService.create(request))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors()).containsOnly(entry("visible", "OWNER_MENU_REQUIRED")));
+    }
+
+    @Test
+    void update_whenTheOwnerRoleHidesAnOrdinaryScreen_thenItIsRefused() {
+        RolesMenuEntity screenAssignment = assignment(ownerRole, events, true);
         when(rolesMenuRepository.findActiveById(screenAssignment.getId())).thenReturn(Optional.of(screenAssignment));
         UpdateRolesMenuRequest request = new UpdateRolesMenuRequest();
         request.setVisible(false);
@@ -281,6 +292,18 @@ class RolesMenuServiceTest {
     @Test
     void delete_whenItIsTheOwnerRolesOwnerOnlyScreen_thenItIsRefused() {
         RolesMenuEntity screenAssignment = assignment(ownerRole, roleMenusScreen, true);
+        when(rolesMenuRepository.findActiveById(screenAssignment.getId())).thenReturn(Optional.of(screenAssignment));
+
+        assertThatThrownBy(() -> rolesMenuService.delete(screenAssignment.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("OWNER_MENU_REQUIRED");
+
+        assertThat(screenAssignment.getDeletedAt()).isNull();
+    }
+
+    @Test
+    void delete_whenItIsAnOrdinaryOwnerRoleAssignment_thenItIsRefused() {
+        RolesMenuEntity screenAssignment = assignment(ownerRole, events, true);
         when(rolesMenuRepository.findActiveById(screenAssignment.getId())).thenReturn(Optional.of(screenAssignment));
 
         assertThatThrownBy(() -> rolesMenuService.delete(screenAssignment.getId()))

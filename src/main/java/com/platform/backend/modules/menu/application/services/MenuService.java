@@ -83,9 +83,9 @@ public class MenuService implements IMenuService {
     }
 
     /**
-     * The menu the caller sees is what the roles they hold were granted as visible in roles_menu, never the full tree.
-     * A group needs no grant of its own: it shows while something inside it does (see {@link MenuTree#visibleFor}).
-     * A user with no visible grants sees an empty menu.
+     * Regular roles see what was granted as visible in roles_menu. The platform owner sees every active menu item.
+     * Groups need no grant of their own: they show while something inside them does
+     * (see {@link MenuTree#visibleFor}). A regular user with no visible grants sees an empty menu.
      */
     @Override
     public List<MenuTreeResponse> getForUser(UUID userId) {
@@ -94,15 +94,20 @@ public class MenuService implements IMenuService {
             return List.of();
         }
 
+        boolean isPlatformOwner = roleIds.stream().anyMatch(platformOwnerRole::isOwnerRole);
         Set<UUID> grantedMenuIds = rolesMenuRepository.findActiveVisibleByRoleIds(roleIds).stream()
                 .map(RolesMenuEntity::getMenu)
                 .map(MenuEntity::getId)
                 .collect(Collectors.toSet());
-        if (grantedMenuIds.isEmpty()) {
+        if (grantedMenuIds.isEmpty() && !isPlatformOwner) {
             return List.of();
         }
 
-        return buildTree(loadTree().visibleFor(grantedMenuIds));
+        List<MenuEntity> activeMenus = menuRepository.findAllActive();
+        if (isPlatformOwner) {
+            activeMenus.stream().map(MenuEntity::getId).forEach(grantedMenuIds::add);
+        }
+        return buildTree(new MenuTree(activeMenus).visibleFor(grantedMenuIds));
     }
 
     /**

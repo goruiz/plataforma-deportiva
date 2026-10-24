@@ -230,7 +230,7 @@ La inscripción por invitación conecta backend y app: el enlace usa `app.fronte
 1. **Aclarar efecto y compatibilidad:** ruta, verbo, autorización, tenant, paginación, campos nulos y semántica del borrado; buscar consumidores en los dos frontends antes de tocar el DTO.
 2. **Backend:** cambiar Request/Response, mapper, controller, servicio, validaciones y errores en el mismo módulo; agregar/ajustar tests. Mantener `ApiResponse` y códigos estables.
 3. **Base de datos:** nueva migración Flyway para columnas, índices, restricciones o seed; no editar versiones aplicadas. Si el recurso es multi-tenant, añade columna/relación tenant, filtro Hibernate y repositorio tenant-aware; cubre también búsquedas por ID y referencias derivadas.
-4. **Menú:** si se agrega una pantalla Angular, crear su ruta y entrada de menú mediante migración nueva. Otorgar visibilidad a los roles correctos; las entradas de grupo no reciben asignación propia. Las pantallas owner-only deben restringirse tanto en backend como en el cliente.
+4. **Menú:** si se agrega una pantalla Angular, crear su ruta y entrada de menú mediante migración nueva. El rol Propietario ve siempre todas las entradas activas; solo él decide qué pantallas reciben los demás roles. Los grupos se muestran cuando contienen al menos una entrada visible, sin necesitar asignación propia. Las pantallas owner-only deben restringirse tanto en backend como en el cliente.
 5. **Angular:** actualizar el modelo y servicio de la feature, formularios/errores y traducciones; verificar ruta de menú e ID de rol.
 6. **Flutter:** revisar `api_endpoints.dart`, datasource/modelos y mapeo de JSON, interceptor/auth, traducciones y navegación que consumen el mismo endpoint.
 7. **Verificación integrada:** correr Maven tests/build, probar los códigos HTTP y JSON reales (Swagger/MockMvc o entorno aislado), aplicar la migración en una base representativa y validar el recorrido de ambos clientes; revisar URL base/profile en cada entorno.
@@ -247,6 +247,5 @@ La inscripción por invitación conecta backend y app: el enlace usa `app.fronte
 - `src/test/java/`: pruebas, fixtures y simulación.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): arquitectura y patrones de extensión.
 - [`CLAUDE.md`](CLAUDE.md): contexto del producto, reglas y detalles del estado actual; úsalo como referencia suplementaria, confirmando siempre el código.
-
 
 

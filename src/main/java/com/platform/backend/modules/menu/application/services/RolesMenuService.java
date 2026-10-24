@@ -133,8 +133,8 @@ public class RolesMenuService implements IRolesMenuService {
     }
 
     /**
-     * The menu items the role will see: what was asked for, which must all exist. The owner role also gets the
-     * owner-only ones whatever was asked (it must not lose them); any other role asking for one is refused.
+     * The menu items the role will see: what was asked for, which must all exist. The owner role always gets every
+     * active item; any other role asking for an owner-only item is refused.
      */
     private Set<UUID> resolveVisibleMenuIds(UUID roleId, List<UUID> requestedMenuIds, Map<UUID, MenuEntity> menusById) {
         Set<UUID> visibleMenuIds = new LinkedHashSet<>(requestedMenuIds);
@@ -145,14 +145,9 @@ public class RolesMenuService implements IRolesMenuService {
                     throw new EntityNotFoundException("Menu not found with id: " + unknownId);
                 });
 
-        Set<UUID> ownerOnlyMenuIds = menusById.values().stream()
-                .filter(MenuEntity::isOwnerOnly)
-                .map(MenuEntity::getId)
-                .collect(Collectors.toSet());
-
         if (platformOwnerRole.isOwnerRole(roleId)) {
-            visibleMenuIds.addAll(ownerOnlyMenuIds);
-        } else if (visibleMenuIds.stream().anyMatch(ownerOnlyMenuIds::contains)) {
+            visibleMenuIds.addAll(menusById.keySet());
+        } else if (visibleMenuIds.stream().map(menusById::get).anyMatch(MenuEntity::isOwnerOnly)) {
             throw new FieldValidationException(MENU_IDS_FIELD, RolesMenuError.OWNER_ONLY_MENU.name());
         }
         return visibleMenuIds;
@@ -178,24 +173,20 @@ public class RolesMenuService implements IRolesMenuService {
     }
 
     /**
-     * Owner-only screens are the platform owner's: no other role may see them, and the owner role may not lose them
-     * (it would be left without the screen that gives them back).
+     * The owner role cannot lose any menu item; no other role may see an owner-only item.
      */
     private void validateOwnerOnlyRule(UUID roleId, MenuEntity menu, boolean visible, String field) {
-        if (!menu.isOwnerOnly()) {
-            return;
-        }
         boolean isOwnerRole = platformOwnerRole.isOwnerRole(roleId);
         if (isOwnerRole && !visible) {
             throw new FieldValidationException(field, RolesMenuError.OWNER_MENU_REQUIRED.name());
         }
-        if (!isOwnerRole && visible) {
+        if (!isOwnerRole && menu.isOwnerOnly() && visible) {
             throw new FieldValidationException(field, RolesMenuError.OWNER_ONLY_MENU.name());
         }
     }
 
     private void requireOwnerRoleKeepsItsScreen(RolesMenuEntity rolesMenu) {
-        if (platformOwnerRole.isOwnerRole(rolesMenu.getRole().getId()) && rolesMenu.getMenu().isOwnerOnly()) {
+        if (platformOwnerRole.isOwnerRole(rolesMenu.getRole().getId())) {
             throw new IllegalStateException(RolesMenuError.OWNER_MENU_REQUIRED.name());
         }
     }
