@@ -11,6 +11,8 @@ public final class PasswordPolicy {
     // BCrypt only reads the first 72 bytes, so anything longer would be silently truncated (or rejected).
     public static final int MAX_LENGTH = 72;
 
+    public static final int RESET_TOKEN_MAX_LENGTH = 128;
+
     private PasswordPolicy() {
     }
 }

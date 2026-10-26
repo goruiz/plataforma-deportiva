@@ -5,24 +5,32 @@ import com.platform.backend.modules.organizations.domain.irepositories.IOrganiza
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
+import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.users.domain.exception.LoginError;
 import com.platform.backend.modules.users.domain.exception.PasswordChangeError;
+import com.platform.backend.modules.users.domain.exception.PasswordResetError;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
+import com.platform.backend.modules.users.presentation.requests.ForgotPasswordRequest.ForgotPasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.modules.users.presentation.requests.ResetPasswordRequest.ResetPasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtClaims;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,7 +39,16 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +57,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UsersAuthService implements IUsersAuthService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(UsersAuthService.class);
     private final IUserRepository userRepository;
     private final IUsersRolesRepository usersRolesRepository;
     private final IOrganizationRepository organizationRepository;
@@ -48,6 +66,13 @@ public class UsersAuthService implements IUsersAuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final IPasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailService emailService;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    @Value("${app.security.password-reset-expiration-minutes:30}")
+    private long passwordResetExpirationMinutes;
 
     @Value("${app.security.admin-role-id:}")
     private String adminRoleId;
@@ -182,6 +207,73 @@ public class UsersAuthService implements IUsersAuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void requestPasswordReset(ForgotPasswordRequest request) {
+        passwordResetTokenRepository.deleteExpiredBefore(LocalDateTime.now());
+
+        String email = request.getEmail().trim().toLowerCase();
+        UsersEntity user = userRepository.findByEmail(email)
+                .filter(found -> found.getDeletedAt() == null)
+                .orElse(null);
+        if (user == null) {
+            return;
+        }
+
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        String token = generatePasswordResetToken();
+        PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
+        resetToken.setUserId(user.getId());
+        resetToken.setTokenHash(hashPasswordResetToken(token));
+        resetToken.setExpiresAt(LocalDateTime.now().plusMinutes(passwordResetExpirationMinutes));
+        passwordResetTokenRepository.save(resetToken);
+        try {
+            emailService.sendPasswordReset(user.getEmail(), user.getFirstName(), token);
+        } catch (EmailDeliveryException exception) {
+            LOGGER.error("Password reset email delivery failed for user id {} ({})",
+                    user.getId(), exception.getClass().getSimpleName());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String tokenHash = hashPasswordResetToken(request.getToken());
+        PasswordResetTokenEntity resetToken = passwordResetTokenRepository
+                .findByTokenHashAndUnusedForUpdate(tokenHash)
+                .filter(saved -> saved.getExpiresAt().isAfter(LocalDateTime.now()))
+                .orElseThrow(() -> invalidPasswordResetToken());
+
+        UsersEntity user = userRepository.findActiveById(resetToken.getUserId())
+                .orElseThrow(() -> invalidPasswordResetToken());
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        resetToken.setUsedAt(LocalDateTime.now());
+        passwordResetTokenRepository.save(resetToken);
+        passwordResetTokenRepository.deleteByUserIdAndIdNot(user.getId(), resetToken.getId());
+    }
+
+    private FieldValidationException invalidPasswordResetToken() {
+        return new FieldValidationException("token", PasswordResetError.INVALID_OR_EXPIRED.name());
+    }
+
+    private String generatePasswordResetToken() {
+        byte[] randomBytes = new byte[32];
+        SECURE_RANDOM.nextBytes(randomBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    private String hashPasswordResetToken(String token) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is not available", ex);
+        }
     }
 
     private FieldValidationException fieldError(PasswordChangeError error) {

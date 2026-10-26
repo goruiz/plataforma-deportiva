@@ -2,8 +2,10 @@ package com.platform.backend.modules.users.presentation.controllers;
 
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
+import com.platform.backend.modules.users.presentation.requests.ForgotPasswordRequest.ForgotPasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.modules.users.presentation.requests.ResetPasswordRequest.ResetPasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
@@ -39,6 +41,20 @@ public class UsersAuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest registerRequest) {
         return ResponseEntity.ok(ApiResponse.ok(usersAuthService.register(registerRequest)));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        usersAuthService.requestPasswordReset(request);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        usersAuthService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
     @PutMapping("/update-profile")

@@ -22,6 +22,12 @@ public class EmailService {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
+    @Value("${app.mobile.deep-link-scheme:sportplatform}")
+    private String mobileDeepLinkScheme;
+
+    @Value("${app.security.password-reset-expiration-minutes:30}")
+    private long passwordResetExpirationMinutes;
+
     public void sendTeamInvitation(String to, String playerName, String teamName) {
         sendHtmlEmail(to,
                 "Invitación al equipo " + teamName,
@@ -34,6 +40,15 @@ public class EmailService {
         sendHtmlEmail(to,
                 "Únete a " + teamName + " en la Plataforma Deportiva",
                 buildRegistrationInvitationHtml(teamName, registrationUrl));
+    }
+
+    public void sendPasswordReset(String to, String firstName, String token) {
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+        String resetUrl = base + "/reset-password?token=" + token;
+        String mobileResetUrl = mobileDeepLinkScheme + "://reset-password?token=" + token;
+        sendHtmlEmail(to,
+                "Restablece tu contraseña de la Plataforma Deportiva",
+                buildPasswordResetHtml(firstName, resetUrl, mobileResetUrl));
     }
 
     public void sendUserCreatedWithTemporaryPassword(String to, String firstName, String temporaryPassword) {
@@ -52,7 +67,7 @@ public class EmailService {
             helper.setText(htmlBody, true);
             mailSender.send(message);
         } catch (MessagingException | MailException e) {
-            throw new RuntimeException("Error al enviar el correo a " + to, e);
+            throw new EmailDeliveryException("Could not send email", e);
         }
     }
 
@@ -113,5 +128,33 @@ public class EmailService {
                 HtmlUtils.htmlEscape(firstName),
                 HtmlUtils.htmlEscape(loginEmail),
                 HtmlUtils.htmlEscape(temporaryPassword));
+    }
+
+    private String buildPasswordResetHtml(String firstName, String resetUrl, String mobileResetUrl) {
+        return """
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                  <h2>Hola, %s</h2>
+                  <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+                  <p>El enlace solo se puede usar una vez y vence en %d minutos.</p>
+                  <a href="%s"
+                     style="display:inline-block;padding:12px 24px;background:#1976D2;color:#fff;
+                            text-decoration:none;border-radius:4px;font-weight:bold;">
+                  Abrir en la aplicación
+                  </a>
+                  <br/><br/>
+                <p>También puedes restablecerla en la versión web:</p>
+                <p><a href="%s">%s</a></p>
+                  <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                  <br/>
+                  <p>Plataforma Deportiva</p>
+                </body>
+                </html>
+                """.formatted(
+                HtmlUtils.htmlEscape(firstName == null ? "" : firstName),
+                passwordResetExpirationMinutes,
+                HtmlUtils.htmlEscape(mobileResetUrl),
+                HtmlUtils.htmlEscape(resetUrl),
+                HtmlUtils.htmlEscape(resetUrl));
     }
 }

@@ -19,16 +19,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LoginRateLimiterFilter extends OncePerRequestFilter {
 
     private static final String LOGIN_PATH = "/users/auth/login";
+    private static final String PASSWORD_RESET_REQUEST_PATH = "/users/auth/forgot-password";
     private static final int MAX_ATTEMPTS = 5;
     private static final Duration WINDOW = Duration.ofMinutes(1);
+    private static final int MAX_PASSWORD_RESET_REQUESTS = 3;
+    private static final Duration PASSWORD_RESET_WINDOW = Duration.ofMinutes(15);
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !("POST".equalsIgnoreCase(request.getMethod())
-                && LOGIN_PATH.equals(request.getServletPath()));
+        return !"POST".equalsIgnoreCase(request.getMethod())
+                || !isRateLimitedPath(request.getServletPath());
     }
 
     @Override
@@ -36,7 +39,8 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String ip = resolveClientIp(request);
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> buildBucket());
+        String path = request.getServletPath();
+        Bucket bucket = buckets.computeIfAbsent(ip + ":" + path, k -> buildBucket(path));
 
         if (bucket.tryConsume(1)) {
             chain.doFilter(request, response);
@@ -45,11 +49,18 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
         }
     }
 
-    private Bucket buildBucket() {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(MAX_ATTEMPTS)
-                .refillIntervally(MAX_ATTEMPTS, WINDOW)
-                .build();
+    private boolean isRateLimitedPath(String path) {
+        return LOGIN_PATH.equals(path) || PASSWORD_RESET_REQUEST_PATH.equals(path);
+    }
+
+    private Bucket buildBucket(String path) {
+        int capacity = PASSWORD_RESET_REQUEST_PATH.equals(path)
+                ? MAX_PASSWORD_RESET_REQUESTS
+                : MAX_ATTEMPTS;
+        Duration window = PASSWORD_RESET_REQUEST_PATH.equals(path)
+                ? PASSWORD_RESET_WINDOW
+                : WINDOW;
+        Bandwidth limit = Bandwidth.builder().capacity(capacity).refillIntervally(capacity, window).build();
         return Bucket.builder()
                 .addLimit(limit)
                 .build();
@@ -76,7 +87,7 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
                 "timestamp", System.currentTimeMillis(),
                 "status", HttpStatus.TOO_MANY_REQUESTS.value(),
                 "error", "Too Many Requests",
-                "message", "Too many login attempts. Please try again in a minute."
+                "message", "Too many requests. Please try again later."
         );
         objectMapper.writeValue(response.getWriter(), body);
     }

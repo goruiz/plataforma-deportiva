@@ -87,13 +87,15 @@ Ojo con la ortografía: dentro de un módulo la capa se llama `infrastructure`, 
 
 - **Stateless con JWT**, CSRF desactivado, sesión `STATELESS`, contraseñas con BCrypt. CORS abierto (`*` con credenciales).
 - `SecurityFilterChain` (en `modules/users/infrastructure/configuration/security/SecurityConfig`): `LoginRateLimiterFilter` y `JwtAuthenticationFilter` se registran antes de `UsernamePasswordAuthenticationFilter`.
-- **Públicos:** `POST /users/auth/login`, `POST /users/auth/register`, `POST /players/auth/register` y Swagger (`/swagger-ui/**`, `/swagger-ui.html`, `/v3/api-docs/**`). Todo lo demás exige un JWT válido.
+- **Públicos:** `POST /users/auth/login`, `/users/auth/register`, `/users/auth/forgot-password`, `/users/auth/reset-password`, `POST /players/auth/register` y Swagger (`/swagger-ui/**`, `/swagger-ui.html`, `/v3/api-docs/**`). Todo lo demás exige un JWT válido. La recuperación usa tokens aleatorios de un solo uso, con vencimiento, y solo persiste su hash; el correo incluye enlaces web y de deep link móvil.
+- `LoginRateLimiterFilter` limita además las solicitudes de recuperación por IP para impedir el envío masivo de correos.
 - Sin token, o con uno vencido o inválido, `JwtAuthenticationEntryPoint` responde **401** con `ApiResponse`; los dos frontends usan ese 401 para cerrar la sesión.
 - **Autorización parcial por rol**: `@EnableMethodSecurity` y `@PreAuthorize` (expresiones en `AccessRules`) protegen solo lo de la plataforma (organizaciones, roles, menú, permisos, tipos de evento, acciones y asignar roles); el resto basta con un JWT válido. El JWT lleva `admin`, `platformOwner` y `organizationId` y el filtro los convierte en `ROLE_ADMIN`, `ROLE_PLATFORM_OWNER` y en el ámbito de datos de quien llama (ver CLAUDE.md, «Organizaciones»).
 
 ## Persistencia
 
-- **Base de datos:** PostgreSQL. **Flyway es el único dueño del esquema y de los datos iniciales**: hay una sola migración, `db/migration/V1__migracion_inicial.sql`, y Hibernate solo valida (`ddl-auto=validate`). Nada de scripts ni de seeders en Java: todo cambio es una nueva `V{n}`. Ver "Base de datos y migraciones: estado real" en CLAUDE.md.
+- **Base de datos:** PostgreSQL. **Flyway es el único dueño del esquema y de los datos iniciales**: las migraciones versionadas viven en `db/migration/V{n}__descripcion.sql` y Hibernate solo valida (`ddl-auto=validate`). Nada de scripts ni de seeders en Java: todo cambio es una nueva `V{n}`. Ver "Base de datos y migraciones: estado real" en CLAUDE.md.
+- La migración `V12__password_reset_tokens.sql` crea el almacenamiento temporal de recuperación; el token en claro nunca se guarda en la base de datos.
 - **`BaseEntity`:** id UUID generado, `createdBy/At`, `updatedBy/At` y `deletedBy/At`. El auditor sale de `AuditorAwareImpl`, que vive en `users`.
 - **Soft delete:** borrar es marcar `deletedAt` y guardar; el método `delete` del adaptador hace un `save`. Todas las consultas de lectura filtran `...DeletedAtIsNull`. Cada recurso expone además `DELETE /x/{id}/hard` (borrado físico).
 - **Campos únicos y borrado:** `HasUniqueField.releaseUniqueFields` renombra los campos únicos al borrar para poder reutilizarlos, pero hoy **solo `EventsService.delete` llama a `SoftDeleteHelper`**. En el resto, borrar y recrear el mismo nombre o email choca con el unique de la base (409).

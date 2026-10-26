@@ -4,17 +4,23 @@ import com.platform.backend.modules.organizations.domain.entities.OrganizationsE
 import com.platform.backend.modules.organizations.domain.enums.OrganizationStatus;
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
+import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.exception.LoginError;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.modules.users.presentation.requests.ChangePasswordRequest.ChangePasswordRequest;
+import com.platform.backend.modules.users.presentation.requests.ForgotPasswordRequest.ForgotPasswordRequest;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.ClientType;
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.modules.users.presentation.requests.ResetPasswordRequest.ResetPasswordRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +41,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,6 +58,7 @@ import static org.mockito.Mockito.*;
 class UsersServiceTest {
 
     @Mock private IUserRepository userRepository;
+    @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private IOrganizationRepository organizationRepository;
     @Mock private PlatformOwnerRole platformOwnerRole;
@@ -54,6 +66,7 @@ class UsersServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
+    @Mock private EmailService emailService;
 
     @InjectMocks
     private UsersAuthService usersAuthService;
@@ -80,6 +93,7 @@ class UsersServiceTest {
         usersEntity.setEmail("juan@email.com");
         usersEntity.setUsername("jperez");
         usersEntity.setPassword("hashed_password");
+        ReflectionTestUtils.setField(usersAuthService, "passwordResetExpirationMinutes", 30L);
     }
 
     // ─── register ───────────────────────────────────────────────────────────────
@@ -343,6 +357,107 @@ class UsersServiceTest {
         assertThatThrownBy(() -> usersAuthService.changePassword(
                 buildChangePasswordRequest("password123", "brand-new-pass"), "juan@email.com"))
                 .isInstanceOf(BadCredentialsException.class);
+    }
+
+    @Test
+    void requestPasswordReset_whenAccountDoesNotExist_thenKeepResponseGeneric() {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail(" unknown@email.com ");
+        when(userRepository.findByEmail("unknown@email.com")).thenReturn(Optional.empty());
+
+        usersAuthService.requestPasswordReset(request);
+
+        verify(emailService, never()).sendPasswordReset(anyString(), any(), anyString());
+        verify(passwordResetTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenAccountExists_thenStoreTokenHashAndEmailRawToken()
+            throws NoSuchAlgorithmException {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail(" JUAN@EMAIL.COM ");
+        usersEntity.setFirstName("Juan");
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        ArgumentCaptor<PasswordResetTokenEntity> tokenCaptor =
+                ArgumentCaptor.forClass(PasswordResetTokenEntity.class);
+        ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
+
+        usersAuthService.requestPasswordReset(request);
+
+        verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+        verify(emailService).sendPasswordReset(
+                eq("juan@email.com"), eq("Juan"), rawTokenCaptor.capture());
+        PasswordResetTokenEntity savedToken = tokenCaptor.getValue();
+        String rawToken = rawTokenCaptor.getValue();
+        String expectedHash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(rawToken).hasSize(43);
+        assertThat(savedToken.getTokenHash()).isEqualTo(expectedHash);
+        assertThat(savedToken.getTokenHash()).isNotEqualTo(rawToken);
+        assertThat(savedToken.getUserId()).isEqualTo(usersEntity.getId());
+        assertThat(savedToken.getExpiresAt())
+                .isAfter(LocalDateTime.now())
+                .isBefore(LocalDateTime.now().plusMinutes(31));
+    }
+
+    @Test
+    void requestPasswordReset_whenEmailDeliveryFails_thenKeepResponseGeneric() {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail("juan@email.com");
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        doThrow(new EmailDeliveryException("Could not send email", new RuntimeException()))
+                .when(emailService)
+                .sendPasswordReset(eq("juan@email.com"), any(), anyString());
+
+        usersAuthService.requestPasswordReset(request);
+
+        verify(passwordResetTokenRepository).save(any(PasswordResetTokenEntity.class));
+    }
+
+    @Test
+    void resetPassword_whenTokenIsValid_thenChangePasswordAndConsumeToken()
+            throws NoSuchAlgorithmException {
+        String rawToken = "single-use-reset-token";
+        String tokenHash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setToken(rawToken);
+        request.setNewPassword("newPassword123");
+        PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
+        resetToken.setId(UUID.randomUUID());
+        resetToken.setUserId(usersEntity.getId());
+        resetToken.setTokenHash(tokenHash);
+        resetToken.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        when(passwordResetTokenRepository.findByTokenHashAndUnusedForUpdate(tokenHash))
+                .thenReturn(Optional.of(resetToken));
+        when(userRepository.findActiveById(usersEntity.getId())).thenReturn(Optional.of(usersEntity));
+        when(passwordEncoder.encode("newPassword123")).thenReturn("hashed_new_password");
+
+        usersAuthService.resetPassword(request);
+
+        assertThat(usersEntity.getPassword()).isEqualTo("hashed_new_password");
+        assertThat(resetToken.getUsedAt()).isNotNull();
+        verify(userRepository).save(usersEntity);
+        verify(passwordResetTokenRepository).save(resetToken);
+        verify(passwordResetTokenRepository).deleteByUserIdAndIdNot(
+                usersEntity.getId(), resetToken.getId());
+    }
+
+    @Test
+    void resetPassword_whenTokenIsUnknown_thenRejectWithoutChangingPassword() {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setToken("unknown-token");
+        request.setNewPassword("newPassword123");
+        when(passwordResetTokenRepository.findByTokenHashAndUnusedForUpdate(anyString()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> usersAuthService.resetPassword(request))
+                .isInstanceOfSatisfying(FieldValidationException.class, exception ->
+                        assertThat(exception.getFieldErrors())
+                                .containsOnly(entry("token", "INVALID_OR_EXPIRED")));
+        assertThat(usersEntity.getPassword()).isEqualTo("hashed_password");
+        verify(userRepository, never()).save(any());
     }
 
     private ChangePasswordRequest buildChangePasswordRequest(String currentPassword, String newPassword) {
