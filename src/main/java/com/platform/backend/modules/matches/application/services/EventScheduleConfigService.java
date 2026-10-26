@@ -21,6 +21,7 @@ import com.platform.backend.modules.matches.presentation.responses.GenerateMatch
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamsEventsRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import com.platform.backend.shared.infraestructure.tenancy.TenantReferences;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -54,8 +55,9 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
 
     @Override
     public EventScheduleConfigResponse saveConfig(UUID eventId, SaveScheduleConfigRequest request) {
-        eventRepository.findActiveById(eventId)
+        EventsEntity event = eventRepository.findActiveById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
         requireCourtIsVisible(request.getCourtId());
 
         EventScheduleConfigEntity config = configRepository.findActiveByEventId(eventId)
@@ -104,6 +106,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
     public GenerateMatchesResponse generateMatches(UUID eventId) {
         EventsEntity event = eventRepository.findActiveById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
 
         EventScheduleConfigEntity config = configRepository.findActiveByEventId(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Schedule config not found. Save a config first."));

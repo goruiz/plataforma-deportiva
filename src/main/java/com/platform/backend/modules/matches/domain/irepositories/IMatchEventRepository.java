@@ -2,6 +2,7 @@ package com.platform.backend.modules.matches.domain.irepositories;
 
 import com.platform.backend.modules.matches.domain.entities.MatchEventsEntity;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,10 @@ public interface IMatchEventRepository {
     Optional<MatchEventsEntity> findById(UUID id);
 
     List<MatchEventsEntity> findAllActive();
+
+    List<MatchEventsEntity> findAllActiveByMatchId(UUID matchId);
+
+    List<MatchEventsEntity> findAllActiveByMatchIds(Collection<UUID> matchIds);
 
     Optional<MatchEventsEntity> findActiveById(UUID id);
 

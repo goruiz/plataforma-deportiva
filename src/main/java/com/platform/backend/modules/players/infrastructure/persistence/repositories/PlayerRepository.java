@@ -6,6 +6,7 @@ import com.platform.backend.modules.players.infrastructure.persistence.jpa.Playe
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +25,11 @@ public class PlayerRepository implements IPlayerRepository {
     @Override
     public Optional<PlayersEntity> findActiveById(UUID id) {
         return playersJpaRepository.findByIdAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public List<PlayersEntity> findAllActiveByIds(Collection<UUID> ids) {
+        return playersJpaRepository.findAllByIdInAndDeletedAtIsNull(ids);
     }
 
     @Override

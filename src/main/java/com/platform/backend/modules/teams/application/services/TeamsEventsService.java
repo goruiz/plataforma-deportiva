@@ -10,6 +10,7 @@ import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamsEventsRepository;
 import com.platform.backend.modules.teams.presentation.requests.CreateTeamsEventsRequest.CreateTeamsEventsRequest;
 import com.platform.backend.modules.teams.presentation.responses.TeamsEventsResponse.TeamsEventsResponse;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,7 @@ public class TeamsEventsService implements ITeamsEventsService {
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
         EventsEntity event = eventRepository.findActiveById(request.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + request.getEventId()));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
 
         TeamsEventsEntity teamsEvents = new TeamsEventsEntity();
         teamsEvents.setTeam(team);
@@ -70,6 +72,7 @@ public class TeamsEventsService implements ITeamsEventsService {
     public void delete(UUID id) {
         TeamsEventsEntity teamsEvents = teamsEventsRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Team-event assignment not found with id: " + id));
+        requireAdminOrEventCreator(teamsEvents);
         teamsEvents.setDeletedAt(LocalDateTime.now());
         teamsEventsRepository.delete(teamsEvents);
     }
@@ -78,6 +81,12 @@ public class TeamsEventsService implements ITeamsEventsService {
     public void hardDelete(UUID id) {
         TeamsEventsEntity teamsEvents = teamsEventsRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Team-event assignment not found with id: " + id));
+        requireAdminOrEventCreator(teamsEvents);
         teamsEventsRepository.hardDelete(teamsEvents);
+    }
+
+    /** Whoever manages an event decides which teams are in it. */
+    private void requireAdminOrEventCreator(TeamsEventsEntity teamsEvents) {
+        CreatorAccess.requireAdminOrCreator(teamsEvents.getEvent().getCreatedBy());
     }
 }

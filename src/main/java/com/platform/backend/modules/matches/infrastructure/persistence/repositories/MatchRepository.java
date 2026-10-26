@@ -45,6 +45,11 @@ public class MatchRepository implements IMatchRepository {
     }
 
     @Override
+    public List<MatchesEntity> findAllActiveByTeamId(UUID teamId) {
+        return matchesJpaRepository.findAllActiveByTeamId(teamId);
+    }
+
+    @Override
     public List<MatchesEntity> findAllActiveByStatusInAndStartedBy(Collection<String> statuses, LocalDateTime kickOffLimit) {
         return matchesJpaRepository.findAllByStatusInAndMatchDateLessThanEqualAndDeletedAtIsNull(statuses, kickOffLimit);
     }

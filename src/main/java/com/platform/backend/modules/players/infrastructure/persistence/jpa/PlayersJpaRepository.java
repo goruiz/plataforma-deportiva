@@ -5,6 +5,7 @@ import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaReposi
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +15,8 @@ public interface PlayersJpaRepository extends TenantScopedJpaRepository<PlayersE
     List<PlayersEntity> findAllByDeletedAtIsNull();
 
     Optional<PlayersEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    List<PlayersEntity> findAllByIdInAndDeletedAtIsNull(Collection<UUID> ids);
 
     Optional<PlayersEntity> findByEmail(String email);
 

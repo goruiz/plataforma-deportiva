@@ -11,6 +11,8 @@ public interface IMatchEventsService {
 
     List<MatchEventResponse> getAll();
 
+    List<MatchEventResponse> getByMatchId(UUID matchId);
+
     MatchEventResponse getById(UUID id);
 
     MatchEventResponse create(CreateMatchEventRequest request);

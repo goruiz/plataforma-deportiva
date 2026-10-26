@@ -6,6 +6,7 @@ import com.platform.backend.modules.matches.infrastructure.persistence.jpa.Match
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,16 @@ public class MatchEventRepository implements IMatchEventRepository {
     @Override
     public List<MatchEventsEntity> findAllActive() {
         return matchEventsJpaRepository.findAllByDeletedAtIsNull();
+    }
+
+    @Override
+    public List<MatchEventsEntity> findAllActiveByMatchId(UUID matchId) {
+        return matchEventsJpaRepository.findAllByMatchIdAndDeletedAtIsNull(matchId);
+    }
+
+    @Override
+    public List<MatchEventsEntity> findAllActiveByMatchIds(Collection<UUID> matchIds) {
+        return matchEventsJpaRepository.findAllByMatchIdInAndDeletedAtIsNull(matchIds);
     }
 
     @Override

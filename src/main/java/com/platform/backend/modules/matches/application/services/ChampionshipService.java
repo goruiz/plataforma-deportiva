@@ -23,6 +23,7 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.responses.ChampionshipResponse.ChampionshipResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEventsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamsEventsRepository;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -68,7 +69,7 @@ public class ChampionshipService implements IChampionshipService {
     @Override
     @Transactional
     public ChampionshipResponse drawGroups(UUID eventId) {
-        EventsEntity event = findEvent(eventId);
+        EventsEntity event = findEventToManage(eventId);
         ChampionshipRules rules = requireRules(event);
         if (!rules.structure().phases().contains(ChampionshipPhase.GROUPS)) {
             throw new IllegalStateException(ChampionshipError.FORMAT_HAS_NO_GROUPS.name());
@@ -88,7 +89,7 @@ public class ChampionshipService implements IChampionshipService {
     @Override
     @Transactional
     public ChampionshipResponse generateNext(UUID eventId) {
-        EventsEntity event = findEvent(eventId);
+        EventsEntity event = findEventToManage(eventId);
         ChampionshipRules rules = requireRules(event);
         if (scheduleConfigRepository.findActiveByEventId(eventId).isEmpty()) {
             throw new IllegalStateException(ChampionshipError.SCHEDULE_CONFIG_REQUIRED.name());
@@ -109,7 +110,7 @@ public class ChampionshipService implements IChampionshipService {
     @Override
     @Transactional
     public ChampionshipResponse setAdvancingTeam(UUID eventId, UUID matchId, UUID teamId) {
-        EventsEntity event = findEvent(eventId);
+        EventsEntity event = findEventToManage(eventId);
         ChampionshipRules rules = requireRules(event);
         MatchesEntity match = matchRepository.findActiveById(matchId)
                 .filter(found -> eventId.equals(found.getEventId()))
@@ -198,6 +199,13 @@ public class ChampionshipService implements IChampionshipService {
     private EventsEntity findEvent(UUID eventId) {
         return eventRepository.findActiveById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+    }
+
+    /** Anyone can read a championship, but only whoever manages the event moves it forward. */
+    private EventsEntity findEventToManage(UUID eventId) {
+        EventsEntity event = findEvent(eventId);
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
+        return event;
     }
 
     /** A format whose rules were never defined (created before rules existed) cannot run a championship. */

@@ -27,6 +27,16 @@ public final class TenantTestSupport {
                 UUID.randomUUID(), "Juan", null, "Perez", null, "juan@email.com", null, false, false));
     }
 
+    /** A particular mobile-app account, to check what belongs to it and what does not. */
+    public static void actAsMobileAccount(UUID id, String email) {
+        authenticate(AuthenticatedUser.from(id, "Juan", null, "Perez", null, email, null, false, false));
+    }
+
+    /** An administrator of an organization, with the id the records they create are audited with. */
+    public static void actAsOrganizationAdmin(UUID id, UUID organizationId) {
+        authenticate(AuthenticatedUser.from(id, "Ana", null, "Lopez", null, "ana@liga.com", organizationId, true, false));
+    }
+
     public static void actAsNobody() {
         SecurityContextHolder.clearContext();
     }

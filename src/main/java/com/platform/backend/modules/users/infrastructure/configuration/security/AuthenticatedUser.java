@@ -1,5 +1,6 @@
 package com.platform.backend.modules.users.infrastructure.configuration.security;
 
+import com.platform.backend.shared.domain.security.CallerPrincipal;
 import com.platform.backend.shared.domain.tenancy.TenantPrincipal;
 import com.platform.backend.shared.infraestructure.security.Authority;
 import org.springframework.security.core.GrantedAuthority;
@@ -11,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public class AuthenticatedUser implements UserDetails, TenantPrincipal {
+public class AuthenticatedUser implements UserDetails, TenantPrincipal, CallerPrincipal {
 
     private final UUID id;
 
@@ -55,6 +56,7 @@ public class AuthenticatedUser implements UserDetails, TenantPrincipal {
         this.authorities = authorities;
     }
 
+    @Override
     public UUID getId() {
         return id;
     }
@@ -75,6 +77,7 @@ public class AuthenticatedUser implements UserDetails, TenantPrincipal {
         return secondLastName;
     }
 
+    @Override
     public String getEmail() {
         return email;
     }

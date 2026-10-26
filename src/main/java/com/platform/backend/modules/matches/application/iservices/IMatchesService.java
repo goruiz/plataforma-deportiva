@@ -17,6 +17,9 @@ public interface IMatchesService {
 
     List<MatchResponse> getByEventId(UUID eventId);
 
+    /** The matches of the caller's team, across every event. */
+    List<MatchResponse> getMine();
+
     MatchResponse create(CreateMatchRequest request);
 
     MatchResponse update(UUID id, UpdateMatchRequest request);

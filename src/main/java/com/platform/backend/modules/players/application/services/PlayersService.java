@@ -4,6 +4,8 @@ import com.platform.backend.modules.players.application.iservices.IPlayersServic
 import com.platform.backend.modules.players.application.mappers.PlayerMapper;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
+import com.platform.backend.modules.players.domain.enums.InvitationStatus;
+import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
@@ -16,6 +18,7 @@ import com.platform.backend.modules.players.presentation.responses.PlayerRespons
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +75,12 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PlayerResponse getCurrent() {
+        return searchByEmail(CurrentCaller.require().getEmail());
+    }
+
+    @Override
     public PlayerResponse create(CreatePlayerRequest request) {
         if (playerRepository.existsByEmail(request.getEmail())) {
             throw new DataIntegrityViolationException("Email already registered");
@@ -95,7 +104,7 @@ public class PlayersService implements IPlayersService {
             TeamInvitationsEntity invitation = teamInvitationRepository.findByToken(request.getInviteToken())
                     .orElseThrow(() -> new EntityNotFoundException("Invalid invitation token"));
 
-            if (!"PENDING".equals(invitation.getStatus())) {
+            if (!InvitationStatus.PENDING.name().equals(invitation.getStatus())) {
                 throw new IllegalStateException("Invitation token has already been used or expired");
             }
             if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -103,7 +112,7 @@ public class PlayersService implements IPlayersService {
             }
 
             player.setTeam(resolveTeam(invitation.getTeamId()));
-            invitation.setStatus("USED");
+            invitation.setStatus(InvitationStatus.USED.name());
             teamInvitationRepository.save(invitation);
         }
 
@@ -135,8 +144,8 @@ public class PlayersService implements IPlayersService {
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
         invitation.setEmail(request.getEmail());
         invitation.setTeamId(request.getTeamId());
-        invitation.setType("EXISTING_USER");
-        invitation.setStatus("PENDING");
+        invitation.setType(InvitationType.EXISTING_USER.name());
+        invitation.setStatus(InvitationStatus.PENDING.name());
         invitation.setExpiresAt(LocalDateTime.now().plusDays(inviteExpirationDays));
         teamInvitationRepository.save(invitation);
 
@@ -156,8 +165,8 @@ public class PlayersService implements IPlayersService {
         invitation.setEmail(request.getEmail());
         invitation.setTeamId(request.getTeamId());
         invitation.setToken(token);
-        invitation.setType("NEW_USER");
-        invitation.setStatus("PENDING");
+        invitation.setType(InvitationType.NEW_USER.name());
+        invitation.setStatus(InvitationStatus.PENDING.name());
         invitation.setExpiresAt(LocalDateTime.now().plusDays(inviteExpirationDays));
         teamInvitationRepository.save(invitation);
 

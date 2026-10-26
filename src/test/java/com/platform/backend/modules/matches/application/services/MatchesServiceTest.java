@@ -12,6 +12,8 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -25,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -55,6 +58,7 @@ class MatchesServiceTest {
     @Mock private IEventRepository eventRepository;
     @Mock private ITeamRepository teamRepository;
     @Mock private ICourtRepository courtRepository;
+    @Mock private IPlayerRepository playerRepository;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -489,5 +493,131 @@ class MatchesServiceTest {
         assertThat(postponed.getStatus()).isEqualTo("POSTPONED");
         assertThat(cancelled.getStatus()).isEqualTo("CANCELLED");
         assertThat(upcoming.getStatus()).isEqualTo("SCHEDULED");
+    }
+
+    // ─── a league's matches are managed by whoever created the league ─────────
+
+    private static final UUID MOBILE_ACCOUNT_ID = UUID.randomUUID();
+
+    private void givenTheEventWasCreatedBy(UUID eventId, UUID creatorId) {
+        EventsEntity event = new EventsEntity();
+        event.setCreatedBy(creatorId);
+        when(eventRepository.findActiveById(eventId)).thenReturn(Optional.of(event));
+    }
+
+    private void givenAMobileAccountAndAnEventOfSomeoneElse(MatchesEntity match) {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        givenTheEventWasCreatedBy(match.getEventId(), UUID.randomUUID());
+    }
+
+    @Test
+    void update_whenAMobileAccountDidNotCreateTheEvent_thenForbiddenAndNothingChanges() {
+        MatchesEntity stored = storedMatch(LocalDateTime.now().plusDays(1), "SCHEDULED");
+        givenAMobileAccountAndAnEventOfSomeoneElse(stored);
+
+        assertThatThrownBy(() -> matchesService.update(stored.getId(), scores(1, 0)))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void update_whenAMobileAccountCreatedTheEvent_thenItCanRecordTheResult() {
+        MatchesEntity stored = storedMatch(hoursAgo(3), "SCHEDULED");
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        givenTheEventWasCreatedBy(stored.getEventId(), MOBILE_ACCOUNT_ID);
+
+        assertThat(matchesService.update(stored.getId(), scores(2, 1)).getHomeScore()).isEqualTo(2);
+    }
+
+    @Test
+    void update_whenAMobileAccountMovesTheMatchToAnEventOfSomeoneElse_thenForbidden() {
+        MatchesEntity stored = storedMatch(LocalDateTime.now().plusDays(1), "SCHEDULED");
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        givenTheEventWasCreatedBy(stored.getEventId(), MOBILE_ACCOUNT_ID);
+        UUID foreignEventId = UUID.randomUUID();
+        givenTheEventWasCreatedBy(foreignEventId, UUID.randomUUID());
+        UpdateMatchRequest request = new UpdateMatchRequest();
+        request.setEventId(foreignEventId);
+
+        assertThatThrownBy(() -> matchesService.update(stored.getId(), request)).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void create_whenAMobileAccountDidNotCreateTheEvent_thenForbidden() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        givenTheEventWasCreatedBy(OWN_EVENT_ID, UUID.randomUUID());
+
+        assertThatThrownBy(() -> matchesService.create(newMatchOf(OWN_EVENT_ID, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null)))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void create_whenAMobileAccountSendsNoEvent_thenForbidden() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+
+        assertThatThrownBy(() -> matchesService.create(newMatchOf(null, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void postponeSuspendAndDelete_whenAMobileAccountDidNotCreateTheEvent_thenForbidden() {
+        MatchesEntity stored = storedMatch(LocalDateTime.now().plusDays(1), "SCHEDULED");
+        givenAMobileAccountAndAnEventOfSomeoneElse(stored);
+
+        assertThatThrownBy(() -> matchesService.postpone(stored.getId())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> matchesService.suspend(stored.getId())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> matchesService.delete(stored.getId())).isInstanceOf(AccessDeniedException.class);
+        assertThat(stored.getStatus()).isEqualTo("SCHEDULED");
+    }
+
+    @Test
+    void update_whenAnAdministratorDoesNotOwnTheEvent_thenItIsStillAllowed() {
+        // The organization an administrator works for is enforced by the tenancy filter: here the match is visible.
+        MatchesEntity stored = storedMatch(hoursAgo(3), "SCHEDULED");
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID(), UUID.randomUUID());
+
+        assertThat(matchesService.update(stored.getId(), scores(1, 1)).getAwayScore()).isEqualTo(1);
+    }
+
+    // ─── "my matches": the matches of the team the caller plays for ─────────
+
+    @Test
+    void getMine_whenThePlayerHasATeam_thenItsMatchesAreReturned() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        TeamsEntity team = new TeamsEntity();
+        team.setId(UUID.randomUUID());
+        PlayersEntity player = new PlayersEntity();
+        player.setTeam(team);
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
+        MatchesEntity ofTheTeam = match(LocalDateTime.now().plusDays(2), "SCHEDULED");
+        when(matchRepository.findAllActiveByTeamId(team.getId())).thenReturn(List.of(ofTheTeam));
+
+        assertThat(matchesService.getMine()).extracting(MatchResponse::getId).containsExactly(ofTheTeam.getId());
+    }
+
+    @Test
+    void getMine_whenThereIsNoPlayerOrTheyHaveNoTeam_thenThereAreNoMatches() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+
+        assertThat(matchesService.getMine()).isEmpty();
+
+        PlayersEntity withoutTeam = new PlayersEntity();
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(withoutTeam));
+
+        assertThat(matchesService.getMine()).isEmpty();
+        verify(matchRepository, never()).findAllActiveByTeamId(any());
+    }
+
+    @Test
+    void getMine_whenThePlayerWasDeleted_thenThereAreNoMatches() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        PlayersEntity deleted = new PlayersEntity();
+        deleted.setTeam(new TeamsEntity());
+        deleted.setDeletedAt(LocalDateTime.now());
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(deleted));
+
+        assertThat(matchesService.getMine()).isEmpty();
     }
 }

@@ -12,6 +12,7 @@ import com.platform.backend.modules.teams.presentation.requests.UpdateTeamReques
 import com.platform.backend.modules.teams.presentation.responses.TeamResponse.TeamResponse;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -67,6 +68,7 @@ public class TeamsService implements ITeamsService {
     @Override
     public TeamResponse update(UUID id, UpdateTeamRequest request) {
         TeamsEntity team = findActiveOrThrow(id);
+        CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
         validateNameIsFree(request, id);
         validateCategoryExists(request.getCategoryId());
         validateStatus(request.getStatus());
@@ -82,6 +84,7 @@ public class TeamsService implements ITeamsService {
     @Override
     public void delete(UUID id) {
         TeamsEntity team = findActiveOrThrow(id);
+        CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
         SoftDeleteHelper.prepareForDeletion(team);
         teamRepository.delete(team);
     }
@@ -91,6 +94,7 @@ public class TeamsService implements ITeamsService {
     public void hardDelete(UUID id) {
         TeamsEntity team = teamRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + id));
+        CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
         teamRepository.hardDelete(team);
     }
 

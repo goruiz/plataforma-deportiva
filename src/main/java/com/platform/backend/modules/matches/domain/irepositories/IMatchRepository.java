@@ -21,6 +21,9 @@ public interface IMatchRepository {
 
     List<MatchesEntity> findAllActiveByEventId(UUID eventId);
 
+    /** Active matches a team plays, as home or away, across every event, in date order. */
+    List<MatchesEntity> findAllActiveByTeamId(UUID teamId);
+
     /** Active matches in one of the statuses whose kick-off is at or before {@code kickOffLimit}. */
     List<MatchesEntity> findAllActiveByStatusInAndStartedBy(Collection<String> statuses, LocalDateTime kickOffLimit);
 

@@ -10,13 +10,16 @@ import com.platform.backend.modules.teams.presentation.requests.CreateTeamReques
 import com.platform.backend.modules.teams.presentation.requests.UpdateTeamRequest.UpdateTeamRequest;
 import com.platform.backend.modules.teams.presentation.responses.TeamResponse.TeamResponse;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -310,5 +313,58 @@ class TeamsServiceTest {
                 .hasMessageContaining(id.toString());
 
         verify(teamRepository, never()).delete(any());
+    }
+
+    // ─── a team is changed by whoever created it (or by an administrator) ─────────
+
+    private static final UUID MOBILE_ACCOUNT_ID = UUID.randomUUID();
+
+    @AfterEach
+    void clearSecurityContext() {
+        TenantTestSupport.actAsNobody();
+    }
+
+    @Test
+    void update_whenAMobileAccountDidNotCreateTheTeam_thenForbiddenAndNothingIsSaved() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        teamEntity.setCreatedBy(UUID.randomUUID());
+        when(teamRepository.findActiveById(teamEntity.getId())).thenReturn(Optional.of(teamEntity));
+
+        assertThatThrownBy(() -> teamsService.update(teamEntity.getId(), updateRequest))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    void delete_whenAMobileAccountDidNotCreateTheTeam_thenForbiddenAndItIsNotDeleted() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        teamEntity.setCreatedBy(UUID.randomUUID());
+        when(teamRepository.findActiveById(teamEntity.getId())).thenReturn(Optional.of(teamEntity));
+
+        assertThatThrownBy(() -> teamsService.delete(teamEntity.getId())).isInstanceOf(AccessDeniedException.class);
+        verify(teamRepository, never()).delete(any());
+        assertThat(teamEntity.getName()).isEqualTo("Tigres");
+    }
+
+    @Test
+    void delete_whenAMobileAccountCreatedTheTeam_thenItIsDeleted() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        teamEntity.setCreatedBy(MOBILE_ACCOUNT_ID);
+        when(teamRepository.findActiveById(teamEntity.getId())).thenReturn(Optional.of(teamEntity));
+
+        teamsService.delete(teamEntity.getId());
+
+        verify(teamRepository).delete(teamEntity);
+    }
+
+    @Test
+    void delete_whenAnAdministratorDidNotCreateTheTeam_thenItIsStillDeleted() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID(), UUID.randomUUID());
+        teamEntity.setCreatedBy(UUID.randomUUID());
+        when(teamRepository.findActiveById(teamEntity.getId())).thenReturn(Optional.of(teamEntity));
+
+        teamsService.delete(teamEntity.getId());
+
+        verify(teamRepository).delete(teamEntity);
     }
 }

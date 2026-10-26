@@ -1,5 +1,6 @@
 package com.platform.backend.modules.matches.presentation.requests.UpdateMatchEventRequest;
 
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -17,6 +18,7 @@ public class UpdateMatchEventRequest {
     @Size(max = 30)
     private String eventType;
 
+    @PositiveOrZero
     private Integer minute;
 
     private String notes;

@@ -36,6 +36,11 @@ public class PlayersController {
         return ResponseEntity.ok(ApiResponse.ok(playersService.getAll()));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<PlayerResponse>> getCurrent() {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.getCurrent()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PlayerResponse>> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(playersService.getById(id)));

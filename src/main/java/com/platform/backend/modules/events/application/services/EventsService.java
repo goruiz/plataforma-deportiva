@@ -15,6 +15,7 @@ import com.platform.backend.modules.events.presentation.requests.UpdateEventRequ
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,6 +83,7 @@ public class EventsService implements IEventsService {
     public EventResponse update(UUID id, UpdateEventRequest request) {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
         eventMapper.updateEntity(event, request);
         if (request.getIdEventType() != null) {
             EventTypesEntity eventType = eventTypeRepository.findActiveById(request.getIdEventType())
@@ -120,6 +122,7 @@ public class EventsService implements IEventsService {
     public void delete(UUID id) {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
         SoftDeleteHelper.prepareForDeletion(event);
         eventRepository.delete(event);
     }
@@ -128,6 +131,7 @@ public class EventsService implements IEventsService {
     public void hardDelete(UUID id) {
         EventsEntity event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
+        CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
         eventRepository.hardDelete(event);
     }
 

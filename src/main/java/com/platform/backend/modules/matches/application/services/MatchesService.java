@@ -14,8 +14,12 @@ import com.platform.backend.modules.matches.presentation.requests.RescheduleDate
 import com.platform.backend.modules.matches.presentation.requests.RescheduleMatchRequest.RescheduleMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
+import com.platform.backend.shared.infraestructure.security.CreatorAccess;
+import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.TenantReferences;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +52,7 @@ public class MatchesService implements IMatchesService {
     private final IEventRepository eventRepository;
     private final ITeamRepository teamRepository;
     private final ICourtRepository courtRepository;
+    private final IPlayerRepository playerRepository;
     private final MatchMapper matchMapper;
 
     @Override
@@ -60,6 +65,16 @@ public class MatchesService implements IMatchesService {
         return toResponses(matchRepository.findAllActiveByEventId(eventId));
     }
 
+    /** The matches of the team the caller plays for, in every event; with no player or no team there is none. */
+    @Override
+    public List<MatchResponse> getMine() {
+        return playerRepository.findByEmail(CurrentCaller.require().getEmail())
+                .filter(player -> player.getDeletedAt() == null)
+                .map(PlayersEntity::getTeam)
+                .map(team -> toResponses(matchRepository.findAllActiveByTeamId(team.getId())))
+                .orElseGet(List::of);
+    }
+
     @Override
     public MatchResponse getById(UUID id) {
         return toResponse(findActiveOrThrow(id));
@@ -67,6 +82,7 @@ public class MatchesService implements IMatchesService {
 
     @Override
     public MatchResponse create(CreateMatchRequest request) {
+        requireAdminOrCreatorOfEvent(request.getEventId());
         validateReferencesAreVisible(request.getEventId(), request.getHomeTeamId(), request.getAwayTeamId(),
                 request.getCourtId(), true);
         MatchesEntity match = matchMapper.toEntity(request);
@@ -81,6 +97,10 @@ public class MatchesService implements IMatchesService {
     @Override
     public MatchResponse update(UUID id, UpdateMatchRequest request) {
         MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
+        if (request.getEventId() != null) {
+            requireAdminOrCreatorOfEvent(request.getEventId());
+        }
         validateReferencesAreVisible(request.getEventId(), request.getHomeTeamId(), request.getAwayTeamId(),
                 request.getCourtId(), false);
         validateDataIsStillEditable(match, request);
@@ -96,6 +116,7 @@ public class MatchesService implements IMatchesService {
     @Override
     @Transactional
     public List<MatchResponse> rescheduleDate(UUID eventId, RescheduleDateRequest request) {
+        requireAdminOrCreatorOfEvent(eventId);
         List<MatchesEntity> matches = matchRepository.findAllActiveByEventIdAndDate(eventId, request.getFromDate());
 
         if (matches.isEmpty()) {
@@ -123,6 +144,7 @@ public class MatchesService implements IMatchesService {
     @Override
     public MatchResponse postpone(UUID id) {
         MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
 
         if (Set.of("COMPLETED", "SUSPENDED").contains(match.getStatus())) {
             throw new IllegalStateException(
@@ -136,6 +158,7 @@ public class MatchesService implements IMatchesService {
     @Override
     public MatchResponse suspend(UUID id) {
         MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
 
         if ("COMPLETED".equals(match.getStatus())) {
             throw new IllegalStateException("Cannot suspend a completed match.");
@@ -148,6 +171,7 @@ public class MatchesService implements IMatchesService {
     @Override
     public MatchResponse rescheduleMatch(UUID id, RescheduleMatchRequest request) {
         MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
 
         if (!Set.of("POSTPONED", "SUSPENDED").contains(match.getStatus())) {
             throw new IllegalStateException(
@@ -179,6 +203,7 @@ public class MatchesService implements IMatchesService {
     @Override
     public void delete(UUID id) {
         MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
         match.setDeletedAt(LocalDateTime.now());
         matchRepository.delete(match);
     }
@@ -187,12 +212,22 @@ public class MatchesService implements IMatchesService {
     public void hardDelete(UUID id) {
         MatchesEntity match = matchRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
+        requireAdminOrCreatorOfEventOf(match);
         matchRepository.hardDelete(match);
     }
 
     private MatchesEntity findActiveOrThrow(UUID id) {
         return matchRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
+    }
+
+    /** A match is managed by whoever manages its event; one without an event is for administrators only. */
+    private void requireAdminOrCreatorOfEventOf(MatchesEntity match) {
+        requireAdminOrCreatorOfEvent(match.getEventId());
+    }
+
+    private void requireAdminOrCreatorOfEvent(UUID eventId) {
+        CreatorAccess.requireAdminOrCreator(eventId, eventRepository::findActiveById);
     }
 
     private int finishEnded(List<MatchesEntity> candidates, LocalDateTime now) {

@@ -19,6 +19,9 @@ public interface IPlayersService {
 
     PlayerResponse searchByEmail(String email);
 
+    /** The player that goes with the account that is calling (matched by email). */
+    PlayerResponse getCurrent();
+
     PlayerResponse create(CreatePlayerRequest request);
 
     PlayerResponse registerWithInvite(PlayerRegisterRequest request);

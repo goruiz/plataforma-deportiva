@@ -6,6 +6,7 @@ import com.platform.backend.modules.players.infrastructure.persistence.jpa.TeamI
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +24,11 @@ public class TeamInvitationRepository implements ITeamInvitationRepository {
     @Override
     public Optional<TeamInvitationsEntity> findById(UUID id) {
         return jpaRepository.findById(id);
+    }
+
+    @Override
+    public List<TeamInvitationsEntity> findAllActiveByEmailAndStatus(String email, String status) {
+        return jpaRepository.findAllByEmailIgnoreCaseAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(email, status);
     }
 
     @Override

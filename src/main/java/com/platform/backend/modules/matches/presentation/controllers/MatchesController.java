@@ -43,6 +43,11 @@ public class MatchesController {
         return ResponseEntity.ok(ApiResponse.ok(matchesService.getById(id)));
     }
 
+    @GetMapping("/mine")
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> getMine() {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.getMine()));
+    }
+
     @GetMapping("/by-event/{eventId}")
     public ResponseEntity<ApiResponse<List<MatchResponse>>> getByEventId(@PathVariable UUID eventId) {
         return ResponseEntity.ok(ApiResponse.ok(matchesService.getByEventId(eventId)));
