@@ -16,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,7 +32,6 @@ class PlayersServiceTest {
     @Mock private ITeamRepository teamRepository;
     @Mock private ITeamInvitationRepository teamInvitationRepository;
     @Mock private PlayerMapper playerMapper;
-    @Mock private PasswordEncoder passwordEncoder;
     @Mock private EmailService emailService;
 
     @InjectMocks

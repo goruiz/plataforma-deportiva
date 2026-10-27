@@ -23,7 +23,8 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
     @Column(length = 255, nullable = false)
     private String email;
 
-    @Column(name = "password_hash", length = 255, nullable = false)
+    /** No longer written: a player signs in with the account that shares their email, so the password lives in {@code users}. */
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Column(name = "first_name", length = 100, nullable = false)

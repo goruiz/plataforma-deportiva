@@ -3,6 +3,8 @@ package com.platform.backend.modules.users.application.services;
 import com.platform.backend.modules.organizations.domain.entities.OrganizationsEntity;
 import com.platform.backend.modules.organizations.domain.enums.OrganizationStatus;
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
+import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
@@ -20,6 +22,7 @@ import com.platform.backend.modules.users.presentation.requests.LoginRequest.Cli
 import com.platform.backend.modules.users.presentation.requests.LoginRequest.LoginRequest;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.modules.users.presentation.requests.ResetPasswordRequest.ResetPasswordRequest;
+import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.shared.infraestructure.email.EmailService;
@@ -33,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -61,6 +65,7 @@ import static org.mockito.Mockito.*;
 class UsersServiceTest {
 
     @Mock private IUserRepository userRepository;
+    @Mock private IPlayerRepository playerRepository;
     @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private IRoleRepository roleRepository;
@@ -176,6 +181,126 @@ class UsersServiceTest {
 
         assertThat(response.getToken()).isEqualTo("token");
         verify(usersRolesRepository, never()).save(any());
+    }
+
+    // ─── register: the account is also a player ─────────────────────────────────
+
+    @Test
+    void register_whenValidRequest_thenCreatesThePlayerOfTheAccountWithTheSameEmail() {
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        ArgumentCaptor<PlayersEntity> player = ArgumentCaptor.forClass(PlayersEntity.class);
+        verify(playerRepository).save(player.capture());
+        assertThat(player.getValue().getEmail()).isEqualTo("juan@email.com");
+        assertThat(player.getValue().getTeam()).isNull();
+        assertThat(player.getValue().getPasswordHash()).isNull();
+    }
+
+    @Test
+    void register_whenTheAccountHasNoName_thenThePlayerUsesTheEmailBeforeTheAtSignUntilTheProfileIsCompleted() {
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        ArgumentCaptor<PlayersEntity> player = ArgumentCaptor.forClass(PlayersEntity.class);
+        verify(playerRepository).save(player.capture());
+        assertThat(player.getValue().getFirstName()).isEqualTo("juan");
+        assertThat(player.getValue().getLastName()).isEmpty();
+    }
+
+    @Test
+    void register_whenTheAccountHasAName_thenThePlayerTakesIt() {
+        usersEntity.setFirstName("Juan");
+        usersEntity.setLastName("Pérez");
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        ArgumentCaptor<PlayersEntity> player = ArgumentCaptor.forClass(PlayersEntity.class);
+        verify(playerRepository).save(player.capture());
+        assertThat(player.getValue().getFirstName()).isEqualTo("Juan");
+        assertThat(player.getValue().getLastName()).isEqualTo("Pérez");
+    }
+
+    @Test
+    void register_whenTheEmailIsWrittenWithCapitals_thenItIsSavedInLowerCaseSoTheLoginFindsIt() {
+        registerRequest.setEmail("  Juan@Email.COM ");
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        verify(userRepository).existsByEmail("juan@email.com");
+        assertThat(usersEntity.getEmail()).isEqualTo("juan@email.com");
+    }
+
+    @Test
+    void register_whenThereIsAlreadyAPlayerWithThatEmail_thenRejectsItWithoutCreatingAnything() {
+        when(playerRepository.existsByEmail("juan@email.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> usersAuthService.register(registerRequest))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(userRepository, never()).save(any());
+        verify(playerRepository, never()).save(any());
+    }
+
+    // ─── updateProfile: the player takes the name of the account ────────────────
+
+    @Test
+    void updateProfile_whenTheAccountHasAPlayer_thenThePlayerTakesTheNewName() {
+        usersEntity.setFirstName("Juan");
+        usersEntity.setLastName("Pérez");
+        PlayersEntity player = new PlayersEntity();
+        player.setEmail("juan@email.com");
+        player.setFirstName("juan");
+        player.setLastName("");
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.save(usersEntity)).thenReturn(usersEntity);
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
+
+        usersAuthService.updateProfile(new UpdateProfileRequest(), "juan@email.com");
+
+        verify(playerRepository).save(player);
+        assertThat(player.getFirstName()).isEqualTo("Juan");
+        assertThat(player.getLastName()).isEqualTo("Pérez");
+    }
+
+    @Test
+    void updateProfile_whenTheNameIsLongerThanThePlayerColumn_thenItIsCutToFitIt() {
+        usersEntity.setFirstName("a".repeat(200));
+        PlayersEntity player = new PlayersEntity();
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.save(usersEntity)).thenReturn(usersEntity);
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
+
+        usersAuthService.updateProfile(new UpdateProfileRequest(), "juan@email.com");
+
+        assertThat(player.getFirstName()).hasSize(100);
+    }
+
+    @Test
+    void updateProfile_whenTheAccountHasNoPlayer_thenOnlyTheAccountIsUpdated() {
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.save(usersEntity)).thenReturn(usersEntity);
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+
+        usersAuthService.updateProfile(new UpdateProfileRequest(), "juan@email.com");
+
+        verify(playerRepository, never()).save(any());
     }
 
     // ─── login ──────────────────────────────────────────────────────────────────

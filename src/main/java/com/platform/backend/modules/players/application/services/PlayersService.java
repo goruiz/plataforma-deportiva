@@ -17,14 +17,15 @@ import com.platform.backend.modules.players.presentation.requests.UpdatePlayerSt
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
+import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +42,7 @@ public class PlayersService implements IPlayersService {
     private final ITeamRepository teamRepository;
     private final ITeamInvitationRepository teamInvitationRepository;
     private final PlayerMapper playerMapper;
-    private final PasswordEncoder passwordEncoder;
+    private final IUsersAuthService usersAuthService;
     private final EmailService emailService;
 
     @Value("${app.invite.expiration-days:7}")
@@ -68,7 +69,7 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional(readOnly = true)
     public PlayerResponse searchByEmail(String email) {
-        PlayersEntity player = playerRepository.findByEmail(email)
+        PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(email))
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
         return playerMapper.toResponse(player);
@@ -81,42 +82,67 @@ public class PlayersService implements IPlayersService {
     }
 
     @Override
+    @Transactional
     public PlayerResponse create(CreatePlayerRequest request) {
-        if (playerRepository.existsByEmail(request.getEmail())) {
-            throw new DataIntegrityViolationException("Email already registered");
-        }
-        PlayersEntity player = playerMapper.toEntity(request);
-        player.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        player.setTeam(resolveTeam(request.getTeamId()));
+        TeamsEntity team = resolveTeam(request.getTeamId());
+        PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
+                request.getFirstName(), request.getLastName());
+        player.setPhone(request.getPhone());
+        player.setProfilePhotoUrl(request.getProfilePhotoUrl());
+        player.setTeam(team);
         return playerMapper.toResponse(playerRepository.save(player));
     }
 
+    /**
+     * Registering with an invitation creates the account too, so the player can sign in with the password they just
+     * chose: the invitation only decides the team they join.
+     */
     @Override
     @Transactional
     public PlayerResponse registerWithInvite(PlayerRegisterRequest request) {
-        if (playerRepository.existsByEmail(request.getEmail())) {
-            throw new DataIntegrityViolationException("Email already registered");
-        }
-        PlayersEntity player = playerMapper.toEntity(request);
-        player.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        boolean hasInvitation = request.getInviteToken() != null && !request.getInviteToken().isBlank();
+        TeamInvitationsEntity invitation = hasInvitation ? findUsableInvitation(request.getInviteToken()) : null;
+        TeamsEntity team = hasInvitation ? resolveTeam(invitation.getTeamId()) : null;
 
-        if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
-            TeamInvitationsEntity invitation = teamInvitationRepository.findByToken(request.getInviteToken())
-                    .orElseThrow(() -> new EntityNotFoundException("Invalid invitation token"));
+        PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
+                request.getFirstName(), request.getLastName());
+        player.setPhone(request.getPhone());
+        player.setProfilePhotoUrl(request.getProfilePhotoUrl());
+        player.setTeam(team);
 
-            if (!InvitationStatus.PENDING.name().equals(invitation.getStatus())) {
-                throw new IllegalStateException("Invitation token has already been used or expired");
-            }
-            if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
-                throw new IllegalStateException("Invitation token has expired");
-            }
-
-            player.setTeam(resolveTeam(invitation.getTeamId()));
+        if (hasInvitation) {
             invitation.setStatus(InvitationStatus.USED.name());
             teamInvitationRepository.save(invitation);
         }
-
         return playerMapper.toResponse(playerRepository.save(player));
+    }
+
+    private TeamInvitationsEntity findUsableInvitation(String token) {
+        TeamInvitationsEntity invitation = teamInvitationRepository.findByToken(token)
+                .orElseThrow(() -> new EntityNotFoundException("Invalid invitation token"));
+
+        if (!InvitationStatus.PENDING.name().equals(invitation.getStatus())) {
+            throw new IllegalStateException("Invitation token has already been used or expired");
+        }
+        if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Invitation token has expired");
+        }
+        return invitation;
+    }
+
+    /**
+     * A player signs in with an account, so the account is registered the way the app does it, which also creates the
+     * player with the same email; the caller then completes that player (phone, photo, team).
+     */
+    private PlayersEntity registerAccountWithPlayer(String email, String password, String firstName, String lastName) {
+        RegisterRequest account = new RegisterRequest();
+        account.setEmail(email);
+        account.setPassword(password);
+        account.setFirstName(firstName);
+        account.setLastName(lastName);
+        usersAuthService.register(account);
+        return playerRepository.findByEmail(EmailNormalizer.normalize(email))
+                .orElseThrow(() -> new IllegalStateException("The player of the new account was not created"));
     }
 
     @Override
@@ -134,15 +160,16 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional
     public void invitePlayer(InvitePlayerRequest request) {
-        PlayersEntity player = playerRepository.findByEmail(request.getEmail())
+        PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(request.getEmail()))
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         TeamsEntity team = teamRepository.findActiveById(request.getTeamId())
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
 
+        // The invited person finds it by the email of their account, which is the player's one.
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
-        invitation.setEmail(request.getEmail());
+        invitation.setEmail(player.getEmail());
         invitation.setTeamId(request.getTeamId());
         invitation.setType(InvitationType.EXISTING_USER.name());
         invitation.setStatus(InvitationStatus.PENDING.name());
@@ -150,7 +177,7 @@ public class PlayersService implements IPlayersService {
         teamInvitationRepository.save(invitation);
 
         String playerName = player.getFirstName() + " " + player.getLastName();
-        emailService.sendTeamInvitation(request.getEmail(), playerName, team.getName());
+        emailService.sendTeamInvitation(player.getEmail(), playerName, team.getName());
     }
 
     @Override
@@ -161,8 +188,9 @@ public class PlayersService implements IPlayersService {
 
         String token = UUID.randomUUID().toString();
 
+        String email = EmailNormalizer.normalize(request.getEmail());
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
-        invitation.setEmail(request.getEmail());
+        invitation.setEmail(email);
         invitation.setTeamId(request.getTeamId());
         invitation.setToken(token);
         invitation.setType(InvitationType.NEW_USER.name());
@@ -170,7 +198,7 @@ public class PlayersService implements IPlayersService {
         invitation.setExpiresAt(LocalDateTime.now().plusDays(inviteExpirationDays));
         teamInvitationRepository.save(invitation);
 
-        emailService.sendRegistrationInvitation(request.getEmail(), team.getName(), token);
+        emailService.sendRegistrationInvitation(email, team.getName(), token);
     }
 
     @Override

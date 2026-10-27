@@ -16,4 +16,12 @@ public class RegisterRequest {
     @NotBlank
     @Size(min = 8)
     private String password;
+
+    // Optional: the open registration only asks for credentials (the profile is completed afterwards), but whoever
+    // registers with a team invitation already gives their name. Same limit as the columns of the player they become.
+    @Size(max = 100)
+    private String firstName;
+
+    @Size(max = 100)
+    private String lastName;
 }

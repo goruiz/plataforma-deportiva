@@ -2,6 +2,8 @@ package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.organizations.domain.entities.OrganizationsEntity;
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
+import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
@@ -25,6 +27,7 @@ import com.platform.backend.modules.users.presentation.requests.UpdateProfileReq
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
+import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
@@ -60,7 +63,10 @@ import java.util.UUID;
 public class UsersAuthService implements IUsersAuthService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UsersAuthService.class);
+    private static final int PLAYER_NAME_MAX_LENGTH = 100;
+
     private final IUserRepository userRepository;
+    private final IPlayerRepository playerRepository;
     private final IUsersRolesRepository usersRolesRepository;
     private final IRoleRepository roleRepository;
     private final IOrganizationRepository organizationRepository;
@@ -83,16 +89,23 @@ public class UsersAuthService implements IUsersAuthService {
     @Value("${app.security.mobile-user-role-id:}")
     private String mobileUserRoleId;
 
+    /**
+     * Whoever registers in the app is an account (to sign in) and a player (to belong to a team) at once, with the same
+     * email: the team invitations, the player's matches and the admin panel's search all find the player by it.
+     */
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+        String email = EmailNormalizer.normalize(registerRequest.getEmail());
+        if (userRepository.existsByEmail(email) || playerRepository.existsByEmail(email)) {
             throw new DataIntegrityViolationException("Email already in use");
         }
         UsersEntity newUser = userMapper.toEntity(registerRequest);
+        newUser.setEmail(email);
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         UsersEntity savedUser = userRepository.save(newUser);
         assignMobileUserRole(savedUser);
+        playerRepository.save(buildPlayerOf(savedUser));
         String token = jwtService.generateToken(savedUser, savedUser.getEmail());
         return new RegisterResponse(token);
     }
@@ -116,7 +129,7 @@ public class UsersAuthService implements IUsersAuthService {
 
     @Override
     public AuthResponse login(LoginRequest loginRequest) {
-        String email = loginRequest.getEmail().trim().toLowerCase();
+        String email = EmailNormalizer.normalize(loginRequest.getEmail());
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, loginRequest.getPassword())
@@ -206,12 +219,53 @@ public class UsersAuthService implements IUsersAuthService {
     }
 
     @Override
+    @Transactional
     public UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email) {
         UsersEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         userMapper.updateEntity(user, request);
         UsersEntity saved = userRepository.save(user);
+        syncPlayerNames(saved);
         return userMapper.toUpdateProfileResponse(saved);
+    }
+
+    /** The player is created with a stand-in name; completing the profile gives it the real one. */
+    private void syncPlayerNames(UsersEntity user) {
+        playerRepository.findByEmail(user.getEmail())
+                .filter(player -> player.getDeletedAt() == null)
+                .ifPresent(player -> {
+                    player.setFirstName(playerFirstNameOf(user));
+                    player.setLastName(playerLastNameOf(user));
+                    playerRepository.save(player);
+                });
+    }
+
+    private PlayersEntity buildPlayerOf(UsersEntity user) {
+        PlayersEntity player = new PlayersEntity();
+        player.setEmail(user.getEmail());
+        player.setFirstName(playerFirstNameOf(user));
+        player.setLastName(playerLastNameOf(user));
+        return player;
+    }
+
+    /** A player always has a name but an open registration only gives an email, so the part before the @ stands in until the profile is completed. */
+    private String playerFirstNameOf(UsersEntity user) {
+        String name = StringUtils.hasText(user.getFirstName()) ? user.getFirstName().trim() : emailLocalPart(user.getEmail());
+        return fitToPlayerColumn(name);
+    }
+
+    private String playerLastNameOf(UsersEntity user) {
+        return fitToPlayerColumn(user.getLastName() == null ? "" : user.getLastName().trim());
+    }
+
+    private String emailLocalPart(String email) {
+        int atIndex = email.indexOf('@');
+        return atIndex > 0 ? email.substring(0, atIndex) : email;
+    }
+
+    // The account allows 255 characters per name and the player 100.
+    private String fitToPlayerColumn(String name) {
+        return name.length() > PLAYER_NAME_MAX_LENGTH ? name.substring(0, PLAYER_NAME_MAX_LENGTH) : name;
     }
 
     /**
