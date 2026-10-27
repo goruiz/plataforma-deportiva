@@ -5,7 +5,9 @@ import com.platform.backend.modules.organizations.domain.irepositories.IOrganiza
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.entities.UsersRolesEntity;
 import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
+import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
@@ -60,6 +62,7 @@ public class UsersAuthService implements IUsersAuthService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UsersAuthService.class);
     private final IUserRepository userRepository;
     private final IUsersRolesRepository usersRolesRepository;
+    private final IRoleRepository roleRepository;
     private final IOrganizationRepository organizationRepository;
     private final PlatformOwnerRole platformOwnerRole;
     private final UserMapper userMapper;
@@ -77,7 +80,11 @@ public class UsersAuthService implements IUsersAuthService {
     @Value("${app.security.admin-role-id:}")
     private String adminRoleId;
 
+    @Value("${app.security.mobile-user-role-id:}")
+    private String mobileUserRoleId;
+
     @Override
+    @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
             throw new DataIntegrityViolationException("Email already in use");
@@ -85,8 +92,26 @@ public class UsersAuthService implements IUsersAuthService {
         UsersEntity newUser = userMapper.toEntity(registerRequest);
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         UsersEntity savedUser = userRepository.save(newUser);
+        assignMobileUserRole(savedUser);
         String token = jwtService.generateToken(savedUser, savedUser.getEmail());
         return new RegisterResponse(token);
+    }
+
+    /**
+     * The menu is granted by role and an account with none sees it empty, so everyone who registers is a mobile-app user
+     * (app.security.mobile-user-role-id, seeded by V13 with the app's menu).
+     */
+    private void assignMobileUserRole(UsersEntity user) {
+        if (!StringUtils.hasText(mobileUserRoleId)) {
+            return;
+        }
+        UUID roleId = UUID.fromString(mobileUserRoleId);
+        roleRepository.findActiveById(roleId).ifPresentOrElse(role -> {
+            UsersRolesEntity assignment = new UsersRolesEntity();
+            assignment.setUser(user);
+            assignment.setRole(role);
+            usersRolesRepository.save(assignment);
+        }, () -> LOGGER.warn("The mobile user role {} does not exist: {} registers without a role", roleId, user.getEmail()));
     }
 
     @Override

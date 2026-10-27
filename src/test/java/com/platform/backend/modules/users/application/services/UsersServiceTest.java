@@ -5,8 +5,11 @@ import com.platform.backend.modules.organizations.domain.enums.OrganizationStatu
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
+import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.entities.UsersRolesEntity;
 import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
+import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.exception.LoginError;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
@@ -60,6 +63,7 @@ class UsersServiceTest {
     @Mock private IUserRepository userRepository;
     @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private IUsersRolesRepository usersRolesRepository;
+    @Mock private IRoleRepository roleRepository;
     @Mock private IOrganizationRepository organizationRepository;
     @Mock private PlatformOwnerRole platformOwnerRole;
     @Mock private UserMapper userMapper;
@@ -123,6 +127,55 @@ class UsersServiceTest {
         usersAuthService.register(registerRequest);
 
         verify(passwordEncoder).encode("password123");
+    }
+
+    @Test
+    void register_whenMobileUserRoleIsConfigured_thenAssignsItToTheNewAccount() {
+        UUID mobileUserRoleId = UUID.randomUUID();
+        RolesEntity mobileUserRole = new RolesEntity();
+        mobileUserRole.setId(mobileUserRoleId);
+        ReflectionTestUtils.setField(usersAuthService, "mobileUserRoleId", mobileUserRoleId.toString());
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(roleRepository.findActiveById(mobileUserRoleId)).thenReturn(Optional.of(mobileUserRole));
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        ArgumentCaptor<UsersRolesEntity> assignment = ArgumentCaptor.forClass(UsersRolesEntity.class);
+        verify(usersRolesRepository).save(assignment.capture());
+        assertThat(assignment.getValue().getUser()).isSameAs(usersEntity);
+        assertThat(assignment.getValue().getRole()).isSameAs(mobileUserRole);
+    }
+
+    @Test
+    void register_whenNoMobileUserRoleIsConfigured_thenRegistersWithoutRole() {
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        usersAuthService.register(registerRequest);
+
+        verifyNoInteractions(roleRepository);
+        verify(usersRolesRepository, never()).save(any());
+    }
+
+    @Test
+    void register_whenTheConfiguredRoleDoesNotExist_thenStillRegistersTheAccount() {
+        UUID missingRoleId = UUID.randomUUID();
+        ReflectionTestUtils.setField(usersAuthService, "mobileUserRoleId", missingRoleId.toString());
+        when(userMapper.toEntity(registerRequest)).thenReturn(usersEntity);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
+        when(userRepository.save(any())).thenReturn(usersEntity);
+        when(roleRepository.findActiveById(missingRoleId)).thenReturn(Optional.empty());
+        when(jwtService.generateToken(any(UsersEntity.class), anyString())).thenReturn("token");
+
+        RegisterResponse response = usersAuthService.register(registerRequest);
+
+        assertThat(response.getToken()).isEqualTo("token");
+        verify(usersRolesRepository, never()).save(any());
     }
 
     // ─── login ──────────────────────────────────────────────────────────────────
