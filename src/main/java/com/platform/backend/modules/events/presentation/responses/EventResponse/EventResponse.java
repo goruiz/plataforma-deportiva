@@ -23,6 +23,8 @@ public class EventResponse {
     private Integer maxPlayersPerTeam;
     private EventTypeResponse eventType;
     private EventFormatResponse eventFormat;
+    /** The customer organization the event belongs to; null for the platform owner's own events. */
+    private UUID organizationId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
