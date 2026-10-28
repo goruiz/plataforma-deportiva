@@ -7,12 +7,14 @@ import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntit
 import com.platform.backend.modules.players.domain.enums.InvitationStatus;
 import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
+import com.platform.backend.modules.players.domain.exception.PlayerError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
@@ -163,7 +165,7 @@ public class PlayersService implements IPlayersService {
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         playerMapper.updateEntity(player, request);
         if (request.getTeamId() != null) {
-            player.setTeam(resolveTeam(request.getTeamId()));
+            player.moveToTeam(resolveTeam(request.getTeamId()));
             followTeamOrganization(player);
         }
         return playerMapper.toResponse(playerRepository.save(player));
@@ -230,7 +232,7 @@ public class PlayersService implements IPlayersService {
         if (player.getTeam() == null) {
             throw new IllegalStateException("Player does not belong to any team");
         }
-        player.setTeam(null);
+        player.moveToTeam(null);
         followTeamOrganization(player);
         return playerMapper.toResponse(playerRepository.save(player));
     }
@@ -242,6 +244,32 @@ public class PlayersService implements IPlayersService {
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         player.setStatus(request.getStatus());
         return playerMapper.toResponse(playerRepository.save(player));
+    }
+
+    @Override
+    @Transactional
+    public PlayerResponse updateCaptain(UUID id, UpdatePlayerCaptainRequest request) {
+        PlayersEntity player = playerRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+
+        if (Boolean.TRUE.equals(request.getIsCaptain())) {
+            if (player.getTeam() == null) {
+                throw new IllegalStateException(PlayerError.CAPTAIN_REQUIRES_TEAM.name());
+            }
+            stepDownOtherCaptainsOf(player);
+        }
+        player.setIsCaptain(request.getIsCaptain());
+        return playerMapper.toResponse(playerRepository.save(player));
+    }
+
+    /** The previous captain is saved first: the unique index allows one captain per team at every moment. */
+    private void stepDownOtherCaptainsOf(PlayersEntity newCaptain) {
+        playerRepository.findAllActiveByTeamId(newCaptain.getTeam().getId()).stream()
+                .filter(teammate -> Boolean.TRUE.equals(teammate.getIsCaptain()) && !teammate.getId().equals(newCaptain.getId()))
+                .forEach(previousCaptain -> {
+                    previousCaptain.setIsCaptain(false);
+                    playerRepository.saveAndFlush(previousCaptain);
+                });
     }
 
     @Override

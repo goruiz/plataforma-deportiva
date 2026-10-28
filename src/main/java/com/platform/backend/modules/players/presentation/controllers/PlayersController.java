@@ -5,9 +5,11 @@ import com.platform.backend.modules.players.presentation.requests.CreatePlayerRe
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
+import com.platform.backend.shared.infraestructure.security.AccessRules;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,6 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -98,6 +101,14 @@ public class PlayersController {
     public ResponseEntity<ApiResponse<PlayerResponse>> updateStatus(@PathVariable UUID id,
                                                                      @Valid @RequestBody UpdatePlayerStatusRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(playersService.updateStatus(id, request)));
+    }
+
+    // Only an administrator designates the captain: the team's players must not be able to name themselves.
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    @PatchMapping("/{id}/captain")
+    public ResponseEntity<ApiResponse<PlayerResponse>> updateCaptain(@PathVariable UUID id,
+                                                                      @Valid @RequestBody UpdatePlayerCaptainRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.updateCaptain(id, request)));
     }
 
     @PutMapping("/{id}")

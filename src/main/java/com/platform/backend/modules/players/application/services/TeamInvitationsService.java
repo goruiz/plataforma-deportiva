@@ -65,7 +65,7 @@ public class TeamInvitationsService implements ITeamInvitationsService {
                 .orElseThrow(() -> new IllegalStateException(TeamInvitationError.PLAYER_NOT_FOUND.name()));
 
         // A player has a single team, so accepting also leaves the previous one.
-        player.setTeam(team);
+        player.moveToTeam(team);
         invitation.setStatus(InvitationStatus.USED.name());
         invitationRepository.save(invitation);
         PlayerResponse joined = playerMapper.toResponse(playerRepository.save(player));

@@ -12,6 +12,9 @@ public interface IPlayerRepository {
 
     PlayersEntity save(PlayersEntity player);
 
+    /** Writes the change right away, for when the order of two updates matters (a unique index). */
+    PlayersEntity saveAndFlush(PlayersEntity player);
+
     Optional<PlayersEntity> findActiveById(UUID id);
 
     List<PlayersEntity> findAllActiveByIds(Collection<UUID> ids);

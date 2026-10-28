@@ -17,6 +17,7 @@ public class PlayerResponse {
     private String status;
     private UUID teamId;
     private String teamName;
+    private Boolean isCaptain;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

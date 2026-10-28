@@ -25,6 +25,11 @@ public class PlayerRepository implements IPlayerRepository {
     }
 
     @Override
+    public PlayersEntity saveAndFlush(PlayersEntity player) {
+        return playersJpaRepository.saveAndFlush(player);
+    }
+
+    @Override
     public Optional<PlayersEntity> findActiveById(UUID id) {
         return playersJpaRepository.findByIdAndDeletedAtIsNull(id);
     }

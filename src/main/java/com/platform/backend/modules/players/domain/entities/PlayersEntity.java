@@ -7,6 +7,7 @@ import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -42,6 +43,10 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
     @Column(length = 20, nullable = false)
     private String status = "ACTIVE";
 
+    /** The captain of the team; the administrator designates it and there is at most one per team. */
+    @Column(name = "is_captain", nullable = false)
+    private Boolean isCaptain = false;
+
     public PlayersEntity() {}
 
     public TeamsEntity getTeam() { return team; }
@@ -67,6 +72,19 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Boolean getIsCaptain() { return isCaptain; }
+    public void setIsCaptain(Boolean isCaptain) { this.isCaptain = isCaptain; }
+
+    /** A captain leads one team: moving to another team, or leaving it, ends the captaincy. */
+    public void moveToTeam(TeamsEntity newTeam) {
+        UUID currentTeamId = team == null ? null : team.getId();
+        UUID newTeamId = newTeam == null ? null : newTeam.getId();
+        if (!Objects.equals(currentTeamId, newTeamId)) {
+            isCaptain = false;
+        }
+        team = newTeam;
+    }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {
