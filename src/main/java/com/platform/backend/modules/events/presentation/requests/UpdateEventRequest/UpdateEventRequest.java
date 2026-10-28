@@ -30,4 +30,7 @@ public class UpdateEventRequest {
 
     /** Null leaves the current format untouched, so a format already set can be changed but not cleared. */
     private UUID idEventFormat;
+
+    /** Null leaves the event as it is; false makes a public event private again. */
+    private Boolean isPublic;
 }

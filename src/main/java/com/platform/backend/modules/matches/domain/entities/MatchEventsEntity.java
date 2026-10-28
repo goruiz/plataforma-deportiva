@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "match_events")
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_MATCH_BY_MATCH_ID, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_VISIBLE_MATCH_BY_MATCH_ID, deduceAliasInjectionPoints = false)
 public class MatchEventsEntity extends BaseEntity {
 
     @Column(name = "match_id", nullable = false)

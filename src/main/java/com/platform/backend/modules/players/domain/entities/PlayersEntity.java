@@ -13,7 +13,7 @@ import java.util.UUID;
 @Table(name = "players", uniqueConstraints = {
         @UniqueConstraint(name = "players_email_key", columnNames = "email")
 })
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.PLAYER_WITHOUT_TEAM_OR_OF_OWN_TEAM, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.PLAYER_WITHOUT_TEAM_OR_OF_OWN_TEAM_OR_SELF, deduceAliasInjectionPoints = false)
 public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     @ManyToOne(fetch = FetchType.LAZY)

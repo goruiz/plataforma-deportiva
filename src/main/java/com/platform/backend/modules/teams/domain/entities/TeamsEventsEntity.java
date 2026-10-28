@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "teams_events")
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_EVENT, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_VISIBLE_EVENT, deduceAliasInjectionPoints = false)
 public class TeamsEventsEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -61,7 +62,8 @@ class PlayerStatsServiceTest {
 
         lenient().when(eventRepository.findActiveById(eventId)).thenReturn(Optional.of(new EventsEntity()));
         lenient().when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of(match));
-        lenient().when(playerRepository.findAllActiveByIds(any())).thenReturn(List.of(ana, luis, eva));
+        lenient().when(playerRepository.findFullNamesByIds(any())).thenReturn(Map.of(
+                ana.getId(), "Ana Lopez", luis.getId(), "Luis Mora", eva.getId(), "Eva Rios"));
         lenient().when(teamRepository.findAllActiveByIds(any())).thenReturn(List.of(tigres, leones));
     }
 

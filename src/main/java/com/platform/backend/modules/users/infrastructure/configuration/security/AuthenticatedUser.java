@@ -93,6 +93,11 @@ public class AuthenticatedUser implements UserDetails, TenantPrincipal, CallerPr
     }
 
     @Override
+    public boolean isAdministrator() {
+        return authorities.stream().anyMatch(authority -> Authority.ADMIN.roleName().equals(authority.getAuthority()));
+    }
+
+    @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
     }

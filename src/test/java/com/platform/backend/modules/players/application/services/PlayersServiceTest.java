@@ -82,9 +82,11 @@ class PlayersServiceTest {
     }
 
     @Test
-    void getAll_whenAMobileAccountAsks_thenNothingChangesForThem() {
+    void getAll_whenAMobileAccountAsks_thenItIsListedLikeAnAdministratorOfAnOrganization() {
+        // A player is restricted to their organization too: a player without a team is not part of anyone's list.
         TenantTestSupport.actAsMobileAccountWithoutOrganization();
 
-        assertThat(playersService.getAll()).hasSize(2);
+        assertThat(playersService.getAll()).extracting(PlayerResponse::getEmail)
+                .containsExactly("con-equipo@email.com");
     }
 }

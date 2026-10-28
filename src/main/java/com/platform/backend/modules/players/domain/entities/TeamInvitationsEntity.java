@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "team_invitations")
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_TEAM, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_TEAM_OR_TO_CALLER, deduceAliasInjectionPoints = false)
 public class TeamInvitationsEntity extends BaseEntity {
 
     @Column(nullable = false, length = 255)

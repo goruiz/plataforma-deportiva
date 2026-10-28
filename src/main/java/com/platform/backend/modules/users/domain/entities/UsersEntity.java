@@ -13,7 +13,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "users")
 @EntityListeners(OrganizationOwnerListener.class)
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION_OR_SELF, deduceAliasInjectionPoints = false)
 public class UsersEntity extends BaseEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(name = "first_name", length = 255)

@@ -8,7 +8,6 @@ import com.platform.backend.modules.matches.domain.enums.MatchEventType;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchEventRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.responses.PlayerStatsResponse.PlayerStatsResponse;
-import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
@@ -90,9 +89,9 @@ public class PlayerStatsService implements IPlayerStatsService {
 
     /** A player and a team are known to an event only by id, so their names are read once for the whole list. */
     private void nameThePlayersAndTeams(List<PlayerStatsResponse> stats) {
+        // Names only, and without the organization filter: a leaderboard of a public event names players of another organization.
         Map<UUID, String> playerNames = playerRepository
-                .findAllActiveByIds(stats.stream().map(PlayerStatsResponse::getPlayerId).toList()).stream()
-                .collect(Collectors.toMap(PlayersEntity::getId, player -> (player.getFirstName() + " " + player.getLastName()).trim()));
+                .findFullNamesByIds(stats.stream().map(PlayerStatsResponse::getPlayerId).toList());
         Map<UUID, String> teamNames = teamRepository
                 .findAllActiveByIds(stats.stream().map(PlayerStatsResponse::getTeamId).distinct().toList()).stream()
                 .collect(Collectors.toMap(TeamsEntity::getId, TeamsEntity::getName));

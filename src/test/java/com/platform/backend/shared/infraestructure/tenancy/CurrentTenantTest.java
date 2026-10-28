@@ -56,11 +56,52 @@ class CurrentTenantTest {
     }
 
     @Test
-    void scope_whenAMobileAccountWithoutOrganizationIsCalling_thenNothingIsRestrictedYet() {
+    void scope_whenAPlayerWithATeamIsCalling_thenItIsRestrictedToTheirOrganizationAndSeesPublicEvents() {
+        TenantTestSupport.actAsPlayerOfOrganization(ORGANIZATION_ID);
+
+        TenantScope scope = CurrentTenant.scope();
+
+        assertThat(scope.restricted()).isTrue();
+        assertThat(scope.organizationIdForFilter()).isEqualTo(ORGANIZATION_ID);
+        assertThat(scope.seesPublicEvents()).isTrue();
+        assertThat(CurrentTenant.isPlatformOwner()).isFalse();
+    }
+
+    @Test
+    void scope_whenAPlayerWithoutATeamIsCalling_thenTheyOnlySeePublicEvents() {
         TenantTestSupport.actAsMobileAccountWithoutOrganization();
 
-        assertThat(CurrentTenant.scope().isUnrestricted()).isTrue();
-        assertThat(CurrentTenant.isPlatformOwner()).isFalse();
+        TenantScope scope = CurrentTenant.scope();
+
+        assertThat(scope.restricted()).isTrue();
+        assertThat(scope.organizationIdForFilter()).isEqualTo(TenantScope.NO_ORGANIZATION);
+        assertThat(scope.seesPublicEvents()).isTrue();
+    }
+
+    @Test
+    void scope_whenAnAdministratorIsCalling_thenOtherOrganizationsPublicEventsAreNotTheirs() {
+        TenantTestSupport.actAsOrganizationAdmin(ORGANIZATION_ID);
+
+        assertThat(CurrentTenant.scope().seesPublicEvents()).isFalse();
+    }
+
+    @Test
+    void scope_whenNothingIsRestricted_thenPublicEventsAreNotAFilterOfTheirOwn() {
+        TenantTestSupport.actAsPlatformOwner();
+
+        assertThat(CurrentTenant.scope().seesPublicEvents()).isFalse();
+    }
+
+    @Test
+    void callerEmail_whenSomeoneIsCalling_thenItIsTheEmailOfTheirAccountInLowerCase() {
+        TenantTestSupport.actAsPlayerOfOrganization(ORGANIZATION_ID);
+
+        assertThat(CurrentTenant.callerEmail()).isEqualTo("juan@email.com");
+    }
+
+    @Test
+    void callerEmail_whenNobodyIsCalling_thenItMatchesNoAccount() {
+        assertThat(CurrentTenant.callerEmail()).isEqualTo(CurrentTenant.NO_EMAIL);
     }
 
     @Test
@@ -79,5 +120,10 @@ class CurrentTenantTest {
 
         assertThat(new TenantUnrestrictedResolver().get()).isTrue();
         assertThat(new TenantOrganizationIdResolver().get()).isEqualTo(TenantScope.NO_ORGANIZATION);
+
+        TenantTestSupport.actAsPlayerOfOrganization(ORGANIZATION_ID);
+
+        assertThat(new TenantIncludesPublicEventsResolver().get()).isTrue();
+        assertThat(new TenantCallerEmailResolver().get()).isEqualTo("juan@email.com");
     }
 }

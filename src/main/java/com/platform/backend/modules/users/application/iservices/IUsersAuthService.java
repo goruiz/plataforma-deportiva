@@ -16,6 +16,9 @@ public interface IUsersAuthService {
 
     AuthResponse login(LoginRequest loginRequest);
 
+    /** A new app session for the account, with its current organization (see {@code PlayerAccountOrganizationService}). */
+    AuthResponse reissueSession(String email);
+
     UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email);
 
     void changePassword(ChangePasswordRequest request, String email);

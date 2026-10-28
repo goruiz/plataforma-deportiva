@@ -1,5 +1,6 @@
 package com.platform.backend.modules.players.application.iservices;
 
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 
@@ -12,8 +13,8 @@ public interface ITeamInvitationsService {
     /** The caller's invitations that can still be answered. */
     List<TeamInvitationResponse> getMyPendingInvitations();
 
-    /** Puts the caller's player in the team that invited them. */
-    PlayerResponse accept(UUID invitationId);
+    /** Puts the caller's player in the team that invited them, and gives them a session for the organization of that team. */
+    AcceptedInvitationResponse accept(UUID invitationId);
 
     void decline(UUID invitationId);
 }

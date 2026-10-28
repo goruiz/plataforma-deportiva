@@ -32,6 +32,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -76,7 +77,8 @@ class MatchEventsServiceTest {
         lenient().when(matchRepository.findActiveById(match.getId())).thenReturn(Optional.of(match));
         lenient().when(playerRepository.findActiveById(homePlayer.getId())).thenReturn(Optional.of(homePlayer));
         lenient().when(matchEventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(playerRepository.findAllActiveByIds(any())).thenReturn(List.of(homePlayer));
+        lenient().when(playerRepository.findFullNamesByIds(any()))
+                .thenReturn(Map.of(homePlayer.getId(), homePlayer.getFirstName() + " " + homePlayer.getLastName()));
     }
 
     @AfterEach

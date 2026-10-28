@@ -26,7 +26,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -149,18 +148,12 @@ public class MatchEventsService implements IMatchEventsService {
     /** A line of the timeline says who did it, which the event only knows by id: the names are read once per call. */
     private List<MatchEventResponse> toResponses(List<MatchEventsEntity> matchEvents) {
         List<UUID> playerIds = matchEvents.stream().map(MatchEventsEntity::getPlayerId).distinct().toList();
-        Map<UUID, String> playerNames = playerIds.isEmpty()
-                ? Map.of()
-                : playerRepository.findAllActiveByIds(playerIds).stream()
-                        .collect(Collectors.toMap(PlayersEntity::getId, this::fullNameOf, (first, second) -> first));
+        // Names only, and without the organization filter: the timeline of a public event names players of another organization.
+        Map<UUID, String> playerNames = playerRepository.findFullNamesByIds(playerIds);
         return matchEvents.stream().map(matchEvent -> {
             MatchEventResponse response = matchEventMapper.toResponse(matchEvent);
             response.setPlayerName(playerNames.get(matchEvent.getPlayerId()));
             return response;
         }).toList();
-    }
-
-    private String fullNameOf(PlayersEntity player) {
-        return (player.getFirstName() + " " + player.getLastName()).trim();
     }
 }

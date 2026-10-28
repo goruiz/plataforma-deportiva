@@ -14,7 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "events")
 @EntityListeners(OrganizationOwnerListener.class)
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_OR_PUBLIC_EVENT, deduceAliasInjectionPoints = false)
 public class EventsEntity extends BaseTranslatableEntity implements HasUniqueField, OrganizationOwned {
 
     @Column(length = 200)
@@ -58,6 +58,10 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
     /** The customer this record belongs to; null when it belongs to the platform owner. */
     @Column(name = "organization_id")
     private UUID organizationId;
+
+    /** A public event is seen by every player in the app, whatever their organization; the organizer decides it. */
+    @Column(name = "is_public", nullable = false)
+    private Boolean isPublic = false;
 
     public EventsEntity() {
     }
@@ -162,4 +166,8 @@ public class EventsEntity extends BaseTranslatableEntity implements HasUniqueFie
 
     @Override
     public void setOrganizationId(UUID organizationId) { this.organizationId = organizationId; }
+
+    public Boolean getIsPublic() { return isPublic; }
+
+    public void setIsPublic(Boolean isPublic) { this.isPublic = isPublic; }
 }

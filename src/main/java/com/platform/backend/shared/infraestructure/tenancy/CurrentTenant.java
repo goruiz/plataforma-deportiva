@@ -11,24 +11,42 @@ import org.springframework.security.core.context.SecurityContextHolder;
  */
 public final class CurrentTenant {
 
+    /** Bound to the filter's email parameter when nobody is calling: no account has an empty email. */
+    public static final String NO_EMAIL = "";
+
     private CurrentTenant() {}
 
     /**
-     * What the caller may see. A caller restricted to one organization is an administrator of that organization; the
-     * platform owner is not. Anyone else is unrestricted, which today means the mobile-app accounts (their access to
-     * several organizations is still to be decided) and the code that runs without a user (login, scheduled jobs).
+     * What the caller may see. The platform owner and the code that runs without a user (login, scheduled jobs) see
+     * everything; an administrator is restricted to their organization; a player (a mobile-app account) to the
+     * organization of their team, plus the public events. A player without a team has no organization and sees only the
+     * public events.
      */
     public static TenantScope scope() {
         TenantPrincipal principal = currentPrincipal();
-        if (principal == null || principal.isPlatformOwner() || principal.getOrganizationId() == null) {
+        if (principal == null || principal.isPlatformOwner()) {
             return TenantScope.unrestricted();
         }
-        return TenantScope.ofOrganization(principal.getOrganizationId());
+        if (principal.isAdministrator()) {
+            return principal.getOrganizationId() == null
+                    ? TenantScope.unrestricted()
+                    : TenantScope.ofOrganization(principal.getOrganizationId());
+        }
+        return TenantScope.ofPlayer(principal.getOrganizationId());
     }
 
     public static boolean isPlatformOwner() {
         TenantPrincipal principal = currentPrincipal();
         return principal != null && principal.isPlatformOwner();
+    }
+
+    /** The caller's email as it is stored (lower case); {@link #NO_EMAIL} when nobody is calling. */
+    public static String callerEmail() {
+        TenantPrincipal principal = currentPrincipal();
+        if (principal == null || principal.getEmail() == null) {
+            return NO_EMAIL;
+        }
+        return principal.getEmail().toLowerCase();
     }
 
     private static TenantPrincipal currentPrincipal() {

@@ -37,4 +37,7 @@ public class CreateEventRequest {
 
     /** Optional: the mobile app creates events without choosing a format. */
     private UUID idEventFormat;
+
+    /** Optional: an event is private (seen only by its organization) unless the organizer makes it public. */
+    private Boolean isPublic = false;
 }

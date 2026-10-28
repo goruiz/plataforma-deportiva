@@ -25,6 +25,9 @@ public class EventResponse {
     private EventFormatResponse eventFormat;
     /** The customer organization the event belongs to; null for the platform owner's own events. */
     private UUID organizationId;
+
+    /** Whether every player in the app sees the event, whatever their organization. */
+    private Boolean isPublic;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

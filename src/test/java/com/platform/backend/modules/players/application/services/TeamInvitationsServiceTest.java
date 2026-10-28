@@ -9,10 +9,14 @@ import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
+import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
+import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
@@ -42,10 +46,14 @@ import static org.mockito.Mockito.when;
 class TeamInvitationsServiceTest {
 
     private static final String MY_EMAIL = "juan@email.com";
+    private static final UUID TEAM_ORGANIZATION_ID = UUID.randomUUID();
+    private static final String FRESH_TOKEN = "token-with-the-new-organization";
 
     @Mock private ITeamInvitationRepository invitationRepository;
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamRepository teamRepository;
+    @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
+    @Mock private IUsersAuthService usersAuthService;
     @Spy private TeamInvitationMapper invitationMapper = Mappers.getMapper(TeamInvitationMapper.class);
     @Spy private PlayerMapper playerMapper = Mappers.getMapper(PlayerMapper.class);
 
@@ -61,11 +69,14 @@ class TeamInvitationsServiceTest {
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         team.setName("Tigres");
+        team.setOrganizationId(TEAM_ORGANIZATION_ID);
         me = new PlayersEntity();
         me.setId(UUID.randomUUID());
         me.setEmail(MY_EMAIL);
 
         lenient().when(teamRepository.findActiveById(team.getId())).thenReturn(Optional.of(team));
+        lenient().when(usersAuthService.reissueSession(MY_EMAIL)).thenReturn(new AuthResponse(
+                FRESH_TOKEN, false, false, TEAM_ORGANIZATION_ID, UUID.randomUUID(), MY_EMAIL, "Juan", null, "Perez", null));
         lenient().when(teamRepository.findAllActiveByIds(any())).thenReturn(List.of(team));
         lenient().when(playerRepository.findByEmail(MY_EMAIL)).thenReturn(Optional.of(me));
         lenient().when(playerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -118,11 +129,21 @@ class TeamInvitationsServiceTest {
     void accept_whenTheInvitationIsPending_thenThePlayerJoinsTheTeamAndItIsMarkedUsed() {
         TeamInvitationsEntity invitation = pendingInvitation();
 
-        PlayerResponse response = teamInvitationsService.accept(invitation.getId());
+        AcceptedInvitationResponse response = teamInvitationsService.accept(invitation.getId());
 
-        assertThat(response.getTeamId()).isEqualTo(team.getId());
+        assertThat(response.getPlayer().getTeamId()).isEqualTo(team.getId());
         assertThat(me.getTeam()).isSameAs(team);
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.USED.name());
+    }
+
+    @Test
+    void accept_whenTheInvitationIsPending_thenTheAccountFollowsTheTeamAndTheAppGetsASessionForIt() {
+        TeamInvitationsEntity invitation = pendingInvitation();
+
+        AcceptedInvitationResponse response = teamInvitationsService.accept(invitation.getId());
+
+        verify(playerAccountOrganizationService).followTeam(MY_EMAIL, TEAM_ORGANIZATION_ID);
+        assertThat(response.getToken()).isEqualTo(FRESH_TOKEN);
     }
 
     @Test
@@ -152,7 +173,7 @@ class TeamInvitationsServiceTest {
         TeamInvitationsEntity invitation = pendingInvitation();
         invitation.setEmail("JUAN@Email.com");
 
-        assertThat(teamInvitationsService.accept(invitation.getId()).getTeamId()).isEqualTo(team.getId());
+        assertThat(teamInvitationsService.accept(invitation.getId()).getPlayer().getTeamId()).isEqualTo(team.getId());
     }
 
     @Test

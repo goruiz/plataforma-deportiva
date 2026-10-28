@@ -1,6 +1,7 @@
 package com.platform.backend.modules.players.presentation.controllers;
 
 import com.platform.backend.modules.players.application.iservices.ITeamInvitationsService;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
@@ -30,7 +31,7 @@ public class TeamInvitationsController {
     }
 
     @PostMapping("/{id}/accept")
-    public ResponseEntity<ApiResponse<PlayerResponse>> accept(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<AcceptedInvitationResponse>> accept(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(teamInvitationsService.accept(id)));
     }
 

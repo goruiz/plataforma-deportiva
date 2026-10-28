@@ -8,8 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,6 +32,16 @@ public class PlayerRepository implements IPlayerRepository {
     @Override
     public List<PlayersEntity> findAllActiveByIds(Collection<UUID> ids) {
         return playersJpaRepository.findAllByIdInAndDeletedAtIsNull(ids);
+    }
+
+    @Override
+    public Map<UUID, String> findFullNamesByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return playersJpaRepository.findNamesByIds(ids).stream().collect(Collectors.toMap(
+                PlayersJpaRepository.PlayerName::getId,
+                player -> (player.getFirstName() + " " + player.getLastName()).trim()));
     }
 
     @Override

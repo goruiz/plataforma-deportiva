@@ -15,7 +15,7 @@ import java.util.UUID;
 // The name is unique inside each organization (a unique index created by the migrations), not in the whole system.
 @Table(name = "teams")
 @EntityListeners(OrganizationOwnerListener.class)
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_ORGANIZATION, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OWN_OR_PUBLIC_OR_OF_CALLER_TEAM, deduceAliasInjectionPoints = false)
 public class TeamsEntity extends BaseEntity implements HasUniqueField, OrganizationOwned {
 
     private static final int NAME_MAX_LENGTH = 150;

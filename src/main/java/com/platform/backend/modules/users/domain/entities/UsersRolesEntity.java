@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "users_roles")
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_USER, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_USER_OR_SELF, deduceAliasInjectionPoints = false)
 public class UsersRolesEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

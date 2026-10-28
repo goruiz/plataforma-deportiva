@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,6 +70,16 @@ public class UserRepository implements IUserRepository {
     @Override
     public boolean existsActiveByOrganizationId(UUID organizationId) {
         return usersJpaRepository.existsByOrganizationIdAndDeletedAtIsNull(organizationId);
+    }
+
+    @Override
+    public int assignOrganizationToPlayerAccount(String email, UUID organizationId, Collection<UUID> privilegedRoleIds) {
+        return usersJpaRepository.assignOrganizationToPlayerAccount(email, organizationId, privilegedRoleIds);
+    }
+
+    @Override
+    public int clearOrganizationOfPlayerAccount(String email, Collection<UUID> privilegedRoleIds) {
+        return usersJpaRepository.clearOrganizationOfPlayerAccount(email, privilegedRoleIds);
     }
 
     @Override

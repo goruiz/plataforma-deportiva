@@ -143,6 +143,28 @@ public class UsersAuthService implements IUsersAuthService {
         enforceClientTypeAccess(loginRequest.getClientType(), isAdmin);
         enforceOrganizationAccess(loginRequest.getClientType(), user, isPlatformOwner);
 
+        return issueSession(user, loginRequest.getClientType(), isAdmin, isPlatformOwner);
+    }
+
+    /**
+     * The token carries the organization of the account, so a change of team only reaches a signed-in player when they
+     * get a new one. A player's team changes by accepting an invitation, and the app asks for the token again then.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AuthResponse reissueSession(String email) {
+        UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+
+        boolean isPlatformOwner = platformOwnerRole.isOwner(user.getId());
+        boolean isAdmin = isPlatformOwner || hasAdminRole(user);
+        enforceClientTypeAccess(ClientType.MOBILE_APP, isAdmin);
+        enforceOrganizationAccess(ClientType.MOBILE_APP, user, isPlatformOwner);
+
+        return issueSession(user, ClientType.MOBILE_APP, isAdmin, isPlatformOwner);
+    }
+
+    private AuthResponse issueSession(UsersEntity user, ClientType clientType, boolean isAdmin, boolean isPlatformOwner) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getId().toString());
         claims.put("firstName", user.getFirstName());
@@ -152,7 +174,7 @@ public class UsersAuthService implements IUsersAuthService {
         claims.put(JwtClaims.ADMIN, isAdmin);
         claims.put(JwtClaims.PLATFORM_OWNER, isPlatformOwner);
         claims.put(JwtClaims.ORGANIZATION_ID, user.getOrganizationId() == null ? null : user.getOrganizationId().toString());
-        claims.put("clientType", loginRequest.getClientType().name());
+        claims.put("clientType", clientType.name());
 
         String token = jwtService.generateToken(claims, user.getEmail());
         return new AuthResponse(

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "matches")
-@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_OWN_EVENT, deduceAliasInjectionPoints = false)
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.OF_VISIBLE_EVENT, deduceAliasInjectionPoints = false)
 public class MatchesEntity extends BaseEntity {
 
     @Column(name = "home_team_id", nullable = false)

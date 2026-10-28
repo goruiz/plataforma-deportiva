@@ -5,6 +5,7 @@ import com.platform.backend.modules.users.domain.filters.UserListFilter;
 import com.platform.backend.shared.domain.pagination.PageQuery;
 import com.platform.backend.shared.domain.pagination.PageResult;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +32,15 @@ public interface IUserRepository {
     boolean existsActiveByOrganizationId(UUID organizationId);
 
     Optional<UsersEntity> findActiveById(UUID id);
+
+    /**
+     * Puts the account with that email in an organization, whatever organization the caller sees; an account that holds
+     * one of {@code privilegedRoleIds} is left alone. Returns how many accounts changed.
+     */
+    int assignOrganizationToPlayerAccount(String email, UUID organizationId, Collection<UUID> privilegedRoleIds);
+
+    /** Takes the account with that email out of its organization; same exceptions as above. */
+    int clearOrganizationOfPlayerAccount(String email, Collection<UUID> privilegedRoleIds);
 
     void hardDelete(UsersEntity user);
 }

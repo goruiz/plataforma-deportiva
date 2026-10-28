@@ -10,10 +10,13 @@ import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
+import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,8 @@ public class TeamInvitationsService implements ITeamInvitationsService {
     private final ITeamRepository teamRepository;
     private final TeamInvitationMapper invitationMapper;
     private final PlayerMapper playerMapper;
+    private final IPlayerAccountOrganizationService playerAccountOrganizationService;
+    private final IUsersAuthService usersAuthService;
 
     /** Only those for someone who already has an account; the others are answered by registering with their link. */
     @Override
@@ -51,7 +56,7 @@ public class TeamInvitationsService implements ITeamInvitationsService {
 
     @Override
     @Transactional
-    public PlayerResponse accept(UUID invitationId) {
+    public AcceptedInvitationResponse accept(UUID invitationId) {
         TeamInvitationsEntity invitation = findAnswerableInvitation(invitationId);
         TeamsEntity team = teamRepository.findActiveById(invitation.getTeamId())
                 .orElseThrow(() -> new IllegalStateException(TeamInvitationError.TEAM_NOT_FOUND.name()));
@@ -63,7 +68,11 @@ public class TeamInvitationsService implements ITeamInvitationsService {
         player.setTeam(team);
         invitation.setStatus(InvitationStatus.USED.name());
         invitationRepository.save(invitation);
-        return playerMapper.toResponse(playerRepository.save(player));
+        PlayerResponse joined = playerMapper.toResponse(playerRepository.save(player));
+
+        // What the player sees follows their team, and their open token still names the old organization.
+        playerAccountOrganizationService.followTeam(player.getEmail(), team.getOrganizationId());
+        return new AcceptedInvitationResponse(joined, usersAuthService.reissueSession(player.getEmail()).getToken());
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
 import com.platform.backend.modules.players.domain.enums.InvitationStatus;
 import com.platform.backend.modules.players.domain.enums.InvitationType;
+import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
@@ -17,6 +18,7 @@ import com.platform.backend.modules.players.presentation.requests.UpdatePlayerSt
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
@@ -43,6 +45,7 @@ public class PlayersService implements IPlayersService {
     private final ITeamInvitationRepository teamInvitationRepository;
     private final PlayerMapper playerMapper;
     private final IUsersAuthService usersAuthService;
+    private final IPlayerAccountOrganizationService playerAccountOrganizationService;
     private final EmailService emailService;
 
     @Value("${app.invite.expiration-days:7}")
@@ -90,6 +93,7 @@ public class PlayersService implements IPlayersService {
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         player.setTeam(team);
+        followTeamOrganization(player);
         return playerMapper.toResponse(playerRepository.save(player));
     }
 
@@ -102,13 +106,14 @@ public class PlayersService implements IPlayersService {
     public PlayerResponse registerWithInvite(PlayerRegisterRequest request) {
         boolean hasInvitation = request.getInviteToken() != null && !request.getInviteToken().isBlank();
         TeamInvitationsEntity invitation = hasInvitation ? findUsableInvitation(request.getInviteToken()) : null;
-        TeamsEntity team = hasInvitation ? resolveTeam(invitation.getTeamId()) : null;
+        TeamsEntity team = hasInvitation ? findInvitingTeam(invitation) : null;
 
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
                 request.getFirstName(), request.getLastName());
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         player.setTeam(team);
+        followTeamOrganization(player);
 
         if (hasInvitation) {
             invitation.setStatus(InvitationStatus.USED.name());
@@ -117,17 +122,23 @@ public class PlayersService implements IPlayersService {
         return playerMapper.toResponse(playerRepository.save(player));
     }
 
+    /** The refusal reasons are codes, not sentences, so the app can explain each one in the user's language. */
     private TeamInvitationsEntity findUsableInvitation(String token) {
         TeamInvitationsEntity invitation = teamInvitationRepository.findByToken(token)
-                .orElseThrow(() -> new EntityNotFoundException("Invalid invitation token"));
+                .orElseThrow(() -> new EntityNotFoundException(TeamInvitationError.INVITATION_NOT_FOUND.name()));
 
         if (!InvitationStatus.PENDING.name().equals(invitation.getStatus())) {
-            throw new IllegalStateException("Invitation token has already been used or expired");
+            throw new IllegalStateException(TeamInvitationError.NOT_PENDING.name());
         }
         if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Invitation token has expired");
+            throw new IllegalStateException(TeamInvitationError.EXPIRED.name());
         }
         return invitation;
+    }
+
+    private TeamsEntity findInvitingTeam(TeamInvitationsEntity invitation) {
+        return teamRepository.findActiveById(invitation.getTeamId())
+                .orElseThrow(() -> new IllegalStateException(TeamInvitationError.TEAM_NOT_FOUND.name()));
     }
 
     /**
@@ -153,6 +164,7 @@ public class PlayersService implements IPlayersService {
         playerMapper.updateEntity(player, request);
         if (request.getTeamId() != null) {
             player.setTeam(resolveTeam(request.getTeamId()));
+            followTeamOrganization(player);
         }
         return playerMapper.toResponse(playerRepository.save(player));
     }
@@ -219,6 +231,7 @@ public class PlayersService implements IPlayersService {
             throw new IllegalStateException("Player does not belong to any team");
         }
         player.setTeam(null);
+        followTeamOrganization(player);
         return playerMapper.toResponse(playerRepository.save(player));
     }
 
@@ -252,6 +265,12 @@ public class PlayersService implements IPlayersService {
      */
     private boolean isListedForCaller(PlayersEntity player) {
         return CurrentTenant.scope().isUnrestricted() || player.getTeam() != null;
+    }
+
+    /** What a player sees in the app is what their team's organization shows, so their account follows the team. */
+    private void followTeamOrganization(PlayersEntity player) {
+        UUID organizationId = player.getTeam() == null ? null : player.getTeam().getOrganizationId();
+        playerAccountOrganizationService.followTeam(player.getEmail(), organizationId);
     }
 
     private TeamsEntity resolveTeam(UUID teamId) {

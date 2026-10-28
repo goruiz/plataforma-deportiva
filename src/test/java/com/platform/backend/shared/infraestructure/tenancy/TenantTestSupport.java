@@ -27,6 +27,12 @@ public final class TenantTestSupport {
                 UUID.randomUUID(), "Juan", null, "Perez", null, "juan@email.com", null, false, false));
     }
 
+    /** A player (a mobile-app account) that plays for a team of that organization. */
+    public static void actAsPlayerOfOrganization(UUID organizationId) {
+        authenticate(AuthenticatedUser.from(
+                UUID.randomUUID(), "Juan", null, "Perez", null, "Juan@Email.com", organizationId, false, false));
+    }
+
     /** A particular mobile-app account, to check what belongs to it and what does not. */
     public static void actAsMobileAccount(UUID id, String email) {
         authenticate(AuthenticatedUser.from(id, "Juan", null, "Perez", null, email, null, false, false));

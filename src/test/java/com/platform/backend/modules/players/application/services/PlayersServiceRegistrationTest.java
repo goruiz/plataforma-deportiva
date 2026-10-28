@@ -4,6 +4,7 @@ import com.platform.backend.modules.players.application.mappers.PlayerMapper;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
 import com.platform.backend.modules.players.domain.enums.InvitationStatus;
+import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
@@ -12,6 +13,7 @@ import com.platform.backend.modules.players.presentation.requests.PlayerRegister
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.shared.infraestructure.email.EmailService;
@@ -49,11 +51,13 @@ class PlayersServiceRegistrationTest {
 
     private static final String TOKEN = "invitation-token";
     private static final String EMAIL = "ana@email.com";
+    private static final UUID TEAM_ORGANIZATION_ID = UUID.randomUUID();
 
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamRepository teamRepository;
     @Mock private ITeamInvitationRepository teamInvitationRepository;
     @Mock private IUsersAuthService usersAuthService;
+    @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
     @Mock private EmailService emailService;
     @Spy private PlayerMapper playerMapper = Mappers.getMapper(PlayerMapper.class);
 
@@ -69,6 +73,7 @@ class PlayersServiceRegistrationTest {
     void setUp() {
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
+        team.setOrganizationId(TEAM_ORGANIZATION_ID);
 
         // Registering the account creates this player, as UsersAuthService does.
         playerCreatedWithTheAccount = new PlayersEntity();
@@ -129,6 +134,8 @@ class PlayersServiceRegistrationTest {
         assertThat(pendingInvitation.getStatus()).isEqualTo(InvitationStatus.USED.name());
         verify(teamInvitationRepository).save(pendingInvitation);
         assertThat(response.getTeamId()).isEqualTo(team.getId());
+        // The new account plays for that team, so it belongs to the team's organization from its first session.
+        verify(playerAccountOrganizationService).followTeam(EMAIL, TEAM_ORGANIZATION_ID);
     }
 
     @Test
@@ -141,6 +148,7 @@ class PlayersServiceRegistrationTest {
         verify(usersAuthService).register(any(RegisterRequest.class));
         assertThat(playerCreatedWithTheAccount.getTeam()).isNull();
         verifyNoInteractions(teamInvitationRepository);
+        verify(playerAccountOrganizationService).followTeam(EMAIL, null);
     }
 
     @Test
@@ -149,7 +157,7 @@ class PlayersServiceRegistrationTest {
 
         assertThatThrownBy(() -> playersService.registerWithInvite(registerRequest))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Invalid invitation token");
+                .hasMessage(TeamInvitationError.INVITATION_NOT_FOUND.name());
 
         verifyNoInteractions(usersAuthService);
     }
@@ -161,7 +169,7 @@ class PlayersServiceRegistrationTest {
 
         assertThatThrownBy(() -> playersService.registerWithInvite(registerRequest))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("already been used");
+                .hasMessage(TeamInvitationError.NOT_PENDING.name());
 
         verifyNoInteractions(usersAuthService);
     }
@@ -173,9 +181,22 @@ class PlayersServiceRegistrationTest {
 
         assertThatThrownBy(() -> playersService.registerWithInvite(registerRequest))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("expired");
+                .hasMessage(TeamInvitationError.EXPIRED.name());
 
         verifyNoInteractions(usersAuthService);
+    }
+
+    @Test
+    void registerWithInvite_whenTheInvitingTeamNoLongerExists_thenNoAccountIsCreatedAndTheInvitationStaysPending() {
+        when(teamInvitationRepository.findByToken(TOKEN)).thenReturn(Optional.of(pendingInvitation));
+        when(teamRepository.findActiveById(team.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> playersService.registerWithInvite(registerRequest))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(TeamInvitationError.TEAM_NOT_FOUND.name());
+
+        verifyNoInteractions(usersAuthService);
+        assertThat(pendingInvitation.getStatus()).isEqualTo(InvitationStatus.PENDING.name());
     }
 
     @Test
