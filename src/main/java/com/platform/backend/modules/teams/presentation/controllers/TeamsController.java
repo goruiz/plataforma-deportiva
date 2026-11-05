@@ -3,6 +3,7 @@ package com.platform.backend.modules.teams.presentation.controllers;
 import com.platform.backend.modules.teams.application.iservices.ITeamsService;
 import com.platform.backend.modules.teams.presentation.requests.CreateTeamRequest.CreateTeamRequest;
 import com.platform.backend.modules.teams.presentation.requests.UpdateTeamRequest.UpdateTeamRequest;
+import com.platform.backend.modules.teams.presentation.responses.TeamJoinCodeResponse.TeamJoinCodeResponse;
 import com.platform.backend.modules.teams.presentation.responses.TeamResponse.TeamResponse;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -49,6 +50,21 @@ public class TeamsController {
     public ResponseEntity<ApiResponse<TeamResponse>> update(@PathVariable UUID id,
                                                             @Valid @RequestBody UpdateTeamRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(teamsService.update(id, request)));
+    }
+
+    @GetMapping("/{id}/join-code")
+    public ResponseEntity<ApiResponse<TeamJoinCodeResponse>> getJoinCode(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(teamsService.getJoinCode(id)));
+    }
+
+    @PostMapping("/{id}/join-code")
+    public ResponseEntity<ApiResponse<TeamJoinCodeResponse>> generateJoinCode(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(teamsService.generateJoinCode(id)));
+    }
+
+    @DeleteMapping("/{id}/join-code")
+    public ResponseEntity<ApiResponse<TeamJoinCodeResponse>> disableJoinCode(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(teamsService.disableJoinCode(id)));
     }
 
     @DeleteMapping("/{id}")

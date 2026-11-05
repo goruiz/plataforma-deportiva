@@ -11,7 +11,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +34,7 @@ class JwtAuthenticationFilterTest {
     @BeforeEach
     void setUp() {
         SecurityContextHolder.clearContext();
-        filter = new JwtAuthenticationFilter(buildJwtService(SECRET, VALID_FOR_MILLIS));
+        filter = new JwtAuthenticationFilter(buildJwtService(SECRET, VALID_FOR_MILLIS), (userId, issuedAt) -> true);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
@@ -54,6 +56,33 @@ class JwtAuthenticationFilterTest {
         assertThat(authentication.getPrincipal()).isInstanceOf(AuthenticatedUser.class);
         assertThat(((AuthenticatedUser) authentication.getPrincipal()).getEmail()).isEqualTo(USER_EMAIL);
         assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    void doFilter_whenTheSessionWasClosed_thenAValidTokenDoesNotAuthenticate() throws Exception {
+        filter = new JwtAuthenticationFilter(buildJwtService(SECRET, VALID_FOR_MILLIS), (userId, issuedAt) -> false);
+        request.addHeader("Authorization", bearer(buildJwtService(SECRET, VALID_FOR_MILLIS)));
+
+        filter.doFilter(request, response, chain);
+
+        assertContinuesWithoutAuthentication();
+    }
+
+    @Test
+    void doFilter_whenTokenIsValid_thenTheSessionIsCheckedAtTheExactMomentItWasIssued() throws Exception {
+        AtomicReference<Instant> checkedAt = new AtomicReference<>();
+        filter = new JwtAuthenticationFilter(buildJwtService(SECRET, VALID_FOR_MILLIS), (userId, issuedAt) -> {
+            checkedAt.set(issuedAt);
+            return true;
+        });
+        Instant before = Instant.now();
+        request.addHeader("Authorization", bearer(buildJwtService(SECRET, VALID_FOR_MILLIS)));
+        Instant after = Instant.now();
+
+        filter.doFilter(request, response, chain);
+
+        // Milliseconds, not the whole seconds of the standard iat claim: a sign-out in the same second must still tell them apart.
+        assertThat(checkedAt.get()).isBetween(before.minusMillis(1), after.plusMillis(1));
     }
 
     @Test

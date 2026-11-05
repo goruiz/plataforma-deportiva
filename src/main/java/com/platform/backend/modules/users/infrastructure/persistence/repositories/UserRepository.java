@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,6 +51,16 @@ public class UserRepository implements IUserRepository {
     @Override
     public Optional<UsersEntity> findByEmail(String email) {
         return usersJpaRepository.findByEmail(email);
+    }
+
+    @Override
+    public boolean hasSessionValidAt(UUID id, LocalDateTime issuedAt) {
+        return usersJpaRepository.existsWithSessionValidAt(id, issuedAt);
+    }
+
+    @Override
+    public boolean hasVerifiedEmail(String email) {
+        return usersJpaRepository.existsWithVerifiedEmail(email);
     }
 
     @Override

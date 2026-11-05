@@ -29,12 +29,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -323,10 +326,39 @@ public class MatchesService implements IMatchesService {
     /** Every response carries when its match ends, which needs each event's schedule config (read once per event). */
     private List<MatchResponse> toResponses(List<MatchesEntity> matches) {
         Map<UUID, LocalDateTime> endTimes = matchTimingService.getEndTimes(matches);
+        Map<UUID, String> teamNames = readTeamNames(matches);
+        Map<UUID, String> eventNames = readEventNames(matches);
         return matches.stream().map(match -> {
             MatchResponse response = matchMapper.toResponse(match);
             response.setEndsAt(endTimes.get(match.getId()));
+            response.setHomeTeamName(teamNames.get(match.getHomeTeamId()));
+            response.setAwayTeamName(teamNames.get(match.getAwayTeamId()));
+            response.setEventName(eventNames.get(match.getEventId()));
             return response;
         }).toList();
+    }
+
+    /** One query for the whole list, not one per match: the teams the caller does not see simply have no name. */
+    private Map<UUID, String> readTeamNames(List<MatchesEntity> matches) {
+        Set<UUID> teamIds = new HashSet<>();
+        matches.forEach(match -> {
+            teamIds.add(match.getHomeTeamId());
+            teamIds.add(match.getAwayTeamId());
+        });
+        teamIds.remove(null);
+        if (teamIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new HashMap<>();
+        teamRepository.findAllActiveByIds(teamIds).forEach(team -> names.put(team.getId(), team.getName()));
+        return names;
+    }
+
+    private Map<UUID, String> readEventNames(List<MatchesEntity> matches) {
+        Set<UUID> eventIds = matches.stream().map(MatchesEntity::getEventId).filter(Objects::nonNull).collect(Collectors.toSet());
+        // An event name is optional, and a HashMap (unlike Collectors.toMap) accepts a null value.
+        Map<UUID, String> names = new HashMap<>();
+        eventRepository.findAllActiveByIds(eventIds).forEach(event -> names.put(event.getId(), event.getName()));
+        return names;
     }
 }

@@ -5,6 +5,8 @@ import com.platform.backend.modules.events.application.mappers.EventMapper;
 import com.platform.backend.modules.events.domain.entities.EventFormatsEntity;
 import com.platform.backend.modules.events.domain.entities.EventTypesEntity;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.enums.EventStatus;
+import com.platform.backend.modules.events.domain.filters.EventListFilter;
 import com.platform.backend.modules.events.domain.exception.EventError;
 import com.platform.backend.modules.events.domain.irepositories.IEventFormatRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
@@ -13,6 +15,8 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
+import com.platform.backend.shared.domain.pagination.PageQuery;
+import com.platform.backend.shared.domain.pagination.PageResult;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.CreatorAccess;
@@ -33,6 +37,7 @@ import java.util.UUID;
 public class EventsService implements IEventsService {
 
     private static final String ID_EVENT_FORMAT_FIELD = "idEventFormat";
+    private static final String STATUS_FIELD = "status";
 
     private final IEventRepository eventRepository;
     private final IEventTypeRepository eventTypeRepository;
@@ -54,6 +59,15 @@ public class EventsService implements IEventsService {
                 .stream()
                 .map(eventMapper::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public PageResult<EventResponse> search(EventListFilter filter, PageQuery pageQuery) {
+        if (filter.status() != null && !EventStatus.isValid(filter.status())) {
+            throw new FieldValidationException(STATUS_FIELD, EventError.INVALID_STATUS.name());
+        }
+        return eventRepository.findActivePage(filter, pageQuery).map(eventMapper::toResponse);
     }
 
     @Transactional(readOnly = true)

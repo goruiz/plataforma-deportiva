@@ -7,5 +7,8 @@ package com.platform.backend.modules.teams.domain.exception;
 public enum TeamError {
     NAME_ALREADY_EXISTS,
     CATEGORY_NOT_FOUND,
-    INVALID_STATUS
+    INVALID_STATUS,
+
+    /** No active team has that join code (a mistyped one, one that was replaced or switched off look the same). */
+    JOIN_CODE_NOT_FOUND
 }

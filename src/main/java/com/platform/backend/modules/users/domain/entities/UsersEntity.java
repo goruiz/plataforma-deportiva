@@ -1,5 +1,6 @@
 package com.platform.backend.modules.users.domain.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.Filter;
 import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
@@ -8,6 +9,7 @@ import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +43,18 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
     @Column(name = "organization_id")
     private UUID organizationId;
 
+    /** When the owner of the email confirmed it; null while it is unconfirmed. */
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
+    /**
+     * A token issued before this moment no longer opens a session: signing out or deleting the account sets it. It is
+     * ignored when the entity becomes the claims of a token (see {@code JwtService#generateToken(Object, String)}).
+     */
+    @JsonIgnore
+    @Column(name = "tokens_valid_after")
+    private LocalDateTime tokensValidAfter;
+
     public UsersEntity() {}
 
     public String getFirstName() { return firstName; }
@@ -63,6 +77,15 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public LocalDateTime getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void setEmailVerifiedAt(LocalDateTime emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
+
+    public boolean isEmailVerified() { return emailVerifiedAt != null; }
+
+    @JsonIgnore
+    public LocalDateTime getTokensValidAfter() { return tokensValidAfter; }
+    public void setTokensValidAfter(LocalDateTime tokensValidAfter) { this.tokensValidAfter = tokensValidAfter; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

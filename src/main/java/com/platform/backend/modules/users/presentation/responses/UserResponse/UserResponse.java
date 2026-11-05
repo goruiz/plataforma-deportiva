@@ -14,4 +14,6 @@ public class UserResponse {
     private String username;
     private String email;
     private UUID organizationId;
+    /** Whether the owner of the email has confirmed it. */
+    private boolean emailVerified;
 }

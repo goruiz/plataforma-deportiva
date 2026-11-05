@@ -1,6 +1,7 @@
 package com.platform.backend.shared.infraestructure.security.jwt;
 
 import com.platform.backend.modules.users.infrastructure.configuration.security.SecurityConfig;
+import com.platform.backend.shared.domain.security.SessionChecker;
 import com.platform.backend.shared.infraestructure.security.AccessRules;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,11 +57,13 @@ class JwtSecurityChainTest {
 
     @Autowired private WebApplicationContext webApplicationContext;
     @Autowired private JwtService jwtService;
+    @Autowired private StubWebConfig.SwitchableSessionChecker sessionChecker;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        sessionChecker.open = true;
         Filter securityFilterChain = webApplicationContext.getBean("springSecurityFilterChain", Filter.class);
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
                 .addFilters(securityFilterChain)
@@ -120,6 +124,18 @@ class JwtSecurityChainTest {
     }
 
     @Test
+    void protectedEndpoint_whenTheSessionWasSignedOutOrTheAccountDeleted_thenRespondUnauthorizedEvenWithAValidToken() throws Exception {
+        String token = issueToken(60_000);
+        mockMvc.perform(get(PROTECTED_PATH).header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+
+        sessionChecker.open = false;
+
+        mockMvc.perform(get(PROTECTED_PATH).header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     void ownerOnlyEndpoint_whenThereIsNoToken_thenRespondUnauthorized() throws Exception {
         mockMvc.perform(get(OWNER_ONLY_PATH)).andExpect(status().isUnauthorized());
     }
@@ -158,6 +174,22 @@ class JwtSecurityChainTest {
         @Bean
         StubController stubController() {
             return new StubController();
+        }
+
+        /** Says whether the session of any token is still open, so a test can end it. */
+        @Bean
+        SwitchableSessionChecker sessionChecker() {
+            return new SwitchableSessionChecker();
+        }
+
+        static class SwitchableSessionChecker implements SessionChecker {
+
+            volatile boolean open = true;
+
+            @Override
+            public boolean isSessionValid(UUID userId, Instant issuedAt) {
+                return open;
+            }
         }
     }
 

@@ -15,6 +15,7 @@ import com.platform.backend.modules.players.presentation.responses.PlayerRespons
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
@@ -40,6 +41,7 @@ public class TeamInvitationsService implements ITeamInvitationsService {
     private final PlayerMapper playerMapper;
     private final IPlayerAccountOrganizationService playerAccountOrganizationService;
     private final IUsersAuthService usersAuthService;
+    private final IEmailVerificationService emailVerificationService;
 
     /** Only those for someone who already has an account; the others are answered by registering with their link. */
     @Override
@@ -57,6 +59,8 @@ public class TeamInvitationsService implements ITeamInvitationsService {
     @Override
     @Transactional
     public AcceptedInvitationResponse accept(UUID invitationId) {
+        // Anyone can register an email that is not theirs, so an invitation to it is only joined once it is confirmed.
+        emailVerificationService.requireVerified(CurrentCaller.require().getEmail());
         TeamInvitationsEntity invitation = findAnswerableInvitation(invitationId);
         TeamsEntity team = teamRepository.findActiveById(invitation.getTeamId())
                 .orElseThrow(() -> new IllegalStateException(TeamInvitationError.TEAM_NOT_FOUND.name()));

@@ -20,8 +20,11 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
     Optional<PasswordResetTokenEntity> findByTokenHashAndUsedAtIsNullForUpdate(
             @Param("tokenHash") String tokenHash);
 
-    @Modifying
-    void deleteByUserId(UUID userId);
+    // A bulk delete runs at once. A derived delete is queued and Hibernate runs inserts first, so asking for a second
+    // link before using the first met the unique index (one unused link per account) and answered a 409.
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM PasswordResetTokenEntity token WHERE token.userId = :userId")
+    void deleteByUserId(@Param("userId") UUID userId);
 
     @Modifying
     void deleteByUserIdAndIdNot(UUID userId, UUID id);

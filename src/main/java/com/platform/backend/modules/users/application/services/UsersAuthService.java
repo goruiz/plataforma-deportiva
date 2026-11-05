@@ -4,6 +4,7 @@ import com.platform.backend.modules.organizations.domain.entities.OrganizationsE
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
@@ -26,6 +27,7 @@ import com.platform.backend.modules.users.presentation.requests.ResetPasswordReq
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -33,6 +35,7 @@ import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtClaims;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
+import com.platform.backend.shared.infraestructure.security.token.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,13 +50,7 @@ import org.springframework.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -77,8 +74,7 @@ public class UsersAuthService implements IUsersAuthService {
     private final AuthenticationManager authenticationManager;
     private final IPasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
-
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private final IEmailVerificationService emailVerificationService;
 
     @Value("${app.security.password-reset-expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
@@ -92,10 +88,26 @@ public class UsersAuthService implements IUsersAuthService {
     /**
      * Whoever registers in the app is an account (to sign in) and a player (to belong to a team) at once, with the same
      * email: the team invitations, the player's matches and the admin panel's search all find the player by it.
+     * Nobody has proved yet that the email is theirs, so it is emailed a link to confirm it; until then the account
+     * cannot join a team. If that email cannot be sent the registration stands: the app can ask for it again.
      */
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest registerRequest) {
+        UsersEntity savedUser = createAccountWithPlayer(registerRequest, false);
+        sendVerificationLinkWithoutFailing(savedUser);
+        return new RegisterResponse(jwtService.generateToken(savedUser, savedUser.getEmail()), false);
+    }
+
+    /** For whoever already proved the email is theirs (an invitation was sent to it): no link to confirm. */
+    @Override
+    @Transactional
+    public RegisterResponse registerVerified(RegisterRequest registerRequest) {
+        UsersEntity savedUser = createAccountWithPlayer(registerRequest, true);
+        return new RegisterResponse(jwtService.generateToken(savedUser, savedUser.getEmail()), true);
+    }
+
+    private UsersEntity createAccountWithPlayer(RegisterRequest registerRequest, boolean emailVerified) {
         String email = EmailNormalizer.normalize(registerRequest.getEmail());
         if (userRepository.existsByEmail(email) || playerRepository.existsByEmail(email)) {
             throw new DataIntegrityViolationException("Email already in use");
@@ -103,11 +115,22 @@ public class UsersAuthService implements IUsersAuthService {
         UsersEntity newUser = userMapper.toEntity(registerRequest);
         newUser.setEmail(email);
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        if (emailVerified) {
+            newUser.setEmailVerifiedAt(LocalDateTime.now());
+        }
         UsersEntity savedUser = userRepository.save(newUser);
         assignMobileUserRole(savedUser);
         playerRepository.save(buildPlayerOf(savedUser));
-        String token = jwtService.generateToken(savedUser, savedUser.getEmail());
-        return new RegisterResponse(token);
+        return savedUser;
+    }
+
+    private void sendVerificationLinkWithoutFailing(UsersEntity user) {
+        try {
+            emailVerificationService.sendVerificationLink(user);
+        } catch (EmailDeliveryException exception) {
+            LOGGER.error("Verification email delivery failed for user id {} ({})",
+                    user.getId(), exception.getClass().getSimpleName());
+        }
     }
 
     /**
@@ -187,7 +210,8 @@ public class UsersAuthService implements IUsersAuthService {
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getLastName(),
-                user.getSecondLastName()
+                user.getSecondLastName(),
+                user.isEmailVerified()
         );
     }
 
@@ -238,6 +262,15 @@ public class UsersAuthService implements IUsersAuthService {
         if (organization.isSuspended()) {
             throw new AccessDeniedException(LoginError.ORGANIZATION_SUSPENDED.name());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentAccount(String email) {
+        UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+        return userMapper.toUserResponse(user);
     }
 
     @Override
@@ -324,10 +357,10 @@ public class UsersAuthService implements IUsersAuthService {
         }
 
         passwordResetTokenRepository.deleteByUserId(user.getId());
-        String token = generatePasswordResetToken();
+        String token = OpaqueTokens.generate();
         PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
         resetToken.setUserId(user.getId());
-        resetToken.setTokenHash(hashPasswordResetToken(token));
+        resetToken.setTokenHash(OpaqueTokens.hash(token));
         resetToken.setExpiresAt(LocalDateTime.now().plusMinutes(passwordResetExpirationMinutes));
         passwordResetTokenRepository.save(resetToken);
         try {
@@ -341,7 +374,7 @@ public class UsersAuthService implements IUsersAuthService {
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String tokenHash = hashPasswordResetToken(request.getToken());
+        String tokenHash = OpaqueTokens.hash(request.getToken());
         PasswordResetTokenEntity resetToken = passwordResetTokenRepository
                 .findByTokenHashAndUnusedForUpdate(tokenHash)
                 .filter(saved -> saved.getExpiresAt().isAfter(LocalDateTime.now()))
@@ -359,22 +392,6 @@ public class UsersAuthService implements IUsersAuthService {
 
     private FieldValidationException invalidPasswordResetToken() {
         return new FieldValidationException("token", PasswordResetError.INVALID_OR_EXPIRED.name());
-    }
-
-    private String generatePasswordResetToken() {
-        byte[] randomBytes = new byte[32];
-        SECURE_RANDOM.nextBytes(randomBytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-    }
-
-    private String hashPasswordResetToken(String token) {
-        try {
-            byte[] hash = MessageDigest.getInstance("SHA-256")
-                    .digest(token.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is not available", ex);
-        }
     }
 
     private FieldValidationException fieldError(PasswordChangeError error) {

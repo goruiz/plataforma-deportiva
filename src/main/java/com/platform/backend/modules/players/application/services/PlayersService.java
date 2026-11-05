@@ -13,17 +13,23 @@ import com.platform.backend.modules.players.domain.irepositories.ITeamInvitation
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
+import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
+import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
+import com.platform.backend.shared.domain.utils.JoinCodes;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
@@ -36,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -48,6 +55,7 @@ public class PlayersService implements IPlayersService {
     private final PlayerMapper playerMapper;
     private final IUsersAuthService usersAuthService;
     private final IPlayerAccountOrganizationService playerAccountOrganizationService;
+    private final IEmailVerificationService emailVerificationService;
     private final EmailService emailService;
 
     @Value("${app.invite.expiration-days:7}")
@@ -91,7 +99,7 @@ public class PlayersService implements IPlayersService {
     public PlayerResponse create(CreatePlayerRequest request) {
         TeamsEntity team = resolveTeam(request.getTeamId());
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
-                request.getFirstName(), request.getLastName());
+                request.getFirstName(), request.getLastName(), false);
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         player.setTeam(team);
@@ -111,7 +119,7 @@ public class PlayersService implements IPlayersService {
         TeamsEntity team = hasInvitation ? findInvitingTeam(invitation) : null;
 
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
-                request.getFirstName(), request.getLastName());
+                request.getFirstName(), request.getLastName(), isInvitedEmail(invitation, request.getEmail()));
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         player.setTeam(team);
@@ -144,16 +152,30 @@ public class PlayersService implements IPlayersService {
     }
 
     /**
+     * The link of an invitation only reached the email it was sent to, so whoever registers that same email with it has
+     * proved it is theirs. With another email (or without an invitation) nothing is proved.
+     */
+    private boolean isInvitedEmail(TeamInvitationsEntity invitation, String registeredEmail) {
+        return invitation != null
+                && Objects.equals(EmailNormalizer.normalize(invitation.getEmail()), EmailNormalizer.normalize(registeredEmail));
+    }
+
+    /**
      * A player signs in with an account, so the account is registered the way the app does it, which also creates the
      * player with the same email; the caller then completes that player (phone, photo, team).
      */
-    private PlayersEntity registerAccountWithPlayer(String email, String password, String firstName, String lastName) {
+    private PlayersEntity registerAccountWithPlayer(String email, String password, String firstName, String lastName,
+                                                    boolean emailVerified) {
         RegisterRequest account = new RegisterRequest();
         account.setEmail(email);
         account.setPassword(password);
         account.setFirstName(firstName);
         account.setLastName(lastName);
-        usersAuthService.register(account);
+        if (emailVerified) {
+            usersAuthService.registerVerified(account);
+        } else {
+            usersAuthService.register(account);
+        }
         return playerRepository.findByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new IllegalStateException("The player of the new account was not created"));
     }
@@ -169,6 +191,33 @@ public class PlayersService implements IPlayersService {
             followTeamOrganization(player);
         }
         return playerMapper.toResponse(playerRepository.save(player));
+    }
+
+    @Override
+    @Transactional
+    public AcceptedInvitationResponse joinByCode(JoinByCodeRequest request) {
+        String email = CurrentCaller.require().getEmail();
+        emailVerificationService.requireVerified(email);
+        PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(email))
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new EntityNotFoundException("Player not found"));
+        if (player.getTeam() != null) {
+            throw new IllegalStateException(PlayerError.ALREADY_IN_TEAM.name());
+        }
+
+        player.moveToTeam(findTeamOpenToJoinCodes(request.getCode()));
+        PlayerResponse joined = playerMapper.toResponse(playerRepository.save(player));
+
+        // What the player sees follows their team, and their open token still names the old organization.
+        followTeamOrganization(player);
+        return new AcceptedInvitationResponse(joined, usersAuthService.reissueSession(player.getEmail()).getToken());
+    }
+
+    /** A wrong code and a team that is no longer active answer alike: the caller learns nothing about which codes exist. */
+    private TeamsEntity findTeamOpenToJoinCodes(String typedCode) {
+        return teamRepository.findActiveByJoinCode(JoinCodes.normalize(typedCode))
+                .filter(team -> TeamStatus.ACTIVE.name().equals(team.getStatus()))
+                .orElseThrow(() -> new EntityNotFoundException(TeamError.JOIN_CODE_NOT_FOUND.name()));
     }
 
     @Override

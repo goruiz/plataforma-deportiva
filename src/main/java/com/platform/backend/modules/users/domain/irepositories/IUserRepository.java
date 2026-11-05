@@ -5,6 +5,7 @@ import com.platform.backend.modules.users.domain.filters.UserListFilter;
 import com.platform.backend.shared.domain.pagination.PageQuery;
 import com.platform.backend.shared.domain.pagination.PageResult;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +31,15 @@ public interface IUserRepository {
     boolean existsByEmail(String email);
 
     boolean existsActiveByOrganizationId(UUID organizationId);
+
+    /**
+     * Whether the account still has a valid session for a token issued at that moment: it exists, is not deleted and
+     * has not signed out since. Scalar on purpose: it never loads the entity.
+     */
+    boolean hasSessionValidAt(UUID id, LocalDateTime issuedAt);
+
+    /** Whether the active account with that email has confirmed it. Scalar for the same reason. */
+    boolean hasVerifiedEmail(String email);
 
     Optional<UsersEntity> findActiveById(UUID id);
 

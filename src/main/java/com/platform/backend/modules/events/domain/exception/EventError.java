@@ -6,5 +6,8 @@ package com.platform.backend.modules.events.domain.exception;
  */
 public enum EventError {
     /** The championship already has generated matches, so its format (how it is played) can no longer change. */
-    FORMAT_LOCKED_BY_CHAMPIONSHIP
+    FORMAT_LOCKED_BY_CHAMPIONSHIP,
+
+    /** The state asked for in a search is not one of the states an event can be in. */
+    INVALID_STATUS
 }

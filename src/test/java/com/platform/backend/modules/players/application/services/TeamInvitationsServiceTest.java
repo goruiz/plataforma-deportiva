@@ -14,6 +14,9 @@ import com.platform.backend.modules.players.presentation.responses.PlayerRespons
 import com.platform.backend.modules.players.presentation.responses.TeamInvitationResponse.TeamInvitationResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
+import com.platform.backend.shared.domain.exception.AccessError;
+import org.springframework.security.access.AccessDeniedException;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
@@ -37,6 +40,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -54,6 +58,7 @@ class TeamInvitationsServiceTest {
     @Mock private ITeamRepository teamRepository;
     @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
     @Mock private IUsersAuthService usersAuthService;
+    @Mock private IEmailVerificationService emailVerificationService;
     @Spy private TeamInvitationMapper invitationMapper = Mappers.getMapper(TeamInvitationMapper.class);
     @Spy private PlayerMapper playerMapper = Mappers.getMapper(PlayerMapper.class);
 
@@ -76,7 +81,7 @@ class TeamInvitationsServiceTest {
 
         lenient().when(teamRepository.findActiveById(team.getId())).thenReturn(Optional.of(team));
         lenient().when(usersAuthService.reissueSession(MY_EMAIL)).thenReturn(new AuthResponse(
-                FRESH_TOKEN, false, false, TEAM_ORGANIZATION_ID, UUID.randomUUID(), MY_EMAIL, "Juan", null, "Perez", null));
+                FRESH_TOKEN, false, false, TEAM_ORGANIZATION_ID, UUID.randomUUID(), MY_EMAIL, "Juan", null, "Perez", null, true));
         lenient().when(teamRepository.findAllActiveByIds(any())).thenReturn(List.of(team));
         lenient().when(playerRepository.findByEmail(MY_EMAIL)).thenReturn(Optional.of(me));
         lenient().when(playerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -144,6 +149,20 @@ class TeamInvitationsServiceTest {
 
         verify(playerAccountOrganizationService).followTeam(MY_EMAIL, TEAM_ORGANIZATION_ID);
         assertThat(response.getToken()).isEqualTo(FRESH_TOKEN);
+    }
+
+    @Test
+    void accept_whenTheEmailIsNotConfirmed_thenItIsRefusedAndTheInvitationStaysPending() {
+        TeamInvitationsEntity invitation = invitation(InvitationType.EXISTING_USER, InvitationStatus.PENDING, LocalDateTime.now().plusDays(1));
+        doThrow(new AccessDeniedException(AccessError.EMAIL_NOT_VERIFIED.name()))
+                .when(emailVerificationService).requireVerified(MY_EMAIL);
+
+        assertThatThrownBy(() -> teamInvitationsService.accept(invitation.getId()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(AccessError.EMAIL_NOT_VERIFIED.name());
+
+        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.PENDING.name());
+        verify(playerRepository, never()).save(any());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.platform.backend.shared.infraestructure.security.jwt;
 
 import com.platform.backend.modules.users.infrastructure.configuration.security.AuthenticatedUser;
+import com.platform.backend.shared.domain.security.SessionChecker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -27,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final SessionChecker sessionChecker;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -54,15 +57,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null
                     && jwtService.isTokenValid(jwt, email)) {
-                setAuthentication(jwt, request);
+                Claims claims = jwtService.extractAllClaims(jwt);
+                if (hasOpenSession(claims)) {
+                    setAuthentication(claims, request);
+                }
             }
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("Ignoring an invalid JWT: {}", ex.getMessage());
         }
     }
 
-    private void setAuthentication(String jwt, HttpServletRequest request) {
-        AuthenticatedUser authenticatedUser = buildAuthenticatedUser(jwt);
+    /**
+     * A signed token is not enough: its owner may have signed out or deleted the account since it was issued. A token
+     * without an account or an issue time cannot be checked, so it does not open a session either.
+     */
+    private boolean hasOpenSession(Claims claims) {
+        Object id = claims.get("id");
+        Instant issuedAt = readIssuedAt(claims);
+        if (id == null || issuedAt == null) {
+            return false;
+        }
+        return sessionChecker.isSessionValid(UUID.fromString(id.toString()), issuedAt);
+    }
+
+    /** The exact moment when the token has it; a token issued before that claim existed only has whole seconds. */
+    private Instant readIssuedAt(Claims claims) {
+        if (claims.get(JwtClaims.ISSUED_AT_MILLIS) instanceof Number issuedAtMillis) {
+            return Instant.ofEpochMilli(issuedAtMillis.longValue());
+        }
+        return claims.getIssuedAt() == null ? null : claims.getIssuedAt().toInstant();
+    }
+
+    private void setAuthentication(Claims claims, HttpServletRequest request) {
+        AuthenticatedUser authenticatedUser = buildAuthenticatedUser(claims);
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 authenticatedUser, null, authenticatedUser.getAuthorities()
         );
@@ -70,9 +97,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 
-    private AuthenticatedUser buildAuthenticatedUser(String jwt) {
-        Claims claims = jwtService.extractAllClaims(jwt);
-
+    private AuthenticatedUser buildAuthenticatedUser(Claims claims) {
         UUID id = UUID.fromString((String) claims.get("id"));
         String firstName  = (String) claims.get("firstName");
         String middleName = (String) claims.get("middleName");

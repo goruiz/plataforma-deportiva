@@ -9,6 +9,7 @@ import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.teams.presentation.requests.CreateTeamRequest.CreateTeamRequest;
 import com.platform.backend.modules.teams.presentation.requests.UpdateTeamRequest.UpdateTeamRequest;
+import com.platform.backend.modules.teams.presentation.responses.TeamJoinCodeResponse.TeamJoinCodeResponse;
 import com.platform.backend.modules.teams.presentation.responses.TeamResponse.TeamResponse;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -30,9 +31,13 @@ public class TeamsService implements ITeamsService {
     private static final String CATEGORY_FIELD = "categoryId";
     private static final String STATUS_FIELD = "status";
 
+    /** A code that collides with an existing one is drawn again; with 32^8 codes a second attempt is already unlikely. */
+    private static final int MAX_JOIN_CODE_ATTEMPTS = 5;
+
     private final ITeamRepository teamRepository;
     private final ICategoryRepository categoryRepository;
     private final TeamMapper teamMapper;
+    private final JoinCodeGenerator joinCodeGenerator;
 
     @Transactional(readOnly = true)
     @Override
@@ -96,6 +101,49 @@ public class TeamsService implements ITeamsService {
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + id));
         CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
         teamRepository.hardDelete(team);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public TeamJoinCodeResponse getJoinCode(UUID id) {
+        return toJoinCodeResponse(findTeamOfCreatorOrAdmin(id));
+    }
+
+    @Transactional
+    @Override
+    public TeamJoinCodeResponse generateJoinCode(UUID id) {
+        TeamsEntity team = findTeamOfCreatorOrAdmin(id);
+        team.setJoinCode(drawUnusedJoinCode());
+        return toJoinCodeResponse(teamRepository.save(team));
+    }
+
+    @Transactional
+    @Override
+    public TeamJoinCodeResponse disableJoinCode(UUID id) {
+        TeamsEntity team = findTeamOfCreatorOrAdmin(id);
+        team.setJoinCode(null);
+        return toJoinCodeResponse(teamRepository.save(team));
+    }
+
+    /** Whoever holds the code can bring anyone into the team, so only who may change the team may read or change it. */
+    private TeamsEntity findTeamOfCreatorOrAdmin(UUID id) {
+        TeamsEntity team = findActiveOrThrow(id);
+        CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
+        return team;
+    }
+
+    private String drawUnusedJoinCode() {
+        for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
+            String code = joinCodeGenerator.generate();
+            if (!teamRepository.existsActiveByJoinCode(code)) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Could not draw an unused join code");
+    }
+
+    private TeamJoinCodeResponse toJoinCodeResponse(TeamsEntity team) {
+        return new TeamJoinCodeResponse(team.getId(), team.getJoinCode());
     }
 
     private TeamsEntity findActiveOrThrow(UUID id) {

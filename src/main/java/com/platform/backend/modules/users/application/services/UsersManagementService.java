@@ -103,6 +103,8 @@ public class UsersManagementService implements IUsersManagementService {
         String temporaryPassword = temporaryPasswordGenerator.generate();
         UsersEntity user = userMapper.toEntity(request);
         user.setOrganizationId(resolveOrganizationOfNewUser(request.getOrganizationId()));
+        // The temporary password only reaches whoever reads that email, so signing in already proves it is theirs.
+        user.setEmailVerifiedAt(LocalDateTime.now());
         user.setPassword(passwordEncoder.encode(temporaryPassword));
         UsersEntity savedUser = userRepository.save(user);
 

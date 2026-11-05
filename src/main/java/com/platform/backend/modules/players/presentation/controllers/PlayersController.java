@@ -4,10 +4,12 @@ import com.platform.backend.modules.players.application.iservices.IPlayersServic
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
+import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.shared.infraestructure.security.AccessRules;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
@@ -90,6 +92,12 @@ public class PlayersController {
                 .message("Registration link sent")
                 .timestamp(java.time.LocalDateTime.now())
                 .build());
+    }
+
+    /** The signed-in player joins the team that has the code, like accepting an invitation (same answer, new token). */
+    @PostMapping("/join-by-code")
+    public ResponseEntity<ApiResponse<AcceptedInvitationResponse>> joinByCode(@Valid @RequestBody JoinByCodeRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.joinByCode(request)));
     }
 
     @PatchMapping("/{id}/remove-from-team")

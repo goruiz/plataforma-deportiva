@@ -16,14 +16,21 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Slows down, per IP, the requests that can be used to guess a secret (a password, a team code) or to make the server
+ * send email. Each path has its own allowance.
+ */
 public class LoginRateLimiterFilter extends OncePerRequestFilter {
 
-    private static final String LOGIN_PATH = "/users/auth/login";
-    private static final String PASSWORD_RESET_REQUEST_PATH = "/users/auth/forgot-password";
-    private static final int MAX_ATTEMPTS = 5;
-    private static final Duration WINDOW = Duration.ofMinutes(1);
-    private static final int MAX_PASSWORD_RESET_REQUESTS = 3;
-    private static final Duration PASSWORD_RESET_WINDOW = Duration.ofMinutes(15);
+    private record RateLimit(int capacity, Duration window) {}
+
+    private static final Map<String, RateLimit> LIMITS_BY_PATH = Map.of(
+            "/users/auth/login", new RateLimit(5, Duration.ofMinutes(1)),
+            "/users/auth/forgot-password", new RateLimit(3, Duration.ofMinutes(15)),
+            "/users/auth/resend-verification", new RateLimit(3, Duration.ofMinutes(15)),
+            "/users/auth/delete-account", new RateLimit(5, Duration.ofMinutes(1)),
+            "/players/join-by-code", new RateLimit(10, Duration.ofMinutes(1))
+    );
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -31,7 +38,7 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !"POST".equalsIgnoreCase(request.getMethod())
-                || !isRateLimitedPath(request.getServletPath());
+                || !LIMITS_BY_PATH.containsKey(request.getServletPath());
     }
 
     @Override
@@ -40,7 +47,7 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         String ip = resolveClientIp(request);
         String path = request.getServletPath();
-        Bucket bucket = buckets.computeIfAbsent(ip + ":" + path, k -> buildBucket(path));
+        Bucket bucket = buckets.computeIfAbsent(ip + ":" + path, k -> buildBucket(LIMITS_BY_PATH.get(path)));
 
         if (bucket.tryConsume(1)) {
             chain.doFilter(request, response);
@@ -49,18 +56,11 @@ public class LoginRateLimiterFilter extends OncePerRequestFilter {
         }
     }
 
-    private boolean isRateLimitedPath(String path) {
-        return LOGIN_PATH.equals(path) || PASSWORD_RESET_REQUEST_PATH.equals(path);
-    }
-
-    private Bucket buildBucket(String path) {
-        int capacity = PASSWORD_RESET_REQUEST_PATH.equals(path)
-                ? MAX_PASSWORD_RESET_REQUESTS
-                : MAX_ATTEMPTS;
-        Duration window = PASSWORD_RESET_REQUEST_PATH.equals(path)
-                ? PASSWORD_RESET_WINDOW
-                : WINDOW;
-        Bandwidth limit = Bandwidth.builder().capacity(capacity).refillIntervally(capacity, window).build();
+    private Bucket buildBucket(RateLimit rateLimit) {
+        Bandwidth limit = Bandwidth.builder()
+                .capacity(rateLimit.capacity())
+                .refillIntervally(rateLimit.capacity(), rateLimit.window())
+                .build();
         return Bucket.builder()
                 .addLimit(limit)
                 .build();

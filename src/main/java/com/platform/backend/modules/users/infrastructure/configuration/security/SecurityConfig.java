@@ -89,6 +89,7 @@ public class SecurityConfig {
                         "/users/auth/register",
                         "/users/auth/forgot-password",
                         "/users/auth/reset-password",
+                        "/users/auth/verify-email",
                         "/players/auth/register",
                         "/swagger-ui/**",
                         "/swagger-ui.html",

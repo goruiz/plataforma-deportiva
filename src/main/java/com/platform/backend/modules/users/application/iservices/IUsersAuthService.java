@@ -8,13 +8,21 @@ import com.platform.backend.modules.users.presentation.requests.ResetPasswordReq
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 
 public interface IUsersAuthService {
 
+    /** Registers an account whose email still has to be confirmed (a link is emailed to it). */
     RegisterResponse register(RegisterRequest registerRequest);
 
+    /** Registers an account whose email is already known to be its owner's, so it needs no confirmation. */
+    RegisterResponse registerVerified(RegisterRequest registerRequest);
+
     AuthResponse login(LoginRequest loginRequest);
+
+    /** The signed-in account, as it is now (the token only has what it was when it was issued). */
+    UserResponse getCurrentAccount(String email);
 
     /** A new app session for the account, with its current organization (see {@code PlayerAccountOrganizationService}). */
     AuthResponse reissueSession(String email);

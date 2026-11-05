@@ -19,6 +19,12 @@ public class MatchResponse {
     private Integer awayScore;
     private UUID eventId;
     private UUID courtId;
+
+    // Names of what the ids above point to, so a client can label a match without downloading every team and event.
+    // Null when the caller does not see that team or event; set on what is read, not on what a write answers.
+    private String homeTeamName;
+    private String awayTeamName;
+    private String eventName;
     /** When the match is over (kick-off + duration + break): from then on its result can be recorded. */
     private LocalDateTime endsAt;
 

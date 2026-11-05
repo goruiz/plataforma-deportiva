@@ -23,6 +23,14 @@ public interface TeamsJpaRepository extends TenantScopedJpaRepository<TeamsEntit
 
     boolean existsByCategoryIdAndDeletedAtIsNull(UUID categoryId);
 
+    // Native on purpose, like the lookups of an email or a username: a player without a team sees no team of any
+    // organization through the filter, and a join code is exactly what lets them reach one.
+    @Query(value = "SELECT EXISTS (SELECT 1 FROM teams WHERE join_code = :joinCode AND deleted_at IS NULL)", nativeQuery = true)
+    boolean existsActiveByJoinCodeInAnyOrganization(@Param("joinCode") String joinCode);
+
+    @Query(value = "SELECT * FROM teams WHERE join_code = :joinCode AND deleted_at IS NULL LIMIT 1", nativeQuery = true)
+    Optional<TeamsEntity> findActiveByJoinCodeInAnyOrganization(@Param("joinCode") String joinCode);
+
     boolean existsByOrganizationIdAndDeletedAtIsNull(UUID organizationId);
 
     @Query("SELECT t FROM TeamsEntity t WHERE t.id IN :ids AND t.deletedAt IS NULL")

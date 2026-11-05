@@ -1,10 +1,15 @@
 package com.platform.backend.modules.events.presentation.controllers;
 
 import com.platform.backend.modules.events.application.iservices.IEventsService;
+import com.platform.backend.modules.events.domain.filters.EventListFilter;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
+import com.platform.backend.shared.domain.pagination.PageQuery;
+import com.platform.backend.shared.infraestructure.pagination.ListQueryResolver;
+import com.platform.backend.shared.presentation.requests.ListRequest.ListRequest;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
+import com.platform.backend.shared.presentation.responses.PageResponse.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,10 +35,28 @@ import java.util.UUID;
 public class EventsController {
 
     private final IEventsService eventsService;
+    private final ListQueryResolver listQueryResolver;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<EventResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok(eventsService.getAll()));
+    }
+
+    /**
+     * The events the caller sees, a page at a time and with the ones that matter most first. {@code search} (every word
+     * must appear in the name or the description), {@code status} and {@code eventFormatId} narrow it.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<EventResponse>>> search(
+            ListRequest request,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) UUID eventFormatId) {
+        EventListFilter filter = new EventListFilter(
+                listQueryResolver.searchTerms(request.getSearch()),
+                status == null || status.isBlank() ? null : status.trim().toUpperCase(),
+                eventFormatId);
+        PageQuery pageQuery = listQueryResolver.pageQuery(request.getPage(), request.getSize());
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(eventsService.search(filter, pageQuery))));
     }
 
     @GetMapping("/{id}")

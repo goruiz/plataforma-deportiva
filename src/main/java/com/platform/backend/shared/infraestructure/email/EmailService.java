@@ -28,6 +28,9 @@ public class EmailService {
     @Value("${app.security.password-reset-expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
 
+    @Value("${app.security.email-verification-expiration-hours:48}")
+    private long emailVerificationExpirationHours;
+
     public void sendTeamInvitation(String to, String playerName, String teamName) {
         sendHtmlEmail(to,
                 "Invitación al equipo " + teamName,
@@ -49,6 +52,15 @@ public class EmailService {
         sendHtmlEmail(to,
                 "Restablece tu contraseña de la Plataforma Deportiva",
                 buildPasswordResetHtml(firstName, resetUrl, mobileResetUrl));
+    }
+
+    public void sendEmailVerification(String to, String firstName, String token) {
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+        String verificationUrl = base + "/verify-email?token=" + token;
+        String mobileVerificationUrl = mobileDeepLinkScheme + "://verify-email?token=" + token;
+        sendHtmlEmail(to,
+                "Confirma tu correo en la Plataforma Deportiva",
+                buildEmailVerificationHtml(firstName, verificationUrl, mobileVerificationUrl));
     }
 
     public void sendUserCreatedWithTemporaryPassword(String to, String firstName, String temporaryPassword) {
@@ -156,5 +168,33 @@ public class EmailService {
                 HtmlUtils.htmlEscape(mobileResetUrl),
                 HtmlUtils.htmlEscape(resetUrl),
                 HtmlUtils.htmlEscape(resetUrl));
+    }
+
+    private String buildEmailVerificationHtml(String firstName, String verificationUrl, String mobileVerificationUrl) {
+        return """
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                  <h2>Hola, %s</h2>
+                  <p>Confirma tu correo para unirte a equipos desde la Plataforma Deportiva.</p>
+                  <p>El enlace vence en %d horas.</p>
+                  <a href="%s"
+                     style="display:inline-block;padding:12px 24px;background:#1976D2;color:#fff;
+                            text-decoration:none;border-radius:4px;font-weight:bold;">
+                  Confirmar en la aplicación
+                  </a>
+                  <br/><br/>
+                  <p>También puedes confirmarlo en la versión web:</p>
+                  <p><a href="%s">%s</a></p>
+                  <p>Si no creaste esta cuenta, puedes ignorar este correo.</p>
+                  <br/>
+                  <p>Plataforma Deportiva</p>
+                </body>
+                </html>
+                """.formatted(
+                HtmlUtils.htmlEscape(firstName == null ? "" : firstName),
+                emailVerificationExpirationHours,
+                HtmlUtils.htmlEscape(mobileVerificationUrl),
+                HtmlUtils.htmlEscape(verificationUrl),
+                HtmlUtils.htmlEscape(verificationUrl));
     }
 }

@@ -20,4 +20,6 @@ public class AuthResponse {
     private String middleName;
     private String lastName;
     private String secondLastName;
+    /** False until the owner of the email confirms it; the app asks for it before joining a team. */
+    private boolean emailVerified;
 }

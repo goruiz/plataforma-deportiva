@@ -53,6 +53,16 @@ public class TeamRepository implements ITeamRepository {
     }
 
     @Override
+    public boolean existsActiveByJoinCode(String joinCode) {
+        return teamsJpaRepository.existsActiveByJoinCodeInAnyOrganization(joinCode);
+    }
+
+    @Override
+    public Optional<TeamsEntity> findActiveByJoinCode(String joinCode) {
+        return teamsJpaRepository.findActiveByJoinCodeInAnyOrganization(joinCode);
+    }
+
+    @Override
     public boolean existsActiveByOrganizationId(UUID organizationId) {
         return teamsJpaRepository.existsByOrganizationIdAndDeletedAtIsNull(organizationId);
     }

@@ -55,11 +55,13 @@ public class JwtService {
 
     // ====================== Token Creation ======================
     private String createToken(Map<String, Object> claims, String subject) {
+        long issuedAtMillis = System.currentTimeMillis();
         return Jwts.builder()
                 .claims(claims)
+                .claim(JwtClaims.ISSUED_AT_MILLIS, issuedAtMillis)
                 .subject(subject)
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .issuedAt(new Date(issuedAtMillis))
+                .expiration(new Date(issuedAtMillis + jwtExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }

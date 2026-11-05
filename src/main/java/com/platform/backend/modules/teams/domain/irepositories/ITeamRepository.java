@@ -26,6 +26,12 @@ public interface ITeamRepository {
 
     boolean existsActiveByCategoryId(UUID categoryId);
 
+    /** A join code identifies one team in the whole platform, so this looks at every organization, not only the caller's. */
+    boolean existsActiveByJoinCode(String joinCode);
+
+    /** The active team that has this join code, whatever organization it belongs to: whoever types it has none yet. */
+    Optional<TeamsEntity> findActiveByJoinCode(String joinCode);
+
     boolean existsActiveByOrganizationId(UUID organizationId);
 
     void delete(TeamsEntity team);

@@ -36,6 +36,13 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField, Organizat
     @Column(name = "organization_id")
     private UUID organizationId;
 
+    /**
+     * What a player types in the app to join the team without an invitation; null while the team admits none. It is
+     * never part of {@code TeamResponse}: whoever can see the team (a public event lists it) must not be able to read it.
+     */
+    @Column(name = "join_code", length = 12)
+    private String joinCode;
+
     public TeamsEntity() {}
 
     public String getName() { return name; }
@@ -50,12 +57,16 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField, Organizat
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public String getJoinCode() { return joinCode; }
+    public void setJoinCode(String joinCode) { this.joinCode = joinCode; }
+
     /**
      * Frees the name for a new team by tagging it with this team's id. The original name is cut
      * when needed so the tagged one still fits the column (a long name would otherwise fail the delete).
      */
     @Override
     public void releaseUniqueFields(UUID entityId) {
+        this.joinCode = null;
         if (this.name != null) {
             String deletedTag = "_DELETED_" + entityId;
             int keptNameLength = Math.min(this.name.length(), NAME_MAX_LENGTH - deletedTag.length());

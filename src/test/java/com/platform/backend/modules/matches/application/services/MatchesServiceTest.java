@@ -203,7 +203,10 @@ class MatchesServiceTest {
 
         matchesService.create(newMatchOf(null, OWN_HOME_TEAM_ID, OWN_AWAY_TEAM_ID, null));
 
-        verifyNoInteractions(eventRepository, teamRepository, courtRepository);
+        // The names in the answer are read in one query each; what is not looked up is the existence of the references.
+        verify(eventRepository, never()).findActiveById(any());
+        verify(teamRepository, never()).findActiveById(any());
+        verifyNoInteractions(courtRepository);
         verify(matchRepository).save(any(MatchesEntity.class));
     }
 
@@ -230,8 +233,63 @@ class MatchesServiceTest {
 
         matchesService.update(stored.getId(), scores(2, 1));
 
-        verifyNoInteractions(eventRepository, teamRepository, courtRepository);
+        verify(eventRepository, never()).findActiveById(any());
+        verify(teamRepository, never()).findActiveById(any());
+        verifyNoInteractions(courtRepository);
         assertThat(stored.getHomeScore()).isEqualTo(2);
+    }
+
+    // ─── the names that label a match ───────────────────────────────────────────
+
+    private static TeamsEntity teamNamed(UUID id, String name) {
+        TeamsEntity team = new TeamsEntity();
+        team.setId(id);
+        team.setName(name);
+        return team;
+    }
+
+    @Test
+    void getByEventId_whenTheTeamsAndTheEventAreVisible_thenEachMatchCarriesTheirNames() {
+        MatchesEntity match = match(LocalDateTime.now().plusDays(1), "SCHEDULED");
+        EventsEntity event = new EventsEntity();
+        event.setId(match.getEventId());
+        event.setName("Copa Quito");
+        when(matchRepository.findAllActiveByEventId(match.getEventId())).thenReturn(List.of(match));
+        when(teamRepository.findAllActiveByIds(any()))
+                .thenReturn(List.of(teamNamed(match.getHomeTeamId(), "Tigres"), teamNamed(match.getAwayTeamId(), "Leones")));
+        when(eventRepository.findAllActiveByIds(any())).thenReturn(List.of(event));
+
+        MatchResponse response = matchesService.getByEventId(match.getEventId()).get(0);
+
+        assertThat(response.getHomeTeamName()).isEqualTo("Tigres");
+        assertThat(response.getAwayTeamName()).isEqualTo("Leones");
+        assertThat(response.getEventName()).isEqualTo("Copa Quito");
+    }
+
+    @Test
+    void getByEventId_whenTheCallerDoesNotSeeATeamOrTheEventHasNoName_thenThoseNamesAreSimplyMissing() {
+        MatchesEntity match = match(LocalDateTime.now().plusDays(1), "SCHEDULED");
+        EventsEntity unnamedEvent = new EventsEntity();
+        unnamedEvent.setId(match.getEventId());
+        when(matchRepository.findAllActiveByEventId(match.getEventId())).thenReturn(List.of(match));
+        when(teamRepository.findAllActiveByIds(any())).thenReturn(List.of(teamNamed(match.getHomeTeamId(), "Tigres")));
+        when(eventRepository.findAllActiveByIds(any())).thenReturn(List.of(unnamedEvent));
+
+        MatchResponse response = matchesService.getByEventId(match.getEventId()).get(0);
+
+        assertThat(response.getHomeTeamName()).isEqualTo("Tigres");
+        assertThat(response.getAwayTeamName()).isNull();
+        assertThat(response.getEventName()).isNull();
+    }
+
+    @Test
+    void getByEventId_whenThereAreNoMatches_thenNoNameIsLookedUp() {
+        UUID eventId = UUID.randomUUID();
+        when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of());
+
+        assertThat(matchesService.getByEventId(eventId)).isEmpty();
+
+        verify(teamRepository, never()).findAllActiveByIds(any());
     }
 
     // ─── recording a result ─────────────────────────────────────────────────────

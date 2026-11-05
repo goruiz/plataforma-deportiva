@@ -6,5 +6,8 @@ package com.platform.backend.modules.players.domain.exception;
  */
 public enum PlayerError {
     /** Only a player who belongs to a team can be its captain. */
-    CAPTAIN_REQUIRES_TEAM
+    CAPTAIN_REQUIRES_TEAM,
+
+    /** A player has a single team: whoever already has one cannot join another with a code. */
+    ALREADY_IN_TEAM
 }

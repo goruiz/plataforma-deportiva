@@ -3,10 +3,12 @@ package com.platform.backend.modules.players.application.iservices;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
+import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
+import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 
 import java.util.List;
@@ -28,6 +30,13 @@ public interface IPlayersService {
     PlayerResponse registerWithInvite(PlayerRegisterRequest request);
 
     PlayerResponse update(UUID id, UpdatePlayerRequest request);
+
+    /**
+     * Puts the signed-in player in the team that has that code, like accepting an invitation: the answer carries the
+     * new session token, because the organization of the account is now the team's. Needs a confirmed email, and a
+     * player without a team.
+     */
+    AcceptedInvitationResponse joinByCode(JoinByCodeRequest request);
 
     void invitePlayer(InvitePlayerRequest request);
 

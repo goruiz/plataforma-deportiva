@@ -13,6 +13,7 @@ import com.platform.backend.modules.players.presentation.requests.PlayerRegister
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
@@ -57,6 +58,7 @@ class PlayersServiceRegistrationTest {
     @Mock private ITeamRepository teamRepository;
     @Mock private ITeamInvitationRepository teamInvitationRepository;
     @Mock private IUsersAuthService usersAuthService;
+    @Mock private IEmailVerificationService emailVerificationService;
     @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
     @Mock private EmailService emailService;
     @Spy private PlayerMapper playerMapper = Mappers.getMapper(PlayerMapper.class);
@@ -82,6 +84,7 @@ class PlayersServiceRegistrationTest {
 
         pendingInvitation = new TeamInvitationsEntity();
         pendingInvitation.setToken(TOKEN);
+        pendingInvitation.setEmail(EMAIL);
         pendingInvitation.setTeamId(team.getId());
         pendingInvitation.setStatus(InvitationStatus.PENDING.name());
         pendingInvitation.setExpiresAt(LocalDateTime.now().plusDays(1));
@@ -115,7 +118,8 @@ class PlayersServiceRegistrationTest {
         playersService.registerWithInvite(registerRequest);
 
         ArgumentCaptor<RegisterRequest> account = ArgumentCaptor.forClass(RegisterRequest.class);
-        verify(usersAuthService).register(account.capture());
+        verify(usersAuthService).registerVerified(account.capture());
+        verify(usersAuthService, never()).register(any(RegisterRequest.class));
         assertThat(account.getValue().getEmail()).isEqualTo("  Ana@Email.com ");
         assertThat(account.getValue().getPassword()).isEqualTo("password123");
         assertThat(account.getValue().getFirstName()).isEqualTo("Ana");
@@ -136,6 +140,18 @@ class PlayersServiceRegistrationTest {
         assertThat(response.getTeamId()).isEqualTo(team.getId());
         // The new account plays for that team, so it belongs to the team's organization from its first session.
         verify(playerAccountOrganizationService).followTeam(EMAIL, TEAM_ORGANIZATION_ID);
+    }
+
+    @Test
+    void registerWithInvite_whenTheInvitationWasSentToAnotherEmail_thenTheEmailIsNotConsideredConfirmed() {
+        pendingInvitation.setEmail("someone.else@email.com");
+        givenAPendingInvitationForTheTeam();
+        givenTheAccountCreatesItsPlayer();
+
+        playersService.registerWithInvite(registerRequest);
+
+        verify(usersAuthService).register(any(RegisterRequest.class));
+        verify(usersAuthService, never()).registerVerified(any(RegisterRequest.class));
     }
 
     @Test
@@ -203,7 +219,7 @@ class PlayersServiceRegistrationTest {
     void registerWithInvite_whenTheEmailAlreadyHasAnAccount_thenTheInvitationStaysPending() {
         givenAPendingInvitationForTheTeam();
         doThrow(new DataIntegrityViolationException("Email already in use"))
-                .when(usersAuthService).register(any(RegisterRequest.class));
+                .when(usersAuthService).registerVerified(any(RegisterRequest.class));
 
         assertThatThrownBy(() -> playersService.registerWithInvite(registerRequest))
                 .isInstanceOf(DataIntegrityViolationException.class);

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,23 @@ public interface UsersJpaRepository
     boolean existsActiveByEmailInAnyOrganization(@Param("email") String email);
 
     Optional<UsersEntity> findByIdAndDeletedAtIsNull(UUID id);
+
+    // Native and scalar on purpose. It runs before the caller is authenticated (the JWT filter), when the organization
+    // filter would see nothing, and it must not load the entity: a managed copy would outlive the native updates that
+    // move the account to another organization and hand a stale one to whoever reissues the token afterwards.
+    @Query(value = """
+            SELECT EXISTS (SELECT 1 FROM users
+                           WHERE id = :id AND deleted_at IS NULL
+                             AND (tokens_valid_after IS NULL OR tokens_valid_after <= :issuedAt))
+            """, nativeQuery = true)
+    boolean existsWithSessionValidAt(@Param("id") UUID id, @Param("issuedAt") LocalDateTime issuedAt);
+
+    // Native for the same reasons: the caller may be a player whose token does not carry an organization yet.
+    @Query(value = """
+            SELECT EXISTS (SELECT 1 FROM users
+                           WHERE email = :email AND deleted_at IS NULL AND email_verified_at IS NOT NULL)
+            """, nativeQuery = true)
+    boolean existsWithVerifiedEmail(@Param("email") String email);
 
     // Native on purpose: the account of a player is moved by whoever changes the player's team, who is an administrator
     // of another organization or none, and so does not see the account through the organization filter. Whoever holds

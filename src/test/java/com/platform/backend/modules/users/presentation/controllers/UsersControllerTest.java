@@ -53,6 +53,12 @@ class UsersControllerTest {
     @Mock
     private IUsersAuthService usersAuthService;
 
+    @Mock
+    private IEmailVerificationService emailVerificationService;
+
+    @Mock
+    private IAccountLifecycleService accountLifecycleService;
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -63,7 +69,7 @@ class UsersControllerTest {
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new UsersAuthController(usersAuthService))
+                .standaloneSetup(new UsersAuthController(usersAuthService, emailVerificationService, accountLifecycleService))
                 .setControllerAdvice(new GlobalException())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setValidator(validator)
@@ -80,7 +86,7 @@ class UsersControllerTest {
 
     @Test
     void register_whenValidBody_thenReturn200WithToken() throws Exception {
-        when(usersAuthService.register(any())).thenReturn(new RegisterResponse("jwt-token"));
+        when(usersAuthService.register(any())).thenReturn(new RegisterResponse("jwt-token", false));
 
         mockMvc.perform(post("/users/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -266,6 +272,6 @@ class UsersControllerTest {
     }
 
     private AuthResponse buildAuthResponse(String token, boolean admin) {
-        return new AuthResponse(token, admin, false, null, UUID.randomUUID(), "juan@email.com", "Juan", null, "Perez", null);
+        return new AuthResponse(token, admin, false, null, UUID.randomUUID(), "juan@email.com", "Juan", null, "Perez", null, true);
     }
 }

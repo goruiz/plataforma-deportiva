@@ -1,11 +1,19 @@
 package com.platform.backend.modules.events.infrastructure.persistence.repositories;
 
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.filters.EventListFilter;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
+import com.platform.backend.modules.events.infrastructure.persistence.jpa.EventSpecifications;
 import com.platform.backend.modules.events.infrastructure.persistence.jpa.EventsJpaRepository;
+import com.platform.backend.shared.domain.pagination.PageQuery;
+import com.platform.backend.shared.domain.pagination.PageResult;
+import com.platform.backend.shared.infraestructure.pagination.SpringPagination;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +37,18 @@ public class EventRepository implements IEventRepository {
     @Override
     public List<EventsEntity> findAllActive() {
         return eventsJpaRepository.findAllByDeletedAtIsNull();
+    }
+
+    @Override
+    public PageResult<EventsEntity> findActivePage(EventListFilter filter, PageQuery pageQuery) {
+        // Unsorted on purpose: the specification orders by relevance, which a plain sort cannot say.
+        Pageable pageable = SpringPagination.toPageable(pageQuery, Sort.unsorted());
+        return SpringPagination.toResult(eventsJpaRepository.findAll(EventSpecifications.matching(filter), pageable), pageQuery);
+    }
+
+    @Override
+    public List<EventsEntity> findAllActiveByIds(Collection<UUID> ids) {
+        return ids.isEmpty() ? List.of() : eventsJpaRepository.findAllActiveByIds(ids);
     }
 
     @Override
