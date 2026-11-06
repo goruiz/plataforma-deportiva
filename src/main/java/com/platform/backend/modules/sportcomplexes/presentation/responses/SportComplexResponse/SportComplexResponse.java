@@ -14,6 +14,8 @@ public class SportComplexResponse {
     private String location;
     private Double latitude;
     private Double longitude;
+    /** The customer organization this complex belongs to; null for the platform owner's own. */
+    private UUID organizationId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

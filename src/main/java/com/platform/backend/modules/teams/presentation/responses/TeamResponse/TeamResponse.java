@@ -13,6 +13,8 @@ public class TeamResponse {
     private String logoUrl;
     private UUID categoryId;
     private String status;
+    /** The customer organization this team belongs to; null for the platform owner's own. */
+    private UUID organizationId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

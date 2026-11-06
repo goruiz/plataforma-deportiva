@@ -14,6 +14,8 @@ public class CourtResponse {
     private String location;
     private UUID sportComplexId;
     private String sportComplexName;
+    /** The customer organization the court belongs to; null for the platform owner's own courts. */
+    private UUID organizationId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
