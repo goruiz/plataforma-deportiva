@@ -19,6 +19,13 @@ public interface IMatchEventRepository {
 
     List<MatchEventsEntity> findAllActiveByMatchIds(Collection<UUID> matchIds);
 
+    /**
+     * Every active event of a player in every match of every event, whichever organization those events belong to: a
+     * player's totals include the events of the teams they left. The organization filter does not apply, so only call
+     * it for a player the caller is already allowed to see.
+     */
+    List<MatchEventsEntity> findAllActiveByPlayerId(UUID playerId);
+
     Optional<MatchEventsEntity> findActiveById(UUID id);
 
     void delete(MatchEventsEntity matchEvent);

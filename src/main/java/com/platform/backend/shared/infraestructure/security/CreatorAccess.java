@@ -29,7 +29,7 @@ public final class CreatorAccess {
         if (authentication == null || !(authentication.getPrincipal() instanceof CallerPrincipal caller)) {
             return;
         }
-        if (isAdministrator(authentication) || isCreator(caller, creatorId)) {
+        if (CurrentCaller.isAdministrator(authentication) || isCreator(caller, creatorId)) {
             return;
         }
         throw new AccessDeniedException(AccessError.NOT_THE_CREATOR.name());
@@ -43,18 +43,13 @@ public final class CreatorAccess {
     public static void requireAdminOrCreator(UUID recordId, Function<UUID, Optional<? extends BaseEntity>> findActiveById) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof CallerPrincipal)
-                || isAdministrator(authentication)) {
+                || CurrentCaller.isAdministrator(authentication)) {
             return;
         }
         UUID creatorId = recordId == null
                 ? null
                 : findActiveById.apply(recordId).map(BaseEntity::getCreatedBy).orElse(null);
         requireAdminOrCreator(creatorId);
-    }
-
-    private static boolean isAdministrator(Authentication authentication) {
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> Authority.ADMIN.roleName().equals(authority.getAuthority()));
     }
 
     private static boolean isCreator(CallerPrincipal caller, UUID creatorId) {

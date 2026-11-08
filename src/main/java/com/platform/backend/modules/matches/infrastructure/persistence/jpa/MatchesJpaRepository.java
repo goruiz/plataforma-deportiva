@@ -23,6 +23,20 @@ public interface MatchesJpaRepository extends TenantScopedJpaRepository<MatchesE
             + "AND m.deletedAt IS NULL ORDER BY m.matchDate")
     List<MatchesEntity> findAllActiveByTeamId(@Param("teamId") UUID teamId);
 
+    @Query("SELECT m FROM MatchesEntity m WHERE m.courtId = :courtId AND m.deletedAt IS NULL ORDER BY m.matchDate")
+    List<MatchesEntity> findAllActiveByCourtId(@Param("courtId") UUID courtId);
+
+    @Query("SELECT m FROM MatchesEntity m WHERE m.courtId = :courtId AND m.matchDate >= :from "
+            + "AND m.deletedAt IS NULL ORDER BY m.matchDate")
+    List<MatchesEntity> findAllActiveByCourtIdFrom(@Param("courtId") UUID courtId, @Param("from") LocalDateTime from);
+
+    // Half open: a match at midnight sharp belongs to the day that starts then, not to the one that ends.
+    @Query("SELECT m FROM MatchesEntity m WHERE m.courtId = :courtId AND m.matchDate >= :start AND m.matchDate < :end "
+            + "AND m.deletedAt IS NULL ORDER BY m.matchDate")
+    List<MatchesEntity> findAllActiveByCourtIdBetween(@Param("courtId") UUID courtId,
+                                                      @Param("start") LocalDateTime start,
+                                                      @Param("end") LocalDateTime end);
+
     List<MatchesEntity> findAllByStatusInAndMatchDateLessThanEqualAndDeletedAtIsNull(
             Collection<String> statuses, LocalDateTime matchDate);
 

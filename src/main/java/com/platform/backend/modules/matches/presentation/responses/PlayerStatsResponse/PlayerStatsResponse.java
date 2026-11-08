@@ -18,4 +18,6 @@ public class PlayerStatsResponse {
     private int yellowCards;
     private int redCards;
     private int fouls;
+    /** The matches with a result that the player's team played in this event. */
+    private int matchesPlayed;
 }

@@ -50,6 +50,21 @@ public class MatchRepository implements IMatchRepository {
     }
 
     @Override
+    public List<MatchesEntity> findAllActiveByCourtId(UUID courtId) {
+        return matchesJpaRepository.findAllActiveByCourtId(courtId);
+    }
+
+    @Override
+    public List<MatchesEntity> findAllActiveByCourtIdFrom(UUID courtId, LocalDateTime from) {
+        return matchesJpaRepository.findAllActiveByCourtIdFrom(courtId, from);
+    }
+
+    @Override
+    public List<MatchesEntity> findAllActiveByCourtIdAndDate(UUID courtId, LocalDate date) {
+        return matchesJpaRepository.findAllActiveByCourtIdBetween(courtId, date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+    }
+
+    @Override
     public List<MatchesEntity> findAllActiveByStatusInAndStartedBy(Collection<String> statuses, LocalDateTime kickOffLimit) {
         return matchesJpaRepository.findAllByStatusInAndMatchDateLessThanEqualAndDeletedAtIsNull(statuses, kickOffLimit);
     }

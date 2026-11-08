@@ -3,6 +3,7 @@ package com.platform.backend.modules.matches.domain.entities;
 import org.hibernate.annotations.Filter;
 import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.modules.matches.domain.enums.MatchStage;
+import com.platform.backend.modules.matches.domain.enums.MatchStatus;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import jakarta.persistence.*;
 
@@ -117,4 +118,22 @@ public class MatchesEntity extends BaseEntity {
 
     public UUID getAdvancingTeamId() { return advancingTeamId; }
     public void setAdvancingTeamId(UUID advancingTeamId) { this.advancingTeamId = advancingTeamId; }
+
+    /** A match counts as played once it has a result (both scores), whatever its status says: as in the championship. */
+    public boolean hasResult() {
+        return homeScore != null && awayScore != null;
+    }
+
+    /** Whether the team plays this match, at home or away. */
+    public boolean isPlayedBy(UUID teamId) {
+        return teamId != null && (teamId.equals(homeTeamId) || teamId.equals(awayTeamId));
+    }
+
+    /**
+     * A match has started once its kick-off time has passed. A postponed one never was played, so it counts as not
+     * started until it is rescheduled.
+     */
+    public boolean hasStarted(LocalDateTime now) {
+        return !matchDate.isAfter(now) && !MatchStatus.POSTPONED.name().equals(status);
+    }
 }

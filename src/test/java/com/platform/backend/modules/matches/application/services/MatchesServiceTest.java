@@ -18,6 +18,7 @@ import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
@@ -677,5 +679,64 @@ class MatchesServiceTest {
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(deleted));
 
         assertThat(matchesService.getMine()).isEmpty();
+    }
+
+    // ─── the matches of a court ─────────────────────────────────────────────────
+
+    @Test
+    void getByCourtId_whenNoStartIsGiven_thenEveryMatchOfTheCourtIsReturnedWithItsEnd() {
+        UUID courtId = UUID.randomUUID();
+        MatchesEntity inTheCourt = match(LocalDateTime.of(2026, 11, 10, 10, 0), "SCHEDULED");
+        when(courtRepository.findActiveById(courtId)).thenReturn(Optional.of(new CourtsEntity()));
+        when(matchRepository.findAllActiveByCourtId(courtId)).thenReturn(List.of(inTheCourt));
+
+        List<MatchResponse> matches = matchesService.getByCourtId(courtId, null);
+
+        assertThat(matches).singleElement().satisfies(response -> {
+            assertThat(response.getId()).isEqualTo(inTheCourt.getId());
+            assertThat(response.getEndsAt()).isEqualTo(LocalDateTime.of(2026, 11, 10, 11, 15));
+        });
+        verify(matchRepository, never()).findAllActiveByCourtIdFrom(any(), any());
+    }
+
+    @Test
+    void getByCourtId_whenAStartIsGiven_thenOnlyTheMatchesFromThenAreAskedFor() {
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime from = LocalDateTime.of(2026, 11, 10, 0, 0);
+        when(courtRepository.findActiveById(courtId)).thenReturn(Optional.of(new CourtsEntity()));
+        when(matchRepository.findAllActiveByCourtIdFrom(courtId, from)).thenReturn(List.of());
+
+        assertThat(matchesService.getByCourtId(courtId, from)).isEmpty();
+        verify(matchRepository, never()).findAllActiveByCourtId(any());
+    }
+
+    @Test
+    void getByCourtId_whenTheCourtIsNotVisibleToTheCaller_thenNotFoundAndNoMatchIsRead() {
+        UUID courtId = UUID.randomUUID();
+        when(courtRepository.findActiveById(courtId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> matchesService.getByCourtId(courtId, null)).isInstanceOf(EntityNotFoundException.class);
+        verifyNoInteractions(matchRepository);
+    }
+
+    @Test
+    void getByCourtIdOnDate_whenTheCourtIsVisible_thenTheMatchesOfThatDay() {
+        UUID courtId = UUID.randomUUID();
+        LocalDate day = LocalDate.of(2026, 11, 10);
+        MatchesEntity thatDay = match(day.atTime(18, 0), "SCHEDULED");
+        when(courtRepository.findActiveById(courtId)).thenReturn(Optional.of(new CourtsEntity()));
+        when(matchRepository.findAllActiveByCourtIdAndDate(courtId, day)).thenReturn(List.of(thatDay));
+
+        assertThat(matchesService.getByCourtIdOnDate(courtId, day)).extracting(MatchResponse::getId)
+                .containsExactly(thatDay.getId());
+    }
+
+    @Test
+    void getByCourtIdOnDate_whenTheCourtIsNotVisibleToTheCaller_thenNotFound() {
+        UUID courtId = UUID.randomUUID();
+        when(courtRepository.findActiveById(courtId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> matchesService.getByCourtIdOnDate(courtId, LocalDate.of(2026, 11, 10)))
+                .isInstanceOf(EntityNotFoundException.class);
     }
 }

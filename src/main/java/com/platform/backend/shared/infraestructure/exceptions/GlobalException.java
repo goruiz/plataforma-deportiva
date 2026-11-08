@@ -1,5 +1,6 @@
 package com.platform.backend.shared.infraestructure.exceptions;
 
+import com.platform.backend.shared.domain.exception.RequestError;
 import com.platform.backend.shared.presentation.responses.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -9,14 +10,20 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalException {
+
+    /** The multipart part every upload of the API travels in. */
+    private static final String UPLOAD_PART_NAME = "file";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(MethodArgumentNotValidException ex) {
@@ -32,6 +39,29 @@ public class GlobalException {
     public ResponseEntity<ApiResponse<Map<String, String>>> handleFieldValidationException(FieldValidationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Validation Failed", ex.getFieldErrors()));
+    }
+
+    // Spring answers the first two with a 400 by itself, but the catch-all handler below would turn them into a 500.
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return badRequestOn(ex.getParameterName(), RequestError.PARAMETER_REQUIRED);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleUnreadableParameter(MethodArgumentTypeMismatchException ex) {
+        return badRequestOn(ex.getName(), RequestError.PARAMETER_INVALID);
+    }
+
+    /** The only upload the API takes is a photo, sent in the part named {@code file}. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return badRequestOn(UPLOAD_PART_NAME, RequestError.FILE_TOO_LARGE);
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, String>>> badRequestOn(String field, RequestError reason) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Validation Failed", Map.of(field, reason.name())));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

@@ -8,11 +8,14 @@ import com.platform.backend.modules.matches.domain.enums.MatchEventType;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchEventRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.responses.PlayerStatsResponse.PlayerStatsResponse;
+import com.platform.backend.modules.matches.presentation.responses.PlayerTotalsResponse.PlayerTotalsResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,8 +31,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -158,5 +165,168 @@ class PlayerStatsServiceTest {
     void getPlayerStatsByEventId_whenTheEventDoesNotExist_thenNotFound() {
         assertThatThrownBy(() -> playerStatsService.getPlayerStatsByEventId(UUID.randomUUID()))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        TenantTestSupport.actAsNobody();
+    }
+
+    // ─── matches played in the event ────────────────────────────────────────────
+
+    private MatchesEntity playedMatch(TeamsEntity home, TeamsEntity away, Integer homeScore, Integer awayScore) {
+        MatchesEntity played = new MatchesEntity();
+        played.setId(UUID.randomUUID());
+        played.setHomeTeamId(home.getId());
+        played.setAwayTeamId(away.getId());
+        played.setHomeScore(homeScore);
+        played.setAwayScore(awayScore);
+        return played;
+    }
+
+    @Test
+    void getPlayerStatsByEventId_whenTheTeamPlayedSeveralMatches_thenEachLineCountsOnlyThoseWithAResultOfItsTeam() {
+        TeamsEntity pumas = team("Pumas");
+        MatchesEntity tigresWon = playedMatch(tigres, leones, 2, 0);
+        MatchesEntity tigresDrew = playedMatch(pumas, tigres, 1, 1);
+        MatchesEntity tigresAhead = playedMatch(tigres, pumas, null, null);
+        MatchesEntity leonesOnly = playedMatch(leones, pumas, 3, 3);
+        when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of(tigresWon, tigresDrew, tigresAhead, leonesOnly));
+        when(matchEventRepository.findAllActiveByMatchIds(any())).thenReturn(List.of(
+                event(ana, tigres, MatchEventType.GOAL), event(luis, leones, MatchEventType.GOAL)));
+
+        List<PlayerStatsResponse> stats = playerStatsService.getPlayerStatsByEventId(eventId);
+
+        assertThat(stats).extracting(PlayerStatsResponse::getPlayerName, PlayerStatsResponse::getMatchesPlayed)
+                .containsExactlyInAnyOrder(tuple("Ana Lopez", 2), tuple("Luis Mora", 2));
+    }
+
+    @Test
+    void getPlayerStatsByEventId_whenNoMatchHasAResultYet_thenMatchesPlayedIsZero() {
+        givenTimeline(event(ana, tigres, MatchEventType.GOAL));
+
+        assertThat(playerStatsService.getPlayerStatsByEventId(eventId)).singleElement()
+                .satisfies(line -> assertThat(line.getMatchesPlayed()).isZero());
+    }
+
+    // ─── totals of a player across every event ──────────────────────────────────
+
+    private MatchEventsEntity eventIn(MatchesEntity inMatch, PlayersEntity player, TeamsEntity team, MatchEventType type) {
+        MatchEventsEntity event = new MatchEventsEntity();
+        event.setMatchId(inMatch.getId());
+        event.setPlayerId(player.getId());
+        event.setTeamId(team.getId());
+        event.setEventType(type.name());
+        return event;
+    }
+
+    @Test
+    void getPlayerTotals_whenThePlayerHasEventsInSeveralMatches_thenEverythingIsAddedUp() {
+        ana.setTeam(tigres);
+        MatchesEntity first = playedMatch(tigres, leones, 2, 1);
+        MatchesEntity second = playedMatch(leones, tigres, 0, 0);
+        when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId())).thenReturn(List.of(
+                eventIn(first, ana, tigres, MatchEventType.GOAL), eventIn(first, ana, tigres, MatchEventType.GOAL),
+                eventIn(first, ana, tigres, MatchEventType.ASSIST), eventIn(second, ana, tigres, MatchEventType.YELLOW_CARD),
+                eventIn(second, ana, tigres, MatchEventType.RED_CARD), eventIn(second, ana, tigres, MatchEventType.FOUL)));
+        when(matchRepository.findAllActiveByTeamId(tigres.getId())).thenReturn(List.of(first, second));
+
+        PlayerTotalsResponse totals = playerStatsService.getPlayerTotals(ana.getId());
+
+        assertThat(totals.getPlayerId()).isEqualTo(ana.getId());
+        assertThat(totals.getGoals()).isEqualTo(2);
+        assertThat(totals.getAssists()).isEqualTo(1);
+        assertThat(totals.getYellowCards()).isEqualTo(1);
+        assertThat(totals.getRedCards()).isEqualTo(1);
+        assertThat(totals.getFouls()).isEqualTo(1);
+        assertThat(totals.getMatchesPlayed()).isEqualTo(2);
+    }
+
+    @Test
+    void getPlayerTotals_whenTheTeamPlayedMatchesWithoutTheirEvents_thenThosePlayedCountAsMatchesPlayed() {
+        ana.setTeam(tigres);
+        MatchesEntity playedWithoutAnaDoingAnything = playedMatch(tigres, leones, 1, 0);
+        MatchesEntity notPlayedYet = playedMatch(tigres, leones, null, null);
+        when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId())).thenReturn(List.of());
+        when(matchRepository.findAllActiveByTeamId(tigres.getId()))
+                .thenReturn(List.of(playedWithoutAnaDoingAnything, notPlayedYet));
+
+        assertThat(playerStatsService.getPlayerTotals(ana.getId()).getMatchesPlayed()).isEqualTo(1);
+    }
+
+    @Test
+    void getPlayerTotals_whenAMatchHasTheirEventAndIsOfTheirTeamToo_thenItIsCountedOnce() {
+        ana.setTeam(tigres);
+        MatchesEntity match = playedMatch(tigres, leones, 1, 0);
+        when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId())).thenReturn(List.of(
+                eventIn(match, ana, tigres, MatchEventType.GOAL), eventIn(match, ana, tigres, MatchEventType.ASSIST)));
+        when(matchRepository.findAllActiveByTeamId(tigres.getId())).thenReturn(List.of(match));
+
+        assertThat(playerStatsService.getPlayerTotals(ana.getId()).getMatchesPlayed()).isEqualTo(1);
+    }
+
+    @Test
+    void getPlayerTotals_whenThePlayerScoredForATeamTheyLeft_thenThoseEventsAndMatchesStillCount() {
+        // Ana has no team now, but she scored for Leones in an earlier match.
+        ana.setTeam(null);
+        MatchesEntity oldMatch = playedMatch(leones, tigres, 1, 0);
+        when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId()))
+                .thenReturn(List.of(eventIn(oldMatch, ana, leones, MatchEventType.GOAL)));
+
+        PlayerTotalsResponse totals = playerStatsService.getPlayerTotals(ana.getId());
+
+        assertThat(totals.getGoals()).isEqualTo(1);
+        assertThat(totals.getMatchesPlayed()).isEqualTo(1);
+        verify(matchRepository, never()).findAllActiveByTeamId(any());
+    }
+
+    @Test
+    void getPlayerTotals_whenThePlayerHasNothingYet_thenEverythingIsZero() {
+        when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId())).thenReturn(List.of());
+
+        PlayerTotalsResponse totals = playerStatsService.getPlayerTotals(ana.getId());
+
+        assertThat(totals.getGoals() + totals.getAssists() + totals.getYellowCards() + totals.getRedCards()
+                + totals.getFouls() + totals.getMatchesPlayed()).isZero();
+    }
+
+    @Test
+    void getPlayerTotals_whenThePlayerIsNotVisibleToTheCaller_thenNotFoundAndNothingIsCounted() {
+        UUID invisible = UUID.randomUUID();
+        when(playerRepository.findActiveById(invisible)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> playerStatsService.getPlayerTotals(invisible)).isInstanceOf(EntityNotFoundException.class);
+        verifyNoInteractions(matchEventRepository);
+    }
+
+    @Test
+    void getCurrentPlayerTotals_whenTheAccountHasAPlayer_thenItsTotalsAreReturned() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "Ana@Email.com");
+        when(playerRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(ana));
+        when(matchEventRepository.findAllActiveByPlayerId(ana.getId()))
+                .thenReturn(List.of(event(ana, tigres, MatchEventType.GOAL)));
+
+        PlayerTotalsResponse totals = playerStatsService.getCurrentPlayerTotals();
+
+        assertThat(totals.getPlayerId()).isEqualTo(ana.getId());
+        assertThat(totals.getGoals()).isEqualTo(1);
+    }
+
+    @Test
+    void getCurrentPlayerTotals_whenTheAccountHasNoPlayerOrItWasDeleted_thenNotFound() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "ana@email.com");
+        when(playerRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> playerStatsService.getCurrentPlayerTotals()).isInstanceOf(EntityNotFoundException.class);
+
+        ana.setDeletedAt(LocalDateTime.now());
+        when(playerRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(ana));
+
+        assertThatThrownBy(() -> playerStatsService.getCurrentPlayerTotals()).isInstanceOf(EntityNotFoundException.class);
     }
 }

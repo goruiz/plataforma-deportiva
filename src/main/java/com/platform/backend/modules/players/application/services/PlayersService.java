@@ -8,6 +8,7 @@ import com.platform.backend.modules.players.domain.enums.InvitationStatus;
 import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
 import com.platform.backend.modules.players.domain.exception.PlayerError;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
@@ -50,6 +51,7 @@ import java.util.UUID;
 public class PlayersService implements IPlayersService {
 
     private final IPlayerRepository playerRepository;
+    private final IPlayerPhotoRepository playerPhotoRepository;
     private final ITeamRepository teamRepository;
     private final ITeamInvitationRepository teamInvitationRepository;
     private final PlayerMapper playerMapper;
@@ -321,12 +323,15 @@ public class PlayersService implements IPlayersService {
                 });
     }
 
+    /** A deleted player keeps no photo: the bytes are not data worth keeping for someone who is gone. */
     @Override
+    @Transactional
     public void delete(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         player.setDeletedAt(LocalDateTime.now());
         playerRepository.save(player);
+        playerPhotoRepository.deleteByPlayerId(id);
     }
 
     @Override

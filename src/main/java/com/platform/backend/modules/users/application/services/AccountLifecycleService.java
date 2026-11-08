@@ -1,6 +1,7 @@
 package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.users.application.iservices.IAccountLifecycleService;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
@@ -36,6 +37,7 @@ public class AccountLifecycleService implements IAccountLifecycleService {
 
     private final IUserRepository userRepository;
     private final IPlayerRepository playerRepository;
+    private final IPlayerPhotoRepository playerPhotoRepository;
     private final IUsersRolesRepository usersRolesRepository;
     private final IPasswordResetTokenRepository passwordResetTokenRepository;
     private final IEmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -110,6 +112,7 @@ public class AccountLifecycleService implements IAccountLifecycleService {
         player.setProfilePhotoUrl(null);
         player.setDeletedAt(LocalDateTime.now());
         playerRepository.save(player);
+        playerPhotoRepository.deleteByPlayerId(player.getId());
     }
 
     private String erasedEmailOf(UUID id) {

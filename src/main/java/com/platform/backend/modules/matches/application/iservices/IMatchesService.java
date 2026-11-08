@@ -6,6 +6,8 @@ import com.platform.backend.modules.matches.presentation.requests.RescheduleMatc
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +18,15 @@ public interface IMatchesService {
     MatchResponse getById(UUID id);
 
     List<MatchResponse> getByEventId(UUID eventId);
+
+    /**
+     * The matches played in a court, in date order; only those that kick off at or after {@code from} when it is given.
+     * A court that does not exist or that the caller cannot see is a 404.
+     */
+    List<MatchResponse> getByCourtId(UUID courtId, LocalDateTime from);
+
+    /** The matches of a court that kick off on that day, in date order; a 404 for a court the caller cannot see. */
+    List<MatchResponse> getByCourtIdOnDate(UUID courtId, LocalDate date);
 
     /** The matches of the caller's team, across every event. */
     List<MatchResponse> getMine();

@@ -1,6 +1,7 @@
 package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
@@ -41,6 +42,7 @@ class AccountLifecycleServiceTest {
 
     @Mock private IUserRepository userRepository;
     @Mock private IPlayerRepository playerRepository;
+    @Mock private IPlayerPhotoRepository playerPhotoRepository;
     @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private IEmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -187,6 +189,15 @@ class AccountLifecycleServiceTest {
     }
 
     @Test
+    void deleteAccount_whenThePlayerHadAPhoto_thenItsBytesAreErased() {
+        givenThePasswordIsRight();
+
+        accountLifecycleService.deleteAccount(requestWith("secret"), EMAIL);
+
+        verify(playerPhotoRepository).deleteByPlayerId(player.getId());
+    }
+
+    @Test
     void deleteAccount_whenThePasswordIsRight_thenThePendingEmailLinksAreRemoved() {
         givenThePasswordIsRight();
 
@@ -206,5 +217,6 @@ class AccountLifecycleServiceTest {
 
         assertThat(user.getDeletedAt()).isNotNull();
         verify(playerRepository, never()).save(any());
+        verify(playerPhotoRepository, never()).deleteByPlayerId(any());
     }
 }

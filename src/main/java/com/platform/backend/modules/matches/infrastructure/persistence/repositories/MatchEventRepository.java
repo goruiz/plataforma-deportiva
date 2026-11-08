@@ -43,6 +43,11 @@ public class MatchEventRepository implements IMatchEventRepository {
     }
 
     @Override
+    public List<MatchEventsEntity> findAllActiveByPlayerId(UUID playerId) {
+        return matchEventsJpaRepository.findAllActiveByPlayerId(playerId);
+    }
+
+    @Override
     public Optional<MatchEventsEntity> findActiveById(UUID id) {
         return matchEventsJpaRepository.findByIdAndDeletedAtIsNull(id);
     }

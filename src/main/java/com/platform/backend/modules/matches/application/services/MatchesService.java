@@ -68,6 +68,22 @@ public class MatchesService implements IMatchesService {
         return toResponses(matchRepository.findAllActiveByEventId(eventId));
     }
 
+    /** A court the caller cannot see is a 404, so the schedule of another organization's court is not readable. */
+    @Override
+    public List<MatchResponse> getByCourtId(UUID courtId, LocalDateTime from) {
+        requireVisibleCourt(courtId);
+        List<MatchesEntity> matches = from == null
+                ? matchRepository.findAllActiveByCourtId(courtId)
+                : matchRepository.findAllActiveByCourtIdFrom(courtId, from);
+        return toResponses(matches);
+    }
+
+    @Override
+    public List<MatchResponse> getByCourtIdOnDate(UUID courtId, LocalDate date) {
+        requireVisibleCourt(courtId);
+        return toResponses(matchRepository.findAllActiveByCourtIdAndDate(courtId, date));
+    }
+
     /** The matches of the team the caller plays for, in every event; with no player or no team there is none. */
     @Override
     public List<MatchResponse> getMine() {
@@ -219,6 +235,11 @@ public class MatchesService implements IMatchesService {
         matchRepository.hardDelete(match);
     }
 
+    private void requireVisibleCourt(UUID courtId) {
+        courtRepository.findActiveById(courtId)
+                .orElseThrow(() -> new EntityNotFoundException("Court not found with id: " + courtId));
+    }
+
     private MatchesEntity findActiveOrThrow(UUID id) {
         return matchRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
@@ -265,7 +286,7 @@ public class MatchesService implements IMatchesService {
 
     /** Checked before the mapper overwrites the stored values: a value sent unchanged (as the mobile app does) is fine. */
     private void validateDataIsStillEditable(MatchesEntity match, UpdateMatchRequest request) {
-        if (!hasStarted(match, LocalDateTime.now())) {
+        if (!match.hasStarted(LocalDateTime.now())) {
             return;
         }
         requestedDataChanges(match, request).entrySet().stream()
@@ -291,14 +312,6 @@ public class MatchesService implements IMatchesService {
     /** A null means "leave as is" in an update, so only a value that differs is a change. */
     private boolean isChange(Object requested, Object stored) {
         return requested != null && !Objects.equals(requested, stored);
-    }
-
-    /**
-     * A match has started once its kick-off time has passed. A postponed one never was played, so its data can still
-     * be corrected until it is rescheduled.
-     */
-    private boolean hasStarted(MatchesEntity match, LocalDateTime now) {
-        return !match.getMatchDate().isAfter(now) && !MatchStatus.POSTPONED.name().equals(match.getStatus());
     }
 
     private boolean isRecordingResult(UpdateMatchRequest request) {

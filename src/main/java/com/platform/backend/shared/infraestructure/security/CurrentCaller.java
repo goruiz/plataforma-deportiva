@@ -18,4 +18,14 @@ public final class CurrentCaller {
         }
         throw new AccessDeniedException("Authentication required");
     }
+
+    /** True for the platform owner and for the administrator of an organization: whoever can use the admin panel. */
+    public static boolean isAdministrator() {
+        return isAdministrator(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    static boolean isAdministrator(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> Authority.ADMIN.roleName().equals(authority.getAuthority()));
+    }
 }
