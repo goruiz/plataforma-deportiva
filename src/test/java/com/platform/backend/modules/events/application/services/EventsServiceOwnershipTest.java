@@ -5,8 +5,10 @@ import com.platform.backend.modules.events.domain.entities.EventsEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventFormatRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventTypeRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventsSportComplexesRepository;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
+import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +38,8 @@ class EventsServiceOwnershipTest {
     @Mock private IEventTypeRepository eventTypeRepository;
     @Mock private IEventFormatRepository eventFormatRepository;
     @Mock private IMatchRepository matchRepository;
+    @Mock private IEventsSportComplexesRepository eventsSportComplexesRepository;
+    @Mock private ISportComplexRepository sportComplexRepository;
     @Mock private EventMapper eventMapper;
 
     @InjectMocks

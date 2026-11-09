@@ -3,6 +3,7 @@ package com.platform.backend.modules.courts.infrastructure.persistence.jpa;
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import com.platform.backend.shared.infraestructure.tenancy.TenantScopedJpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,5 +25,7 @@ public interface CourtsJpaRepository extends TenantScopedJpaRepository<CourtsEnt
     boolean existsByNameIgnoreCaseAndSportComplexIsNullAndIdNotAndDeletedAtIsNull(String name, UUID id);
 
     boolean existsBySportComplex_IdAndDeletedAtIsNull(UUID sportComplexId);
+
+    List<CourtsEntity> findAllBySportComplex_IdInAndDeletedAtIsNull(Collection<UUID> sportComplexIds);
 }
 

@@ -7,8 +7,10 @@ import com.platform.backend.modules.events.domain.filters.EventListFilter;
 import com.platform.backend.modules.events.domain.irepositories.IEventFormatRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventTypeRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventsSportComplexesRepository;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
+import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;
 import com.platform.backend.shared.domain.pagination.PageQuery;
 import com.platform.backend.shared.domain.pagination.PageResult;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -39,6 +41,8 @@ class EventsServiceSearchTest {
     @Mock private IEventTypeRepository eventTypeRepository;
     @Mock private IEventFormatRepository eventFormatRepository;
     @Mock private IMatchRepository matchRepository;
+    @Mock private IEventsSportComplexesRepository eventsSportComplexesRepository;
+    @Mock private ISportComplexRepository sportComplexRepository;
     @Mock private EventMapper eventMapper;
 
     @InjectMocks

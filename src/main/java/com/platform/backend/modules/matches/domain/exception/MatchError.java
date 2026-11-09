@@ -21,5 +21,8 @@ public enum MatchError {
     COURT_NOT_FOUND,
 
     /** The match a match event is attached to does not exist, or belongs to another organization. */
-    MATCH_NOT_FOUND
+    MATCH_NOT_FOUND,
+
+    /** The calendar was asked for an event played in complexes that have no court: there is nowhere to schedule the matches. */
+    EVENT_COMPLEXES_WITHOUT_COURTS
 }

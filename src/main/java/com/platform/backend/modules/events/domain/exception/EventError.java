@@ -9,5 +9,8 @@ public enum EventError {
     FORMAT_LOCKED_BY_CHAMPIONSHIP,
 
     /** The state asked for in a search is not one of the states an event can be in. */
-    INVALID_STATUS
+    INVALID_STATUS,
+
+    /** A complex the event is played in does not exist, or belongs to another organization. */
+    SPORT_COMPLEX_NOT_FOUND
 }

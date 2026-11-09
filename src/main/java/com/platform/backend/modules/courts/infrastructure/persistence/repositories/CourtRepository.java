@@ -6,6 +6,7 @@ import com.platform.backend.modules.courts.infrastructure.persistence.jpa.Courts
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +54,11 @@ public class CourtRepository implements ICourtRepository {
     @Override
     public boolean existsActiveBySportComplexId(UUID sportComplexId) {
         return courtsJpaRepository.existsBySportComplex_IdAndDeletedAtIsNull(sportComplexId);
+    }
+
+    @Override
+    public List<CourtsEntity> findAllActiveBySportComplexIds(Collection<UUID> sportComplexIds) {
+        return sportComplexIds.isEmpty() ? List.of() : courtsJpaRepository.findAllBySportComplex_IdInAndDeletedAtIsNull(sportComplexIds);
     }
 
     @Override

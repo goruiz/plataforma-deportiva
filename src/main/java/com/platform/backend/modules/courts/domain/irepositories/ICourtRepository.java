@@ -2,6 +2,7 @@ package com.platform.backend.modules.courts.domain.irepositories;
 
 import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,9 @@ public interface ICourtRepository {
     boolean existsByNameInSportComplexExcludingId(String name, UUID sportComplexId, UUID id);
 
     boolean existsActiveBySportComplexId(UUID sportComplexId);
+
+    /** The active courts of those complexes: where an event played in them can schedule its matches. */
+    List<CourtsEntity> findAllActiveBySportComplexIds(Collection<UUID> sportComplexIds);
 
     void delete(CourtsEntity court);
 

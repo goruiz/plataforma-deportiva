@@ -1,11 +1,17 @@
 package com.platform.backend.modules.matches.application.services;
 
+import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
 import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.entities.EventsSportComplexesEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventsSportComplexesRepository;
 import com.platform.backend.modules.holidays.application.iservices.IHolidaysService;
 import com.platform.backend.modules.matches.application.iservices.IEventScheduleConfigService;
+import com.platform.backend.modules.matches.application.engine.CalendarPlanner;
 import com.platform.backend.modules.matches.application.engine.MatchDraft;
+import com.platform.backend.modules.matches.application.engine.ScheduleRules;
+import com.platform.backend.modules.matches.application.iservices.IMatchTimingService;
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.EventScheduleConfigEntity;
@@ -42,15 +48,20 @@ import java.util.stream.Collectors;
 public class EventScheduleConfigService implements IEventScheduleConfigService {
 
     private static final int MAX_SEARCH_YEARS = 5;
-    private static final int MINUTES_PER_DAY = 24 * 60;
+
+    /** The order courts are tried in when they are tied: by name, and by id so the order never changes between runs. */
+    private static final Comparator<CourtsEntity> COURT_ORDER =
+            Comparator.comparing(CourtsEntity::getName, String.CASE_INSENSITIVE_ORDER).thenComparing(CourtsEntity::getId);
 
     private final IEventScheduleConfigRepository configRepository;
     private final IEventRepository eventRepository;
     private final ITeamsEventsRepository teamsEventsRepository;
     private final IMatchRepository matchRepository;
     private final ICourtRepository courtRepository;
+    private final IEventsSportComplexesRepository eventsSportComplexesRepository;
     private final IHolidaysService holidaysService;
     private final IMatchesService matchesService;
+    private final IMatchTimingService matchTimingService;
     private final MatchMapper matchMapper;
 
     @Override
@@ -99,8 +110,9 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
 
     /**
      * Schedules every pairing that has not been played yet, round after round, on the first valid day for both
-     * teams. Calling it again is safe: the matches still waiting to be played are replaced, the ones already
-     * played (or called off) are kept and their pairings are not scheduled again.
+     * teams, and spreads the matches over the courts of the complexes the event is played in (see
+     * {@link CalendarPlanner}). Calling it again is safe: the matches still waiting to be played are replaced, the ones
+     * already played (or called off) are kept and their pairings are not scheduled again.
      */
     @Override
     public GenerateMatchesResponse generateMatches(UUID eventId) {
@@ -126,7 +138,8 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         List<UUID[]> pairings = withoutSettledPairings(buildRoundRobinPairings(teamIds), settledMatches);
 
         discardMatches(pendingMatches);
-        List<MatchResponse> created = scheduleMatches(eventId, config, pairings, rules, settledMatches);
+        CalendarPlanner planner = planCalendar(event, config, rules, settledMatches);
+        List<MatchResponse> created = scheduleMatches(eventId, pairings, rules, planner);
 
         return new GenerateMatchesResponse(created, buildWarning(event.getEndDate(), latestDateOf(created)));
     }
@@ -177,6 +190,62 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         );
     }
 
+    /**
+     * The calendar as it already is: the matches of the event that stay keep their teams, courts and slots, and so do
+     * the matches that other events hold in the courts this one uses.
+     */
+    private CalendarPlanner planCalendar(EventsEntity event, EventScheduleConfigEntity config, ScheduleRules rules,
+                                         List<MatchesEntity> matchesThatStay) {
+        List<UUID> courtIds = resolveCourtIds(event.getId(), config);
+        CalendarPlanner planner = new CalendarPlanner(rules, courtIds);
+
+        for (MatchesEntity match : matchesThatStay) {
+            planner.addExistingMatch(match.getHomeTeamId(), match.getAwayTeamId(), match.getMatchDate(),
+                    match.getCourtId(), MatchStatus.occupiesCourt(match.getStatus()));
+        }
+        blockCourtsHeldByOtherEvents(planner, event.getId(), courtIds, rules.startDate());
+        return planner;
+    }
+
+    /**
+     * The courts the matches are spread over: all the active courts of the complexes the event is played in. An event
+     * played in no complex keeps the old behavior: the single court of its config, or none (a list with one null).
+     */
+    private List<UUID> resolveCourtIds(UUID eventId, EventScheduleConfigEntity config) {
+        List<UUID> sportComplexIds = eventsSportComplexesRepository.findAllActiveByEventId(eventId).stream()
+                .map(EventsSportComplexesEntity::getSportComplexId)
+                .toList();
+        if (sportComplexIds.isEmpty()) {
+            return Collections.singletonList(config.getCourtId());
+        }
+
+        List<UUID> courtIds = courtRepository.findAllActiveBySportComplexIds(sportComplexIds).stream()
+                .sorted(COURT_ORDER)
+                .map(CourtsEntity::getId)
+                .toList();
+        if (courtIds.isEmpty()) {
+            throw new IllegalStateException(MatchError.EVENT_COMPLEXES_WITHOUT_COURTS.name());
+        }
+        return courtIds;
+    }
+
+    /** A court holds the matches of any event, not only this one's: a slot taken by another event is not free. */
+    private void blockCourtsHeldByOtherEvents(CalendarPlanner planner, UUID eventId, List<UUID> courtIds, LocalDate from) {
+        for (UUID courtId : courtIds) {
+            if (courtId == null) {
+                continue;
+            }
+            List<MatchesEntity> matchesOfOtherEvents = matchRepository.findAllActiveByCourtIdFrom(courtId, from.atStartOfDay())
+                    .stream()
+                    .filter(match -> !eventId.equals(match.getEventId()) && MatchStatus.occupiesCourt(match.getStatus()))
+                    .toList();
+            Map<UUID, LocalDateTime> endTimes = matchTimingService.getEndTimes(matchesOfOtherEvents);
+            for (MatchesEntity match : matchesOfOtherEvents) {
+                planner.blockCourt(courtId, match.getMatchDate(), endTimes.get(match.getId()));
+            }
+        }
+    }
+
     private List<UUID[]> withoutSettledPairings(List<UUID[]> pairings, List<MatchesEntity> settledMatches) {
         Set<List<UUID>> settledPairs = settledMatches.stream()
                 .map(match -> pairKey(match.getHomeTeamId(), match.getAwayTeamId()))
@@ -200,21 +269,19 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         }
     }
 
-    private List<MatchResponse> scheduleMatches(UUID eventId, EventScheduleConfigEntity config, List<UUID[]> pairings,
-                                                ScheduleRules rules, List<MatchesEntity> settledMatches) {
-        DayOccupancy occupancy = occupancyOf(settledMatches, rules.startDate());
+    private List<MatchResponse> scheduleMatches(UUID eventId, List<UUID[]> pairings, ScheduleRules rules, CalendarPlanner planner) {
         List<MatchResponse> created = new ArrayList<>();
 
         for (UUID[] pairing : pairings) {
-            created.add(createScheduledMatch(eventId, config, pairing, rules, occupancy, match -> { }));
+            created.add(createScheduledMatch(eventId, pairing, rules, planner, match -> { }));
         }
         return created;
     }
 
     /**
      * Creates the matches a championship phase needs, each on the first free slot of the event's calendar (the same
-     * rules as {@link #generateMatches}: play days, no holidays, nobody plays twice in a day). The matches already
-     * in the event keep their slots; nothing is replaced.
+     * rules as {@link #generateMatches}: play days, no holidays, nobody plays twice in a day, courts spread over the
+     * event's complexes). The matches already in the event keep their slots; nothing is replaced.
      */
     @Override
     public List<MatchResponse> scheduleDrafts(UUID eventId, List<MatchDraft> drafts) {
@@ -224,28 +291,28 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
                 .orElseThrow(() -> new IllegalStateException(ChampionshipError.SCHEDULE_CONFIG_REQUIRED.name()));
 
         ScheduleRules rules = buildRules(event, config, firstSchedulableDate(event));
-        DayOccupancy occupancy = occupancyOf(matchRepository.findAllActiveByEventId(eventId), rules.startDate());
+        CalendarPlanner planner = planCalendar(event, config, rules, matchRepository.findAllActiveByEventId(eventId));
         List<MatchResponse> created = new ArrayList<>();
 
         for (MatchDraft draft : drafts) {
             UUID[] pairing = {draft.homeTeamId(), draft.awayTeamId()};
-            created.add(createScheduledMatch(eventId, config, pairing, rules, occupancy, match -> tagWithChampionshipPlace(match, draft)));
+            created.add(createScheduledMatch(eventId, pairing, rules, planner, match -> tagWithChampionshipPlace(match, draft)));
         }
         return created;
     }
 
-    private MatchResponse createScheduledMatch(UUID eventId, EventScheduleConfigEntity config, UUID[] pairing,
-                                               ScheduleRules rules, DayOccupancy occupancy, Consumer<MatchesEntity> tagger) {
-        LocalDateTime kickOff = findFreeSlot(pairing[0], pairing[1], rules, occupancy)
+    private MatchResponse createScheduledMatch(UUID eventId, UUID[] pairing, ScheduleRules rules, CalendarPlanner planner,
+                                               Consumer<MatchesEntity> tagger) {
+        CalendarPlanner.Slot slot = planner.findFreeSlot(pairing[0], pairing[1])
                 .orElseThrow(() -> new IllegalStateException(
                     "Could not schedule all matches within " + MAX_SEARCH_YEARS +
                     " years from " + rules.startDate() + ". Check your play days configuration."));
 
-        MatchesEntity match = newScheduledMatch(eventId, config, pairing, kickOff);
+        MatchesEntity match = newScheduledMatch(eventId, pairing, slot);
         tagger.accept(match);
         MatchResponse response = matchMapper.toResponse(matchRepository.save(match));
-        response.setEndsAt(kickOff.plusMinutes(rules.slotDurationMinutes()));
-        occupancy.add(kickOff.toLocalDate(), pairing[0], pairing[1]);
+        response.setEndsAt(slot.kickOff().plusMinutes(rules.slotDurationMinutes()));
+        planner.book(slot, pairing[0], pairing[1]);
         return response;
     }
 
@@ -257,38 +324,15 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         match.setLegNumber(draft.legNumber());
     }
 
-    /** The matches that were already played or called off occupy their days too: a team can't play twice in one day. */
-    private DayOccupancy occupancyOf(List<MatchesEntity> settledMatches, LocalDate startDate) {
-        DayOccupancy occupancy = new DayOccupancy();
-        settledMatches.stream()
-                .filter(match -> !match.getMatchDate().toLocalDate().isBefore(startDate))
-                .forEach(match -> occupancy.add(match.getMatchDate().toLocalDate(), match.getHomeTeamId(), match.getAwayTeamId()));
-        return occupancy;
-    }
-
-    /** The first day (from the start) that is playable, has both teams free and still has room for another match. */
-    private Optional<LocalDateTime> findFreeSlot(UUID homeId, UUID awayId, ScheduleRules rules, DayOccupancy occupancy) {
-        for (LocalDate day = rules.startDate(); !day.isAfter(rules.searchLimit()); day = day.plusDays(1)) {
-            if (!rules.isPlayable(day) || !occupancy.areBothFree(day, homeId, awayId)) {
-                continue;
-            }
-            Optional<LocalTime> kickOffTime = rules.kickOffTime(occupancy.matchCountOn(day));
-            if (kickOffTime.isPresent()) {
-                return Optional.of(LocalDateTime.of(day, kickOffTime.get()));
-            }
-        }
-        return Optional.empty();
-    }
-
-    private MatchesEntity newScheduledMatch(UUID eventId, EventScheduleConfigEntity config, UUID[] pairing, LocalDateTime kickOff) {
+    private MatchesEntity newScheduledMatch(UUID eventId, UUID[] pairing, CalendarPlanner.Slot slot) {
         MatchesEntity match = new MatchesEntity();
         match.setEventId(eventId);
         match.setHomeTeamId(pairing[0]);
         match.setAwayTeamId(pairing[1]);
-        match.setMatchDate(kickOff);
+        match.setMatchDate(slot.kickOff());
         match.setStatus(MatchStatus.SCHEDULED.name());
-        if (config.getCourtId() != null) {
-            match.setCourtId(config.getCourtId());
+        if (slot.courtId() != null) {
+            match.setCourtId(slot.courtId());
         }
         return match;
     }
@@ -382,48 +426,5 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         r.setCreatedAt(entity.getCreatedAt());
         r.setUpdatedAt(entity.getUpdatedAt());
         return r;
-    }
-
-    // ------------------------------------------------------------------ scheduling helpers
-
-    /** Which days a match may be played on, and at what time each match of a day starts. */
-    private record ScheduleRules(Set<DayOfWeek> playDays, Set<LocalDate> blockedDates, LocalTime firstKickOff,
-                                 int matchDurationMinutes, int slotDurationMinutes,
-                                 LocalDate startDate, LocalDate searchLimit) {
-
-        boolean isPlayable(LocalDate day) {
-            return playDays.contains(day.getDayOfWeek()) && !blockedDates.contains(day);
-        }
-
-        /** Kick-off of the match that goes after {@code matchesAlreadyOnTheDay}; empty when it would end after midnight. */
-        Optional<LocalTime> kickOffTime(int matchesAlreadyOnTheDay) {
-            long startMinute = firstKickOff.toSecondOfDay() / 60 + (long) matchesAlreadyOnTheDay * slotDurationMinutes;
-            if (startMinute + matchDurationMinutes > MINUTES_PER_DAY) {
-                return Optional.empty();
-            }
-            return Optional.of(LocalTime.of((int) (startMinute / 60), (int) (startMinute % 60)));
-        }
-    }
-
-    /** The teams and the number of matches each day already holds. */
-    private static final class DayOccupancy {
-        private final Map<LocalDate, Set<UUID>> teamsByDay = new HashMap<>();
-        private final Map<LocalDate, Integer> matchCountByDay = new HashMap<>();
-
-        boolean areBothFree(LocalDate day, UUID homeId, UUID awayId) {
-            Set<UUID> busyTeams = teamsByDay.getOrDefault(day, Collections.emptySet());
-            return !busyTeams.contains(homeId) && !busyTeams.contains(awayId);
-        }
-
-        int matchCountOn(LocalDate day) {
-            return matchCountByDay.getOrDefault(day, 0);
-        }
-
-        void add(LocalDate day, UUID homeId, UUID awayId) {
-            Set<UUID> busyTeams = teamsByDay.computeIfAbsent(day, key -> new HashSet<>());
-            busyTeams.add(homeId);
-            busyTeams.add(awayId);
-            matchCountByDay.merge(day, 1, Integer::sum);
-        }
     }
 }

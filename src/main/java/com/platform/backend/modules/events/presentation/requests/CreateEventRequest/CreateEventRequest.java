@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -40,4 +41,10 @@ public class CreateEventRequest {
 
     /** Optional: an event is private (seen only by its organization) unless the organizer makes it public. */
     private Boolean isPublic = false;
+
+    /**
+     * Optional: the complexes the event is played in. The calendar generator spreads the matches over their courts; an
+     * event with none is scheduled on the single court of its schedule config, if it has one.
+     */
+    private List<UUID> sportComplexIds;
 }

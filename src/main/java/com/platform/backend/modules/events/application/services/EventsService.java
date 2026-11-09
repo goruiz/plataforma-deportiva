@@ -5,13 +5,16 @@ import com.platform.backend.modules.events.application.mappers.EventMapper;
 import com.platform.backend.modules.events.domain.entities.EventFormatsEntity;
 import com.platform.backend.modules.events.domain.entities.EventTypesEntity;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.entities.EventsSportComplexesEntity;
 import com.platform.backend.modules.events.domain.enums.EventStatus;
 import com.platform.backend.modules.events.domain.filters.EventListFilter;
 import com.platform.backend.modules.events.domain.exception.EventError;
 import com.platform.backend.modules.events.domain.irepositories.IEventFormatRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventTypeRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventsSportComplexesRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
+import com.platform.backend.modules.sportcomplexes.domain.irepositories.ISportComplexRepository;
 import com.platform.backend.modules.events.presentation.requests.CreateEventRequest.CreateEventRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventRequest.UpdateEventRequest;
 import com.platform.backend.modules.events.presentation.responses.EventResponse.EventResponse;
@@ -28,9 +31,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,11 +44,14 @@ public class EventsService implements IEventsService {
 
     private static final String ID_EVENT_FORMAT_FIELD = "idEventFormat";
     private static final String STATUS_FIELD = "status";
+    private static final String SPORT_COMPLEX_IDS_FIELD = "sportComplexIds";
 
     private final IEventRepository eventRepository;
     private final IEventTypeRepository eventTypeRepository;
     private final IEventFormatRepository eventFormatRepository;
     private final IMatchRepository matchRepository;
+    private final IEventsSportComplexesRepository eventsSportComplexesRepository;
+    private final ISportComplexRepository sportComplexRepository;
     private final EventMapper eventMapper;
 
     /**
@@ -55,10 +64,7 @@ public class EventsService implements IEventsService {
     @Transactional(readOnly = true)
     @Override
     public List<EventResponse> getAll() {
-        return eventRepository.findAllActive()
-                .stream()
-                .map(eventMapper::toResponse)
-                .toList();
+        return toResponses(eventRepository.findAllActive());
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +73,9 @@ public class EventsService implements IEventsService {
         if (filter.status() != null && !EventStatus.isValid(filter.status())) {
             throw new FieldValidationException(STATUS_FIELD, EventError.INVALID_STATUS.name());
         }
-        return eventRepository.findActivePage(filter, pageQuery).map(eventMapper::toResponse);
+        PageResult<EventResponse> page = eventRepository.findActivePage(filter, pageQuery).map(eventMapper::toResponse);
+        attachSportComplexIds(page.content());
+        return page;
     }
 
     @Transactional(readOnly = true)
@@ -75,7 +83,7 @@ public class EventsService implements IEventsService {
     public EventResponse getById(UUID id) {
         EventsEntity event = eventRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + id));
-        return eventMapper.toResponse(event);
+        return toResponse(event);
     }
 
     @Transactional
@@ -84,12 +92,16 @@ public class EventsService implements IEventsService {
         if (request.getName() != null && eventRepository.existsByName(request.getName())) {
             throw new DataIntegrityViolationException("Event name already exists");
         }
+        Set<UUID> sportComplexIds = distinctIds(request.getSportComplexIds());
+        requireActiveSportComplexes(sportComplexIds);
         EventsEntity event = eventMapper.toEntity(request);
         event.setEventType(resolveEventTypeForNewEvent(request.getIdEventType()));
         if (request.getIdEventFormat() != null) {
             event.setEventFormat(findActiveEventFormat(request.getIdEventFormat()));
         }
-        return eventMapper.toResponse(eventRepository.save(event));
+        EventsEntity saved = eventRepository.save(event);
+        replaceSportComplexes(saved.getId(), sportComplexIds);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -107,7 +119,12 @@ public class EventsService implements IEventsService {
         if (request.getIdEventFormat() != null) {
             changeFormat(event, findActiveEventFormat(request.getIdEventFormat()));
         }
-        return eventMapper.toResponse(eventRepository.save(event));
+        if (request.getSportComplexIds() != null) {
+            Set<UUID> sportComplexIds = distinctIds(request.getSportComplexIds());
+            requireActiveSportComplexes(sportComplexIds);
+            replaceSportComplexes(event.getId(), sportComplexIds);
+        }
+        return toResponse(eventRepository.save(event));
     }
 
     @Transactional(readOnly = true)
@@ -115,10 +132,7 @@ public class EventsService implements IEventsService {
     public List<EventResponse> getByEventTypeId(UUID eventTypeId) {
         eventTypeRepository.findActiveById(eventTypeId)
                 .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + eventTypeId));
-        return eventRepository.findAllActiveByEventTypeId(eventTypeId)
-                .stream()
-                .map(eventMapper::toResponse)
-                .toList();
+        return toResponses(eventRepository.findAllActiveByEventTypeId(eventTypeId));
     }
 
     @Transactional(readOnly = true)
@@ -126,10 +140,7 @@ public class EventsService implements IEventsService {
     public List<EventResponse> getByEventTypeIdAndCreatedBy(UUID eventTypeId, UUID createdBy) {
         eventTypeRepository.findActiveById(eventTypeId)
                 .orElseThrow(() -> new EntityNotFoundException("Event type not found with id: " + eventTypeId));
-        return eventRepository.findAllActiveByEventTypeIdAndCreatedBy(eventTypeId, createdBy)
-                .stream()
-                .map(eventMapper::toResponse)
-                .toList();
+        return toResponses(eventRepository.findAllActiveByEventTypeIdAndCreatedBy(eventTypeId, createdBy));
     }
 
     @Override
@@ -172,6 +183,61 @@ public class EventsService implements IEventsService {
 
     private boolean hasChampionshipMatches(UUID eventId) {
         return matchRepository.findAllActiveByEventId(eventId).stream().anyMatch(match -> match.getStage() != null);
+    }
+
+    // ------------------------------------------------------------------ complexes of the event
+
+    private static Set<UUID> distinctIds(List<UUID> ids) {
+        return ids == null ? Set.of() : new LinkedHashSet<>(ids);
+    }
+
+    /** A complex the caller cannot see counts as missing: the repository only returns the ones of their organization. */
+    private void requireActiveSportComplexes(Set<UUID> sportComplexIds) {
+        boolean anyMissing = sportComplexIds.stream().anyMatch(id -> sportComplexRepository.findActiveById(id).isEmpty());
+        if (anyMissing) {
+            throw new FieldValidationException(SPORT_COMPLEX_IDS_FIELD, EventError.SPORT_COMPLEX_NOT_FOUND.name());
+        }
+    }
+
+    /** The event ends up in exactly these complexes: the ones it no longer uses are unlinked, the new ones are linked. */
+    private void replaceSportComplexes(UUID eventId, Set<UUID> wantedIds) {
+        List<EventsSportComplexesEntity> currentLinks = eventsSportComplexesRepository.findAllActiveByEventId(eventId);
+        Set<UUID> currentIds = currentLinks.stream().map(EventsSportComplexesEntity::getSportComplexId).collect(Collectors.toSet());
+
+        for (EventsSportComplexesEntity link : currentLinks) {
+            if (!wantedIds.contains(link.getSportComplexId())) {
+                SoftDeleteHelper.prepareForDeletion(link);
+                eventsSportComplexesRepository.delete(link);
+            }
+        }
+        for (UUID wantedId : wantedIds) {
+            if (!currentIds.contains(wantedId)) {
+                eventsSportComplexesRepository.save(new EventsSportComplexesEntity(eventId, wantedId));
+            }
+        }
+    }
+
+    private EventResponse toResponse(EventsEntity event) {
+        return toResponses(List.of(event)).get(0);
+    }
+
+    private List<EventResponse> toResponses(List<EventsEntity> events) {
+        List<EventResponse> responses = events.stream().map(eventMapper::toResponse).toList();
+        attachSportComplexIds(responses);
+        return responses;
+    }
+
+    /** One query for the whole list, not one per event. */
+    private void attachSportComplexIds(List<EventResponse> responses) {
+        if (responses.isEmpty()) {
+            return;
+        }
+        Map<UUID, List<UUID>> idsByEvent = eventsSportComplexesRepository
+                .findAllActiveByEventIds(responses.stream().map(EventResponse::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(EventsSportComplexesEntity::getEventId,
+                        Collectors.mapping(EventsSportComplexesEntity::getSportComplexId, Collectors.toList())));
+        responses.forEach(response -> response.setSportComplexIds(idsByEvent.getOrDefault(response.getId(), List.of())));
     }
 
     private EventFormatsEntity findActiveEventFormat(UUID eventFormatId) {

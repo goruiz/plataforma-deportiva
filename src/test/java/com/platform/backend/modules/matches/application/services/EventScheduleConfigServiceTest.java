@@ -1,12 +1,19 @@
 package com.platform.backend.modules.matches.application.services;
 
+import com.platform.backend.modules.courts.domain.entities.CourtsEntity;
+import com.platform.backend.modules.courts.domain.irepositories.ICourtRepository;
 import com.platform.backend.modules.events.domain.entities.EventsEntity;
+import com.platform.backend.modules.events.domain.entities.EventsSportComplexesEntity;
 import com.platform.backend.modules.events.domain.irepositories.IEventRepository;
+import com.platform.backend.modules.events.domain.irepositories.IEventsSportComplexesRepository;
 import com.platform.backend.modules.holidays.application.iservices.IHolidaysService;
+import com.platform.backend.modules.matches.application.engine.MatchDraft;
+import com.platform.backend.modules.matches.application.iservices.IMatchTimingService;
 import com.platform.backend.modules.matches.application.iservices.IMatchesService;
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.EventScheduleConfigEntity;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
+import com.platform.backend.modules.matches.domain.enums.MatchStage;
 import com.platform.backend.modules.matches.domain.irepositories.IEventScheduleConfigRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.responses.GenerateMatchesResponse.GenerateMatchesResponse;
@@ -32,6 +39,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +53,7 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -64,8 +74,11 @@ class EventScheduleConfigServiceTest {
     @Mock private IEventRepository eventRepository;
     @Mock private ITeamsEventsRepository teamsEventsRepository;
     @Mock private IMatchRepository matchRepository;
+    @Mock private ICourtRepository courtRepository;
+    @Mock private IEventsSportComplexesRepository eventsSportComplexesRepository;
     @Mock private IHolidaysService holidaysService;
     @Mock private IMatchesService matchesService;
+    @Mock private IMatchTimingService matchTimingService;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -444,5 +457,164 @@ class EventScheduleConfigServiceTest {
             assertThat(teamDayPairs.add(match.getHomeTeamId() + "@" + day)).isTrue();
             assertThat(teamDayPairs.add(match.getAwayTeamId() + "@" + day)).isTrue();
         }
+    }
+
+    // ─── the complexes the event is played in ───────────────────────────────────
+
+    /** The event is played in one complex that has a court per name; returns the courts in the order of their names. */
+    private List<CourtsEntity> playInComplexWithCourts(String... courtNames) {
+        UUID complexId = UUID.randomUUID();
+        when(eventsSportComplexesRepository.findAllActiveByEventId(eventId))
+                .thenReturn(List.of(new EventsSportComplexesEntity(eventId, complexId)));
+        List<CourtsEntity> courts = Arrays.stream(courtNames).map(name -> {
+            CourtsEntity court = new CourtsEntity();
+            court.setId(UUID.randomUUID());
+            court.setName(name);
+            return court;
+        }).toList();
+        when(courtRepository.findAllActiveBySportComplexIds(List.of(complexId))).thenReturn(courts);
+        return courts;
+    }
+
+    /** Another event holds the court with a match; its slot ends 75 minutes after it starts (60 + 15, as in this config). */
+    private MatchesEntity matchOfAnotherEventIn(UUID courtId, LocalDateTime kickOff, String status) {
+        MatchesEntity match = existingMatch(8, 9, kickOff, status, null, null);
+        match.setEventId(UUID.randomUUID());
+        match.setCourtId(courtId);
+        lenient().when(matchRepository.findAllActiveByCourtIdFrom(any(), any()))
+                .thenAnswer(invocation -> courtId.equals(invocation.getArgument(0)) ? List.of(match) : List.of());
+        lenient().when(matchTimingService.getEndTimes(any())).thenAnswer(invocation -> {
+            Collection<MatchesEntity> matches = invocation.getArgument(0);
+            return matches.stream().collect(Collectors.toMap(MatchesEntity::getId, other -> other.getMatchDate().plusMinutes(75)));
+        });
+        return match;
+    }
+
+    private static List<UUID> idsOf(List<CourtsEntity> courts) {
+        return courts.stream().map(CourtsEntity::getId).toList();
+    }
+
+    @Test
+    void generate_whenTheEventIsPlayedInAComplex_thenTheMatchesOfADaySpreadOverItsCourtsAtTheSameTime() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        registerTeams(4);
+
+        Map<LocalDate, List<MatchResponse>> days = byDate(service.generateMatches(eventId).getMatches());
+
+        assertThat(days.keySet()).containsExactly(FIRST_SATURDAY, FIRST_SATURDAY.plusWeeks(1), FIRST_SATURDAY.plusWeeks(2));
+        days.values().forEach(dayMatches -> {
+            assertThat(dayMatches).extracting(match -> match.getMatchDate().toLocalTime()).containsOnly(LocalTime.of(9, 0));
+            assertThat(dayMatches).extracting(MatchResponse::getCourtId).containsExactlyInAnyOrderElementsOf(idsOf(courts));
+        });
+    }
+
+    @Test
+    void generate_whenTheEventIsPlayedInAComplex_thenEveryCourtHostsTheSameNumberOfMatches() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2", "Cancha 3");
+        registerTeams(6); // 15 matches, 3 per round
+
+        Map<UUID, Long> matchesByCourt = service.generateMatches(eventId).getMatches().stream()
+                .collect(Collectors.groupingBy(MatchResponse::getCourtId, Collectors.counting()));
+
+        assertThat(matchesByCourt).containsOnlyKeys(idsOf(courts));
+        assertThat(matchesByCourt.values()).containsOnly(5L);
+    }
+
+    @Test
+    void generate_whenThereAreMoreMatchesInARoundThanCourts_thenTheRestFollowOnTheSameCourts() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        registerTeams(6); // 3 matches per round, two courts: 09:00 on both and 10:15 on one
+
+        List<MatchResponse> firstDay = byDate(service.generateMatches(eventId).getMatches()).get(FIRST_SATURDAY);
+
+        assertThat(firstDay).hasSize(3);
+        assertThat(firstDay).extracting(match -> match.getMatchDate().toLocalTime())
+                .containsExactlyInAnyOrder(LocalTime.of(9, 0), LocalTime.of(9, 0), LocalTime.of(10, 15));
+        assertThat(firstDay).extracting(MatchResponse::getCourtId).isSubsetOf(idsOf(courts));
+        // Never two matches on one court at the same time.
+        assertThat(firstDay.stream().map(match -> match.getCourtId() + "@" + match.getMatchDate()).collect(Collectors.toSet())).hasSize(3);
+    }
+
+    @Test
+    void generate_whenTheEventIsPlayedInAComplex_thenTheCourtOfTheConfigIsIgnored() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        config.setCourtId(UUID.randomUUID());
+        registerTeams(4);
+
+        assertThat(service.generateMatches(eventId).getMatches()).extracting(MatchResponse::getCourtId)
+                .isSubsetOf(idsOf(courts));
+    }
+
+    @Test
+    void generate_whenTheEventIsPlayedInNoComplexAndHasNoCourt_thenTheMatchesKeepNoCourt() {
+        registerTeams(4);
+
+        assertThat(service.generateMatches(eventId).getMatches()).extracting(MatchResponse::getCourtId).containsOnlyNulls();
+    }
+
+    @Test
+    void generate_whenTheComplexesOfTheEventHaveNoCourts_thenItFailsWithItsCodeAndSavesNothing() {
+        when(eventsSportComplexesRepository.findAllActiveByEventId(eventId))
+                .thenReturn(List.of(new EventsSportComplexesEntity(eventId, UUID.randomUUID())));
+        registerTeams(4);
+
+        assertThatThrownBy(() -> service.generateMatches(eventId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("EVENT_COMPLEXES_WITHOUT_COURTS");
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void generate_whenAnotherEventHoldsACourt_thenItsSlotIsNotTaken() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        matchOfAnotherEventIn(courts.get(0).getId(), FIRST_SATURDAY.atTime(9, 0), "SCHEDULED");
+        registerTeams(4);
+
+        List<MatchResponse> firstDay = byDate(service.generateMatches(eventId).getMatches()).get(FIRST_SATURDAY);
+
+        // At 09:00 only Cancha 2 is free; Cancha 1 is held until 10:15, when it takes the other match of the round.
+        assertThat(firstDay).extracting(match -> match.getMatchDate().toLocalTime(), MatchResponse::getCourtId)
+                .containsExactlyInAnyOrder(
+                        tuple(LocalTime.of(9, 0), courts.get(1).getId()),
+                        tuple(LocalTime.of(10, 15), courts.get(0).getId()));
+    }
+
+    @Test
+    void generate_whenAMatchOfAnotherEventWasCalledOff_thenItsCourtIsFree() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        matchOfAnotherEventIn(courts.get(0).getId(), FIRST_SATURDAY.atTime(9, 0), "CANCELLED");
+        registerTeams(4);
+
+        List<MatchResponse> firstDay = byDate(service.generateMatches(eventId).getMatches()).get(FIRST_SATURDAY);
+
+        assertThat(firstDay).extracting(match -> match.getMatchDate().toLocalTime()).containsOnly(LocalTime.of(9, 0));
+    }
+
+    @Test
+    void generate_whenAKeptMatchOfTheEventHoldsACourt_thenTheNewMatchesDoNotUseItAtThatTime() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        registerTeams(4);
+        MatchesEntity kept = existingMatch(1, 2, FIRST_SATURDAY.atTime(9, 0), "IN_PROGRESS", null, null);
+        kept.setCourtId(courts.get(0).getId());
+        when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of(kept));
+
+        List<MatchResponse> created = service.generateMatches(eventId).getMatches();
+
+        created.stream()
+                .filter(match -> match.getMatchDate().equals(FIRST_SATURDAY.atTime(9, 0)))
+                .forEach(match -> assertThat(match.getCourtId()).isEqualTo(courts.get(1).getId()));
+    }
+
+    @Test
+    void scheduleDrafts_whenTheEventIsPlayedInAComplex_thenTheMatchesOfAPhaseSpreadOverItsCourts() {
+        List<CourtsEntity> courts = playInComplexWithCourts("Cancha 1", "Cancha 2");
+        List<MatchDraft> drafts = List.of(
+                new MatchDraft(team(1), team(2), MatchStage.KNOCKOUT, 1, null, 1, null),
+                new MatchDraft(team(3), team(4), MatchStage.KNOCKOUT, 1, null, 2, null));
+
+        List<MatchResponse> created = service.scheduleDrafts(eventId, drafts);
+
+        assertThat(created).extracting(match -> match.getMatchDate()).containsOnly(FIRST_SATURDAY.atTime(9, 0));
+        assertThat(created).extracting(MatchResponse::getCourtId).containsExactlyInAnyOrderElementsOf(idsOf(courts));
     }
 }
