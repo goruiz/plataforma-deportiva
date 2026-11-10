@@ -21,6 +21,7 @@ import com.platform.backend.modules.players.presentation.requests.InviteRegister
 import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerTeamAdminRequest.UpdatePlayerTeamAdminRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
@@ -130,6 +131,10 @@ public class PlayersService implements IPlayersService {
     @Transactional
     public PlayerResponse create(CreatePlayerRequest request) {
         TeamsEntity team = resolveTeam(request.getTeamId());
+        // Before the account exists: a refused creation must not leave a verification email behind.
+        if (team != null) {
+            team.requireActive();
+        }
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
                 request.getFirstName(), request.getLastName(), false);
         player.setPhone(request.getPhone());
@@ -184,9 +189,12 @@ public class PlayersService implements IPlayersService {
         return invitation;
     }
 
+    /** Asked before the account is created, so a refused registration does not leave a verification email behind. */
     private TeamsEntity findInvitingTeam(TeamInvitationsEntity invitation) {
-        return teamRepository.findActiveById(invitation.getTeamId())
+        TeamsEntity team = teamRepository.findActiveById(invitation.getTeamId())
                 .orElseThrow(() -> new IllegalStateException(TeamInvitationError.TEAM_NOT_FOUND.name()));
+        team.requireActive();
+        return team;
     }
 
     /**
@@ -274,10 +282,17 @@ public class PlayersService implements IPlayersService {
         PlayersEntity player = playerRepository.findAnyActiveByEmail(EmailNormalizer.normalize(request.getEmail()))
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        TeamsEntity team = teamRepository.findActiveById(request.getTeamId())
-                .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
+        TeamsEntity team = findTeamOpenToInvitations(request.getTeamId());
 
         inviteRegisteredPlayer(player, team);
+    }
+
+    /** An inactive team is not invited to: the email would promise a place the team cannot give. */
+    private TeamsEntity findTeamOpenToInvitations(UUID teamId) {
+        TeamsEntity team = teamRepository.findActiveById(teamId)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));
+        team.requireActive();
+        return team;
     }
 
     /** They join only if they accept it in the app; a team they have in the same organization is then replaced. */
@@ -298,8 +313,7 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional
     public void inviteRegister(InviteRegisterRequest request) {
-        TeamsEntity team = teamRepository.findActiveById(request.getTeamId())
-                .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
+        TeamsEntity team = findTeamOpenToInvitations(request.getTeamId());
 
         String email = EmailNormalizer.normalize(request.getEmail());
 
@@ -363,6 +377,20 @@ public class PlayersService implements IPlayersService {
             stepDownOtherCaptainsOf(membership);
         }
         membership.setIsCaptain(request.getIsCaptain());
+        teamMemberRepository.save(membership);
+        return playerResponses.toResponse(player);
+    }
+
+    /** Unlike the captain, a team can have several administrators, so nobody steps down when another is named. */
+    @Override
+    @Transactional
+    public PlayerResponse updateTeamAdmin(UUID id, UpdatePlayerTeamAdminRequest request) {
+        PlayersEntity player = playerRepository.findActiveById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        TeamMembersEntity membership = findMembershipToChange(player, request.getTeamId())
+                .orElseThrow(() -> new IllegalStateException(PlayerError.TEAM_ADMIN_REQUIRES_TEAM.name()));
+
+        membership.setIsTeamAdmin(request.getIsTeamAdmin());
         teamMemberRepository.save(membership);
         return playerResponses.toResponse(player);
     }

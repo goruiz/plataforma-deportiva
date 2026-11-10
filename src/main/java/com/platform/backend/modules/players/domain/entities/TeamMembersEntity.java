@@ -42,6 +42,10 @@ public class TeamMembersEntity extends BaseEntity {
     @Column(name = "is_captain", nullable = false)
     private Boolean isCaptain = false;
 
+    /** Manages this team (its join code) without being an administrator of the platform; a team can have several. */
+    @Column(name = "is_team_admin", nullable = false)
+    private Boolean isTeamAdmin = false;
+
     public TeamMembersEntity() {}
 
     /** A membership starts as an ordinary player of the team: the captaincy is designated apart. */
@@ -67,9 +71,15 @@ public class TeamMembersEntity extends BaseEntity {
 
     public boolean isCaptainOfTheTeam() { return Boolean.TRUE.equals(isCaptain); }
 
-    /** The player stops playing for the team; a captain stops being one with it. */
+    public Boolean getIsTeamAdmin() { return isTeamAdmin; }
+    public void setIsTeamAdmin(Boolean isTeamAdmin) { this.isTeamAdmin = isTeamAdmin; }
+
+    public boolean isAdministratorOfTheTeam() { return Boolean.TRUE.equals(isTeamAdmin); }
+
+    /** The player stops playing for the team; a captain or an administrator of the team stops being one with it. */
     public void end() {
         isCaptain = false;
+        isTeamAdmin = false;
         setDeletedAt(LocalDateTime.now());
     }
 }

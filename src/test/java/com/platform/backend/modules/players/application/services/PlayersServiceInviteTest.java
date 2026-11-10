@@ -11,6 +11,8 @@ import com.platform.backend.modules.players.presentation.requests.InvitePlayerRe
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
+import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.shared.infraestructure.email.EmailService;
@@ -166,6 +168,33 @@ class PlayersServiceInviteTest {
 
         assertThatThrownBy(() -> playersService.invitePlayer(invitePlayerRequest(EMAIL)))
                 .isInstanceOf(EntityNotFoundException.class);
+
+        verifyNoInteractions(teamInvitationRepository, emailService);
+    }
+
+    // ─── an inactive team is not invited to ─────────────────────────────────────
+
+    @Test
+    void invitePlayer_whenTheTeamIsInactive_thenNoInvitationIsSavedNorEmailed() {
+        invitingTeam.setStatus(TeamStatus.INACTIVE.name());
+        when(playerRepository.findAnyActiveByEmail(EMAIL)).thenReturn(Optional.of(registeredPlayer));
+        when(teamRepository.findActiveById(invitingTeam.getId())).thenReturn(Optional.of(invitingTeam));
+
+        assertThatThrownBy(() -> playersService.invitePlayer(invitePlayerRequest(EMAIL)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(TeamError.TEAM_INACTIVE.name());
+
+        verifyNoInteractions(teamInvitationRepository, emailService);
+    }
+
+    @Test
+    void inviteRegister_whenTheTeamIsInactive_thenNoLinkIsSent() {
+        invitingTeam.setStatus(TeamStatus.INACTIVE.name());
+        when(teamRepository.findActiveById(invitingTeam.getId())).thenReturn(Optional.of(invitingTeam));
+
+        assertThatThrownBy(() -> playersService.inviteRegister(inviteRegisterRequest("nuevo@email.com")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(TeamError.TEAM_INACTIVE.name());
 
         verifyNoInteractions(teamInvitationRepository, emailService);
     }

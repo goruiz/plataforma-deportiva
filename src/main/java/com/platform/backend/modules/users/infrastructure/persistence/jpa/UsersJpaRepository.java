@@ -32,9 +32,11 @@ public interface UsersJpaRepository
     // Native and scalar on purpose. It runs before the caller is authenticated (the JWT filter), when the organization
     // filter would see nothing, and it must not load the entity: a managed copy would outlive the native updates that
     // move the account to another organization and hand a stale one to whoever reissues the token afterwards.
+    // A suspended account has no session at all: suspending it also moves tokens_valid_after, so reactivating it does
+    // not bring back the tokens it had.
     @Query(value = """
             SELECT EXISTS (SELECT 1 FROM users
-                           WHERE id = :id AND deleted_at IS NULL
+                           WHERE id = :id AND deleted_at IS NULL AND suspended_at IS NULL
                              AND (tokens_valid_after IS NULL OR tokens_valid_after <= :issuedAt))
             """, nativeQuery = true)
     boolean existsWithSessionValidAt(@Param("id") UUID id, @Param("issuedAt") LocalDateTime issuedAt);

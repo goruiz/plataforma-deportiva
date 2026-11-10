@@ -53,6 +53,11 @@ public class TeamMemberRepository implements ITeamMemberRepository {
     }
 
     @Override
+    public boolean existsActiveTeamAdministrator(UUID teamId, String email) {
+        return jpaRepository.existsActiveTeamAdministrator(teamId, email);
+    }
+
+    @Override
     public Optional<UUID> findOrganizationIdOfLastJoinedTeam(UUID playerId) {
         return jpaRepository.findOrganizationIdOfLastJoinedTeam(playerId);
     }

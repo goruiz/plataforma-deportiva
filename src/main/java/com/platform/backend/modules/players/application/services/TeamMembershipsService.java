@@ -33,6 +33,9 @@ public class TeamMembershipsService implements ITeamMembershipsService {
         if (alreadyThere != null) {
             return alreadyThere;
         }
+        // The one door every way into a team goes through (an accepted invitation, a registration link, a code, an
+        // administrator): an inactive team takes nobody new, whichever way they come.
+        team.requireActive();
 
         current.stream()
                 .filter(membership -> sameOrganization(membership.getOrganizationId(), team.getOrganizationId()))

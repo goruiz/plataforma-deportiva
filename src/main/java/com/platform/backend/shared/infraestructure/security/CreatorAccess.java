@@ -25,14 +25,21 @@ public final class CreatorAccess {
 
     /** For a record the caller already holds: pass who created it. */
     public static void requireAdminOrCreator(UUID creatorId) {
+        if (!isAdminOrCreator(creatorId)) {
+            throw new AccessDeniedException(AccessError.NOT_THE_CREATOR.name());
+        }
+    }
+
+    /**
+     * The same rule as {@link #requireAdminOrCreator(UUID)} as a question, for whoever also lets somebody else in (the
+     * administrators of a team).
+     */
+    public static boolean isAdminOrCreator(UUID creatorId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof CallerPrincipal caller)) {
-            return;
+            return true;
         }
-        if (CurrentCaller.isAdministrator(authentication) || isCreator(caller, creatorId)) {
-            return;
-        }
-        throw new AccessDeniedException(AccessError.NOT_THE_CREATOR.name());
+        return CurrentCaller.isAdministrator(authentication) || isCreator(caller, creatorId);
     }
 
     /**

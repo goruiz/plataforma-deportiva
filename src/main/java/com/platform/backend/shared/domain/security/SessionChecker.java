@@ -10,6 +10,6 @@ import java.util.UUID;
  */
 public interface SessionChecker {
 
-    /** True when the account exists, is not deleted and has not signed out since {@code issuedAt}. */
+    /** True when the account exists, is not deleted or suspended and has not signed out since {@code issuedAt}. */
     boolean isSessionValid(UUID userId, Instant issuedAt);
 }

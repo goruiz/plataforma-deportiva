@@ -19,6 +19,9 @@ public interface IMatchRepository {
 
     Optional<MatchesEntity> findActiveById(UUID id);
 
+    /** The active matches with those ids that the caller sees, in one query. */
+    List<MatchesEntity> findAllActiveByIds(Collection<UUID> ids);
+
     List<MatchesEntity> findAllActiveByEventId(UUID eventId);
 
     /** Active matches a team plays, as home or away, across every event, in date order. */

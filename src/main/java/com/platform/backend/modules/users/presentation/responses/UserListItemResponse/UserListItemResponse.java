@@ -3,6 +3,7 @@ package com.platform.backend.modules.users.presentation.responses.UserListItemRe
 import com.platform.backend.modules.users.presentation.responses.UserRoleResponse.UserRoleResponse;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,5 +18,7 @@ public class UserListItemResponse {
     private String username;
     private String email;
     private UUID organizationId;
+    /** When the account was suspended; null while it is active. */
+    private LocalDateTime suspendedAt;
     private List<UserRoleResponse> roles;
 }

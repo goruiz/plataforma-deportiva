@@ -6,7 +6,8 @@ import java.util.UUID;
 
 /**
  * Decides who wins a tie between two teams: the one with more goals over its one or two matches. A tie that ends
- * level has no winner until an administrator says which team advances (the penalty shoot-out is not recorded as goals).
+ * level is settled by the penalty shoot-out of the match that closes it, when one was recorded; otherwise it has no
+ * winner until an administrator says which team advances.
  */
 public final class TieResolver {
 
@@ -46,11 +47,17 @@ public final class TieResolver {
         if (goalsA != goalsB) {
             return goalsA > goalsB ? decided(teamA, teamB, goalsA, goalsB) : decided(teamB, teamA, goalsA, goalsB);
         }
-        UUID advancing = decidingLeg(legs).advancingTeamId();
+        UUID advancing = teamThatAdvancesFrom(decidingLeg(legs));
         if (advancing == null || !(advancing.equals(teamA) || advancing.equals(teamB))) {
             return new Outcome(Status.NEEDS_TIEBREAK, null, null, goalsA, goalsB);
         }
         return advancing.equals(teamA) ? decided(teamA, teamB, goalsA, goalsB) : decided(teamB, teamA, goalsA, goalsB);
+    }
+
+    /** A penalty shoot-out settles a level tie by itself; without one, the team an administrator named (if any). */
+    private static UUID teamThatAdvancesFrom(MatchRef closingLeg) {
+        UUID penaltyWinner = closingLeg.penaltyWinnerId();
+        return penaltyWinner != null ? penaltyWinner : closingLeg.advancingTeamId();
     }
 
     /** The match that closes the tie: the return leg, or the only match. */

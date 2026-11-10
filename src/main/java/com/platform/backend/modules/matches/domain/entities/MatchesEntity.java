@@ -71,6 +71,27 @@ public class MatchesEntity extends BaseEntity {
     @Column(name = "advancing_team_id")
     private UUID advancingTeamId;
 
+    /**
+     * The penalty shoot-out that settled a result that ended level (the goals of the shoot-out, not of the match).
+     * Only kept while the score is level and the organization's settings allow penalties.
+     */
+    @Column(name = "home_penalty_score")
+    private Integer homePenaltyScore;
+
+    @Column(name = "away_penalty_score")
+    private Integer awayPenaltyScore;
+
+    /** When the current result was recorded (or last corrected): a dispute window counts from here. */
+    @Column(name = "result_recorded_at")
+    private LocalDateTime resultRecordedAt;
+
+    /** When an administrator confirmed the result as official; null while it is not, and again after it changes. */
+    @Column(name = "result_validated_at")
+    private LocalDateTime resultValidatedAt;
+
+    @Column(name = "result_validated_by")
+    private UUID resultValidatedBy;
+
     public MatchesEntity() {}
 
     public UUID getHomeTeamId() { return homeTeamId; }
@@ -118,6 +139,26 @@ public class MatchesEntity extends BaseEntity {
 
     public UUID getAdvancingTeamId() { return advancingTeamId; }
     public void setAdvancingTeamId(UUID advancingTeamId) { this.advancingTeamId = advancingTeamId; }
+
+    public Integer getHomePenaltyScore() { return homePenaltyScore; }
+    public void setHomePenaltyScore(Integer homePenaltyScore) { this.homePenaltyScore = homePenaltyScore; }
+
+    public Integer getAwayPenaltyScore() { return awayPenaltyScore; }
+    public void setAwayPenaltyScore(Integer awayPenaltyScore) { this.awayPenaltyScore = awayPenaltyScore; }
+
+    public LocalDateTime getResultRecordedAt() { return resultRecordedAt; }
+    public void setResultRecordedAt(LocalDateTime resultRecordedAt) { this.resultRecordedAt = resultRecordedAt; }
+
+    public LocalDateTime getResultValidatedAt() { return resultValidatedAt; }
+    public void setResultValidatedAt(LocalDateTime resultValidatedAt) { this.resultValidatedAt = resultValidatedAt; }
+
+    public UUID getResultValidatedBy() { return resultValidatedBy; }
+    public void setResultValidatedBy(UUID resultValidatedBy) { this.resultValidatedBy = resultValidatedBy; }
+
+    /** Whether the result was settled by a penalty shoot-out (both penalty scores are present). */
+    public boolean hasPenaltyShootout() {
+        return homePenaltyScore != null && awayPenaltyScore != null;
+    }
 
     /** A match counts as played once it has a result (both scores), whatever its status says: as in the championship. */
     public boolean hasResult() {

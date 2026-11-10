@@ -5,6 +5,7 @@ import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
 import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
 import com.platform.backend.modules.teams.domain.enums.TeamStatus;
+import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
@@ -56,6 +57,16 @@ public class TeamsEntity extends BaseEntity implements HasUniqueField, Organizat
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    /** The status is free text: only the one the panel sets to switch a team off counts as inactive. */
+    public boolean isInactive() { return TeamStatus.INACTIVE.name().equals(status); }
+
+    /** An inactive team receives nothing new, so whatever is about to give it something asks first. */
+    public void requireActive() {
+        if (isInactive()) {
+            throw new IllegalStateException(TeamError.TEAM_INACTIVE.name());
+        }
+    }
 
     public String getJoinCode() { return joinCode; }
     public void setJoinCode(String joinCode) { this.joinCode = joinCode; }

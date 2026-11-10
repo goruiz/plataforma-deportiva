@@ -86,6 +86,12 @@ class InMemoryTeamMembers implements ITeamMemberRepository {
     }
 
     @Override
+    public boolean existsActiveTeamAdministrator(UUID teamId, String email) {
+        return rows.stream().anyMatch(row -> row.getDeletedAt() == null && row.isAdministratorOfTheTeam()
+                && row.getTeam().getId().equals(teamId) && email.equalsIgnoreCase(row.getPlayer().getEmail()));
+    }
+
+    @Override
     public Optional<UUID> findOrganizationIdOfLastJoinedTeam(UUID playerId) {
         return findAllActiveByPlayerId(playerId).stream().findFirst().map(TeamMembersEntity::getOrganizationId);
     }

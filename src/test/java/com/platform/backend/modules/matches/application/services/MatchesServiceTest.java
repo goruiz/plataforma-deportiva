@@ -8,6 +8,7 @@ import com.platform.backend.modules.matches.application.iservices.IMatchTimingSe
 import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.exception.MatchError;
+import com.platform.backend.modules.matches.domain.irepositories.IMatchDisputeRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchRequest.UpdateMatchRequest;
@@ -64,6 +65,8 @@ class MatchesServiceTest {
     @Mock private ICourtRepository courtRepository;
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamMemberRepository teamMemberRepository;
+    @Mock private IMatchDisputeRepository disputeRepository;
+    @Mock private MatchResultPolicy resultPolicy;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -763,5 +766,66 @@ class MatchesServiceTest {
 
         assertThatThrownBy(() -> matchesService.getByCourtIdOnDate(courtId, LocalDate.of(2026, 11, 10)))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ─── validating a result ─────────────────────────────────────────────────────
+
+    @Test
+    void validateResult_whenTheMatchHasAResult_thenItIsStampedWithWhenAndByWhom() {
+        UUID validatorId = UUID.randomUUID();
+        TenantTestSupport.actAsOrganizationAdmin(validatorId, UUID.randomUUID());
+        MatchesEntity played = storedMatch(hoursAgo(5), "FINISHED");
+        played.setHomeScore(2);
+        played.setAwayScore(1);
+
+        MatchResponse response = matchesService.validateResult(played.getId());
+
+        assertThat(played.getResultValidatedBy()).isEqualTo(validatorId);
+        assertThat(response.getResultValidatedAt()).isNotNull();
+    }
+
+    @Test
+    void validateResult_whenTheMatchHasNoResult_thenItIsRefused() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID(), UUID.randomUUID());
+        MatchesEntity notPlayed = storedMatch(hoursAgo(5), "SCHEDULED");
+
+        assertThatThrownBy(() -> matchesService.validateResult(notPlayed.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(MatchError.RESULT_NOT_RECORDED.name());
+        assertThat(notPlayed.getResultValidatedAt()).isNull();
+    }
+
+    @Test
+    void validateResult_whenADisputeIsOpen_thenItIsRefused() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID(), UUID.randomUUID());
+        MatchesEntity disputed = storedMatch(hoursAgo(5), "FINISHED");
+        disputed.setHomeScore(0);
+        disputed.setAwayScore(0);
+        when(disputeRepository.existsOpenByMatchId(disputed.getId())).thenReturn(true);
+
+        assertThatThrownBy(() -> matchesService.validateResult(disputed.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(MatchError.HAS_OPEN_DISPUTES.name());
+    }
+
+    @Test
+    void validateResult_whenTheCallerIsNotAnAdministratorNorTheCreatorOfTheEvent_thenItIsRefused() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "juan@email.com");
+        MatchesEntity played = storedMatch(hoursAgo(5), "FINISHED");
+        played.setHomeScore(1);
+        played.setAwayScore(0);
+        when(eventRepository.findActiveById(played.getEventId())).thenReturn(Optional.of(new EventsEntity()));
+
+        assertThatThrownBy(() -> matchesService.validateResult(played.getId())).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void getAll_whenAMatchHasOpenDisputes_thenItsResponseCountsThem() {
+        MatchesEntity disputed = match(hoursAgo(5), "FINISHED");
+        MatchesEntity calm = match(hoursAgo(4), "FINISHED");
+        when(matchRepository.findAllActive()).thenReturn(List.of(disputed, calm));
+        when(disputeRepository.countOpenByMatch()).thenReturn(Map.of(disputed.getId(), 2));
+
+        assertThat(matchesService.getAll()).extracting(MatchResponse::getOpenDisputeCount).containsExactly(2, 0);
     }
 }

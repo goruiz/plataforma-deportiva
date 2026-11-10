@@ -60,6 +60,7 @@ public class TeamsEventsService implements ITeamsEventsService {
         EventsEntity event = eventRepository.findActiveById(request.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id: " + request.getEventId()));
         CreatorAccess.requireAdminOrCreator(event.getCreatedBy());
+        team.requireActive();
 
         TeamsEventsEntity teamsEvents = new TeamsEventsEntity();
         teamsEvents.setTeam(team);

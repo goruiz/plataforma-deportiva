@@ -28,6 +28,9 @@ public interface ITeamMemberRepository {
 
     boolean existsActiveByPlayerIdAndTeamId(UUID playerId, UUID teamId);
 
+    /** Whether the player with that email still plays for the team as one of its administrators. */
+    boolean existsActiveTeamAdministrator(UUID teamId, String email);
+
     /**
      * The organization of the team the player joined last, whatever the caller sees: empty when they play for none (or for
      * one of the platform owner's, which has no organization). The account follows it.

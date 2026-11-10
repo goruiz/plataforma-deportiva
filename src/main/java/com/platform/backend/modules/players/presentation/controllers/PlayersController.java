@@ -7,6 +7,7 @@ import com.platform.backend.modules.players.presentation.requests.InviteRegister
 import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerTeamAdminRequest.UpdatePlayerTeamAdminRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
@@ -119,6 +120,14 @@ public class PlayersController {
     public ResponseEntity<ApiResponse<PlayerResponse>> updateCaptain(@PathVariable UUID id,
                                                                       @Valid @RequestBody UpdatePlayerCaptainRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(playersService.updateCaptain(id, request)));
+    }
+
+    // Only an administrator names a team's administrators, for the same reason as the captain.
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
+    @PatchMapping("/{id}/team-admin")
+    public ResponseEntity<ApiResponse<PlayerResponse>> updateTeamAdmin(@PathVariable UUID id,
+                                                                        @Valid @RequestBody UpdatePlayerTeamAdminRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.updateTeamAdmin(id, request)));
     }
 
     @PutMapping("/{id}")

@@ -3,6 +3,8 @@ package com.platform.backend.modules.players.application.services;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
+import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import java.util.UUID;
 import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.player;
 import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.team;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -91,6 +94,43 @@ class TeamMembershipsServiceTest {
         assertThat(again).isSameAs(first);
         assertThat(again.getIsCaptain()).isTrue();
         assertThat(memberships.everyMembershipOf(ana)).hasSize(1);
+    }
+
+    // ─── an inactive team takes nobody new ──────────────────────────────────────
+
+    @Test
+    void join_whenTheTeamIsInactive_thenNobodyNewEntersAndWhatTheyHadStays() {
+        TeamsEntity leones = team("Leones", ORGANIZATION_A);
+        service.join(ana, leones);
+        TeamsEntity tigres = team("Tigres", ORGANIZATION_A);
+        tigres.setStatus(TeamStatus.INACTIVE.name());
+
+        assertThatThrownBy(() -> service.join(ana, tigres))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(TeamError.TEAM_INACTIVE.name());
+
+        // The refusal comes before the player leaves the team they had in that organization.
+        assertThat(memberships.activeTeamsOf(ana)).containsExactly(leones);
+    }
+
+    @Test
+    void join_whenThePlayerWasAlreadyInATeamThatThenWentInactive_thenTheyStayInIt() {
+        TeamsEntity tigres = team("Tigres", ORGANIZATION_A);
+        TeamMembersEntity membership = service.join(ana, tigres);
+        tigres.setStatus(TeamStatus.INACTIVE.name());
+
+        assertThat(service.join(ana, tigres)).isSameAs(membership);
+        assertThat(memberships.activeTeamsOf(ana)).containsExactly(tigres);
+    }
+
+    @Test
+    void end_whenTheMembershipEnds_thenTheTeamAdministrationEndsToo() {
+        TeamMembersEntity inTigres = service.join(ana, team("Tigres", ORGANIZATION_A));
+        inTigres.setIsTeamAdmin(true);
+
+        service.leave(inTigres);
+
+        assertThat(inTigres.isAdministratorOfTheTeam()).isFalse();
     }
 
     @Test

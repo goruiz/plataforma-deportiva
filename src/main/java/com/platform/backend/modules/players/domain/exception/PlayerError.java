@@ -14,6 +14,9 @@ public enum PlayerError {
     /** The player plays for several teams the caller sees and the request did not say which one it is about. */
     TEAM_REQUIRED,
 
+    /** Only a player who belongs to a team can administer it. */
+    TEAM_ADMIN_REQUIRES_TEAM,
+
     /** A person shared with another organization cannot be erased by one: it can only take them out of its own team. */
     PLAYS_FOR_ANOTHER_ORGANIZATION
 }

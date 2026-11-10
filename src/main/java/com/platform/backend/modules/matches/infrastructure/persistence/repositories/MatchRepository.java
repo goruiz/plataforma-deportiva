@@ -40,6 +40,11 @@ public class MatchRepository implements IMatchRepository {
     }
 
     @Override
+    public List<MatchesEntity> findAllActiveByIds(Collection<UUID> ids) {
+        return ids.isEmpty() ? List.of() : matchesJpaRepository.findAllByIdInAndDeletedAtIsNull(ids);
+    }
+
+    @Override
     public List<MatchesEntity> findAllActiveByEventId(UUID eventId) {
         return matchesJpaRepository.findAllByEventIdAndDeletedAtIsNull(eventId);
     }

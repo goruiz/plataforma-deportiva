@@ -3,16 +3,18 @@ package com.platform.backend.modules.teams.application.services;
 import com.platform.backend.modules.events.domain.irepositories.ICategoryRepository;
 import com.platform.backend.modules.teams.application.mappers.TeamMapper;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.enums.TeamStatus;
+import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.teams.presentation.responses.TeamJoinCodeResponse.TeamJoinCodeResponse;
 import com.platform.backend.shared.domain.exception.AccessError;
+import com.platform.backend.shared.domain.security.TeamAdministratorChecker;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -37,14 +39,16 @@ class TeamsServiceJoinCodeTest {
     @Mock private ICategoryRepository categoryRepository;
     @Mock private TeamMapper teamMapper;
     @Mock private JoinCodeGenerator joinCodeGenerator;
+    @Mock private TeamAdministratorChecker teamAdministratorChecker;
 
-    @InjectMocks
     private TeamsService teamsService;
-
     private TeamsEntity team;
 
     @BeforeEach
     void setUp() {
+        // The access rule runs for real: whether the caller administers the team is the only thing the checker answers.
+        teamsService = new TeamsService(teamRepository, categoryRepository, teamMapper, joinCodeGenerator,
+                new TeamManagementAccess(teamAdministratorChecker));
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         team.setName("Tigres");
@@ -157,6 +161,87 @@ class TeamsServiceJoinCodeTest {
                 .isInstanceOf(AccessDeniedException.class);
 
         verify(joinCodeGenerator, never()).generate();
+    }
+
+    // ─── the administrators of the team ─────────────────────────────────────────
+
+    @Test
+    void getJoinCode_whenTheCallerAdministersTheTeam_thenItIsRead() {
+        UUID callerId = UUID.randomUUID();
+        TenantTestSupport.actAsMobileAccount(callerId, "luis@email.com");
+        when(teamAdministratorChecker.isTeamAdministrator(team.getId(), "luis@email.com")).thenReturn(true);
+        team.setJoinCode("AB3D9FK2");
+
+        assertThat(teamsService.getJoinCode(team.getId()).getJoinCode()).isEqualTo("AB3D9FK2");
+    }
+
+    @Test
+    void generateJoinCode_whenTheCallerAdministersTheTeam_thenTheCodeIsReplaced() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "luis@email.com");
+        when(teamAdministratorChecker.isTeamAdministrator(team.getId(), "luis@email.com")).thenReturn(true);
+        when(joinCodeGenerator.generate()).thenReturn("NEWCODE2");
+        when(teamRepository.save(team)).thenReturn(team);
+
+        teamsService.generateJoinCode(team.getId());
+
+        assertThat(team.getJoinCode()).isEqualTo("NEWCODE2");
+    }
+
+    @Test
+    void disableJoinCode_whenTheCallerAdministersTheTeam_thenTheCodeIsSwitchedOff() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "luis@email.com");
+        when(teamAdministratorChecker.isTeamAdministrator(team.getId(), "luis@email.com")).thenReturn(true);
+        team.setJoinCode("AB3D9FK2");
+        when(teamRepository.save(team)).thenReturn(team);
+
+        assertThat(teamsService.disableJoinCode(team.getId()).getJoinCode()).isNull();
+    }
+
+    @Test
+    void getJoinCode_whenTheCallerOnlyAdministersAnotherTeam_thenItIsForbidden() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "luis@email.com");
+        // The checker answers per team: luis administers some other team, not this one.
+        when(teamAdministratorChecker.isTeamAdministrator(team.getId(), "luis@email.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> teamsService.getJoinCode(team.getId()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(AccessError.NOT_THE_CREATOR.name());
+    }
+
+    @Test
+    void getJoinCode_whenTheCallerCreatedTheTeam_thenTheyNeedNoAdministration() {
+        UUID creatorId = UUID.randomUUID();
+        TenantTestSupport.actAsMobileAccount(creatorId, "creador@email.com");
+        team.setCreatedBy(creatorId);
+        team.setJoinCode("AB3D9FK2");
+
+        assertThat(teamsService.getJoinCode(team.getId()).getJoinCode()).isEqualTo("AB3D9FK2");
+        verify(teamAdministratorChecker, never()).isTeamAdministrator(any(), any());
+    }
+
+    // ─── an inactive team ───────────────────────────────────────────────────────
+
+    @Test
+    void generateJoinCode_whenTheTeamIsInactive_thenNoCodeIsDrawn() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        team.setStatus(TeamStatus.INACTIVE.name());
+
+        assertThatThrownBy(() -> teamsService.generateJoinCode(team.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(TeamError.TEAM_INACTIVE.name());
+
+        verify(joinCodeGenerator, never()).generate();
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    void disableJoinCode_whenTheTeamIsInactive_thenTheCodeCanStillBeSwitchedOff() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+        team.setStatus(TeamStatus.INACTIVE.name());
+        team.setJoinCode("AB3D9FK2");
+        when(teamRepository.save(team)).thenReturn(team);
+
+        assertThat(teamsService.disableJoinCode(team.getId()).getJoinCode()).isNull();
     }
 
     @Test

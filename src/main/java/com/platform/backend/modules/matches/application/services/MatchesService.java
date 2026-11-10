@@ -8,6 +8,7 @@ import com.platform.backend.modules.matches.application.mappers.MatchMapper;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
 import com.platform.backend.modules.matches.domain.enums.MatchStatus;
 import com.platform.backend.modules.matches.domain.exception.MatchError;
+import com.platform.backend.modules.matches.domain.irepositories.IMatchDisputeRepository;
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchRequest.CreateMatchRequest;
 import com.platform.backend.modules.matches.presentation.requests.RescheduleDateRequest.RescheduleDateRequest;
@@ -59,6 +60,8 @@ public class MatchesService implements IMatchesService {
     private final ICourtRepository courtRepository;
     private final IPlayerRepository playerRepository;
     private final ITeamMemberRepository teamMemberRepository;
+    private final IMatchDisputeRepository disputeRepository;
+    private final MatchResultPolicy resultPolicy;
     private final MatchMapper matchMapper;
 
     @Override
@@ -126,7 +129,8 @@ public class MatchesService implements IMatchesService {
     /**
      * Once a match has started only its status and its result can change. A result (a score) can only be recorded
      * once the match is over; recording one finishes the match, unless the request says otherwise, so nobody has to
-     * mark it as finished by hand.
+     * mark it as finished by hand. The organization's settings decide whether the result may end level and whether a
+     * penalty shoot-out may settle it, and a result that changed has to be validated again.
      */
     @Override
     public MatchResponse update(UUID id, UpdateMatchRequest request) {
@@ -138,12 +142,29 @@ public class MatchesService implements IMatchesService {
         validateReferencesAreVisible(request.getEventId(), request.getHomeTeamId(), request.getAwayTeamId(),
                 request.getCourtId(), false);
         validateDataIsStillEditable(match, request);
+        MatchResultPolicy.Result resultBefore = MatchResultPolicy.Result.of(match);
         matchMapper.updateEntity(match, request);
 
         if (isRecordingResult(request)) {
             validateMatchHasEnded(match, request);
             finishIfStillOpen(match, request);
+            resultPolicy.enforce(match, resultBefore, LocalDateTime.now());
         }
+        return toResponse(matchRepository.save(match));
+    }
+
+    @Override
+    public MatchResponse validateResult(UUID id) {
+        MatchesEntity match = findActiveOrThrow(id);
+        requireAdminOrCreatorOfEventOf(match);
+        if (!match.hasResult()) {
+            throw new IllegalStateException(MatchError.RESULT_NOT_RECORDED.name());
+        }
+        if (disputeRepository.existsOpenByMatchId(id)) {
+            throw new IllegalStateException(MatchError.HAS_OPEN_DISPUTES.name());
+        }
+        match.setResultValidatedAt(LocalDateTime.now());
+        match.setResultValidatedBy(CurrentCaller.require().getId());
         return toResponse(matchRepository.save(match));
     }
 
@@ -330,7 +351,8 @@ public class MatchesService implements IMatchesService {
     }
 
     private boolean isRecordingResult(UpdateMatchRequest request) {
-        return request.getHomeScore() != null || request.getAwayScore() != null;
+        return request.getHomeScore() != null || request.getAwayScore() != null
+                || request.getHomePenaltyScore() != null || request.getAwayPenaltyScore() != null;
     }
 
     private void validateMatchHasEnded(MatchesEntity match, UpdateMatchRequest request) {
@@ -356,9 +378,11 @@ public class MatchesService implements IMatchesService {
         Map<UUID, LocalDateTime> endTimes = matchTimingService.getEndTimes(matches);
         Map<UUID, String> teamNames = readTeamNames(matches);
         Map<UUID, String> eventNames = readEventNames(matches);
+        Map<UUID, Integer> openDisputes = disputeRepository.countOpenByMatch();
         return matches.stream().map(match -> {
             MatchResponse response = matchMapper.toResponse(match);
             response.setEndsAt(endTimes.get(match.getId()));
+            response.setOpenDisputeCount(openDisputes.getOrDefault(match.getId(), 0));
             response.setHomeTeamName(teamNames.get(match.getHomeTeamId()));
             response.setAwayTeamName(teamNames.get(match.getAwayTeamId()));
             response.setEventName(eventNames.get(match.getEventId()));

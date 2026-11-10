@@ -38,6 +38,13 @@ public interface TeamMembersJpaRepository extends TenantScopedJpaRepository<Team
             + "ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
     Optional<UUID> findOrganizationIdOfLastJoinedTeam(@Param("playerId") UUID playerId);
 
+    // Native on purpose: who administers a team is asked on behalf of its own players (mobile accounts), and only the
+    // fact is read. The email is the player's, which is the one of the account.
+    @Query(value = "SELECT EXISTS (SELECT 1 FROM team_members member JOIN players player ON player.id = member.player_id "
+            + "WHERE member.team_id = :teamId AND member.is_team_admin = true AND member.deleted_at IS NULL "
+            + "AND player.deleted_at IS NULL AND player.email = :email)", nativeQuery = true)
+    boolean existsActiveTeamAdministrator(@Param("teamId") UUID teamId, @Param("email") String email);
+
     // Native on purpose: it has to see the memberships of the other organizations, which the organization filter hides.
     // Only the fact is read, never which team. The all-zero id stands for the owner's organization (a null one).
     @Query(value = "SELECT EXISTS (SELECT 1 FROM team_members WHERE player_id = :playerId AND deleted_at IS NULL "

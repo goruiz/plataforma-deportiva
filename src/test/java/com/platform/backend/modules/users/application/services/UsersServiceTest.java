@@ -434,6 +434,41 @@ class UsersServiceTest {
     }
 
     @Test
+    void login_whenTheAccountIsSuspended_thenItIsDeniedWithItsOwnCode() {
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
+        usersEntity.setSuspendedAt(LocalDateTime.now().minusDays(1));
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+
+        assertThatThrownBy(() -> usersAuthService.login(loginRequest))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(LoginError.ACCOUNT_SUSPENDED.name());
+
+        verify(jwtService, never()).generateToken(anyMap(), anyString());
+    }
+
+    @Test
+    void login_whenThePasswordIsWrongOnASuspendedAccount_thenItStaysAnOrdinaryBadCredentials() {
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+
+        assertThatThrownBy(() -> usersAuthService.login(loginRequest))
+                .isInstanceOf(BadCredentialsException.class);
+
+        verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    void reissueSession_whenTheAccountIsSuspended_thenItIsDenied() {
+        usersEntity.setSuspendedAt(LocalDateTime.now().minusHours(2));
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+
+        assertThatThrownBy(() -> usersAuthService.reissueSession("juan@email.com"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(LoginError.ACCOUNT_SUSPENDED.name());
+    }
+
+    @Test
     void login_whenTheOrganizationIsSuspended_thenItsAdministratorsAreDenied() {
         givenAnAdministratorWhoLogsInThroughThePanel();
         usersEntity.setOrganizationId(ORGANIZATION_ID);
@@ -543,6 +578,19 @@ class UsersServiceTest {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail(" unknown@email.com ");
         when(userRepository.findByEmail("unknown@email.com")).thenReturn(Optional.empty());
+
+        usersAuthService.requestPasswordReset(request);
+
+        verify(emailService, never()).sendPasswordReset(anyString(), any(), anyString());
+        verify(passwordResetTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void requestPasswordReset_whenTheAccountIsSuspended_thenNoEmailIsSentAndTheAnswerStaysGeneric() {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail("juan@email.com");
+        usersEntity.setSuspendedAt(LocalDateTime.now().minusDays(1));
+        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
 
         usersAuthService.requestPasswordReset(request);
 

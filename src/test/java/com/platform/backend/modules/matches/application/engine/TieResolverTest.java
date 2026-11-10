@@ -98,6 +98,50 @@ class TieResolverTest {
     }
 
     @Test
+    void resolve_whenASingleMatchIsADrawSettledByPenalties_thenThePenaltyWinnerAdvances() {
+        MatchRef shootout = legWithPenalties(teamA, teamB, 1, 1, null, 3, 5);
+
+        TieResolver.Outcome outcome = TieResolver.resolve(teamA, teamB, List.of(shootout));
+
+        assertThat(outcome.status()).isEqualTo(TieResolver.Status.DECIDED);
+        assertThat(outcome.winnerTeamId()).isEqualTo(teamB);
+        assertThat(outcome.loserTeamId()).isEqualTo(teamA);
+    }
+
+    @Test
+    void resolve_whenPenaltiesAndANamedTeamDisagree_thenThePenaltiesDecide() {
+        MatchRef shootout = legWithPenalties(teamA, teamB, 0, 0, teamB, 4, 2);
+
+        assertThat(TieResolver.resolve(teamA, teamB, List.of(shootout)).winnerTeamId()).isEqualTo(teamA);
+    }
+
+    @Test
+    void resolve_whenTheShootoutIsOnTheReturnLegOfAnAggregateTie_thenItDecidesWhoGoesThrough() {
+        // Each team wins 1-0 at home: level on aggregate. The shoot-out of the return leg (hosted by B) goes to A.
+        MatchRef first = withLeg(leg(teamA, teamB, 1, 0, null), 1);
+        MatchRef returnLeg = legWithPenalties(teamB, teamA, 1, 0, null, 2, 4);
+        returnLeg = withLeg(returnLeg, 2);
+
+        TieResolver.Outcome outcome = TieResolver.resolve(teamA, teamB, List.of(first, returnLeg));
+
+        assertThat(outcome.winnerTeamId()).isEqualTo(teamA);
+    }
+
+    @Test
+    void resolve_whenTheShootoutScoresAreEqual_thenItStillNeedsATiebreak() {
+        MatchRef shootout = legWithPenalties(teamA, teamB, 1, 1, null, 3, 3);
+
+        assertThat(TieResolver.resolve(teamA, teamB, List.of(shootout)).status()).isEqualTo(TieResolver.Status.NEEDS_TIEBREAK);
+    }
+
+    @Test
+    void resolve_whenAMatchWasDecidedOnGoals_thenAStoredShootoutIsIgnored() {
+        MatchRef decided = legWithPenalties(teamA, teamB, 2, 1, null, 1, 5);
+
+        assertThat(TieResolver.resolve(teamA, teamB, List.of(decided)).winnerTeamId()).isEqualTo(teamA);
+    }
+
+    @Test
     void byeFor_whenATeamHasNoRival_thenItAdvances() {
         TieResolver.Outcome outcome = TieResolver.byeFor(teamA);
 
@@ -110,8 +154,16 @@ class TieResolverTest {
         return new MatchRef(base.id(), home, away, homeGoals, awayGoals, base.stage(), 1, null, 1, null, advancing, null, "FINISHED");
     }
 
+    private MatchRef legWithPenalties(UUID home, UUID away, int homeGoals, int awayGoals, UUID advancing,
+                                      int homePenalties, int awayPenalties) {
+        MatchRef base = leg(home, away, homeGoals, awayGoals, advancing);
+        return new MatchRef(base.id(), home, away, homeGoals, awayGoals, base.stage(), 1, null, 1, null, advancing, null,
+                "FINISHED", homePenalties, awayPenalties);
+    }
+
     private MatchRef withLeg(MatchRef match, int legNumber) {
         return new MatchRef(match.id(), match.homeTeamId(), match.awayTeamId(), match.homeScore(), match.awayScore(), match.stage(),
-                match.roundNumber(), match.groupNumber(), match.tieNumber(), legNumber, match.advancingTeamId(), null, match.status());
+                match.roundNumber(), match.groupNumber(), match.tieNumber(), legNumber, match.advancingTeamId(), null, match.status(),
+                match.homePenaltyScore(), match.awayPenaltyScore());
     }
 }

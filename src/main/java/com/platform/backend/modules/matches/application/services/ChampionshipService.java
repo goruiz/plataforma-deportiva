@@ -240,6 +240,7 @@ public class ChampionshipService implements IChampionshipService {
         MatchStage stage = match.getStage() == null ? MatchStage.LEAGUE : match.getStage();
         return new MatchRef(match.getId(), match.getHomeTeamId(), match.getAwayTeamId(), match.getHomeScore(), match.getAwayScore(),
                 stage, match.getRoundNumber(), match.getGroupNumber(), match.getTieNumber(), match.getLegNumber(),
-                match.getAdvancingTeamId(), match.getMatchDate(), match.getStatus());
+                match.getAdvancingTeamId(), match.getMatchDate(), match.getStatus(),
+                match.getHomePenaltyScore(), match.getAwayPenaltyScore());
     }
 }

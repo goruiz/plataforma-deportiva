@@ -10,5 +10,11 @@ public enum TeamError {
     INVALID_STATUS,
 
     /** No active team has that join code (a mistyped one, one that was replaced or switched off look the same). */
-    JOIN_CODE_NOT_FOUND
+    JOIN_CODE_NOT_FOUND,
+
+    /**
+     * The team is inactive: it receives nothing new (no enrollment in an event, no invitation, no join code and no
+     * player). What it already has (enrollments, matches, players) stays as it is.
+     */
+    TEAM_INACTIVE
 }

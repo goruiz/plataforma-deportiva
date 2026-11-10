@@ -98,6 +98,12 @@ public class MatchesController {
         return ResponseEntity.ok(ApiResponse.ok(matchesService.suspend(id)));
     }
 
+    /** Confirms the recorded result as official (an informative stamp: it does not change the standings). */
+    @PatchMapping("/{id}/validate-result")
+    public ResponseEntity<ApiResponse<MatchResponse>> validateResult(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(matchesService.validateResult(id)));
+    }
+
     @PatchMapping("/{id}/reschedule")
     public ResponseEntity<ApiResponse<MatchResponse>> reschedule(
             @PathVariable UUID id,

@@ -25,6 +25,11 @@ public class UpdateMatchRequest {
 
     private Integer awayScore;
 
+    /** The penalty shoot-out of a result that ended level; both or none, and only if the settings allow penalties. */
+    private Integer homePenaltyScore;
+
+    private Integer awayPenaltyScore;
+
     private UUID eventId;
 
     private UUID courtId;

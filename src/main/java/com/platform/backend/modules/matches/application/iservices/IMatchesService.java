@@ -41,6 +41,12 @@ public interface IMatchesService {
 
     MatchResponse suspend(UUID id);
 
+    /**
+     * Marks the recorded result as validated (by whom and when). Refused while the match has no result or has an open
+     * dispute; any later change of the result takes the validation away.
+     */
+    MatchResponse validateResult(UUID id);
+
     MatchResponse rescheduleMatch(UUID id, RescheduleMatchRequest request);
 
     /**

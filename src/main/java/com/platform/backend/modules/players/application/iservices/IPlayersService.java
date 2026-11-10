@@ -6,6 +6,7 @@ import com.platform.backend.modules.players.presentation.requests.InviteRegister
 import com.platform.backend.modules.players.presentation.requests.JoinByCodeRequest.JoinByCodeRequest;
 import com.platform.backend.modules.players.presentation.requests.PlayerRegisterRequest.PlayerRegisterRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerCaptainRequest.UpdatePlayerCaptainRequest;
+import com.platform.backend.modules.players.presentation.requests.UpdatePlayerTeamAdminRequest.UpdatePlayerTeamAdminRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRequest.UpdatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.UpdatePlayerStatusRequest.UpdatePlayerStatusRequest;
 import com.platform.backend.modules.players.presentation.responses.AcceptedInvitationResponse.AcceptedInvitationResponse;
@@ -54,6 +55,9 @@ public interface IPlayersService {
 
     /** Designates (or removes) the captain of the player's team; there is at most one per team. */
     PlayerResponse updateCaptain(UUID id, UpdatePlayerCaptainRequest request);
+
+    /** Makes the player an administrator of their team, or stops them being one; a team can have several. */
+    PlayerResponse updateTeamAdmin(UUID id, UpdatePlayerTeamAdminRequest request);
 
     void delete(UUID id);
 

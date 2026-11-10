@@ -17,4 +17,6 @@ public class PlayerTeamResponse {
     /** The team's organization; null for the platform owner's teams. */
     private UUID organizationId;
     private Boolean isCaptain;
+    /** Whether the player manages this team (see {@code team_members.is_team_admin}). */
+    private Boolean isTeamAdmin;
 }

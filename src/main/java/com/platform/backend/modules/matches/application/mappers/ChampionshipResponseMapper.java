@@ -181,6 +181,8 @@ public class ChampionshipResponseMapper {
         response.setAwayTeamId(match.awayTeamId());
         response.setHomeScore(match.homeScore());
         response.setAwayScore(match.awayScore());
+        response.setHomePenaltyScore(match.homePenaltyScore());
+        response.setAwayPenaltyScore(match.awayPenaltyScore());
         response.setLegNumber(match.legNumber());
         response.setAdvancingTeamId(match.advancingTeamId());
         response.setMatchDate(match.matchDate());

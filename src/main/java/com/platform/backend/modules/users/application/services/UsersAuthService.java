@@ -160,6 +160,7 @@ public class UsersAuthService implements IUsersAuthService {
 
         UsersEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        requireNotSuspended(user);
 
         boolean isPlatformOwner = platformOwnerRole.isOwner(user.getId());
         boolean isAdmin = isPlatformOwner || hasAdminRole(user);
@@ -178,6 +179,7 @@ public class UsersAuthService implements IUsersAuthService {
     public AuthResponse reissueSession(String email) {
         UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
+        requireNotSuspended(user);
 
         boolean isPlatformOwner = platformOwnerRole.isOwner(user.getId());
         boolean isAdmin = isPlatformOwner || hasAdminRole(user);
@@ -185,6 +187,16 @@ public class UsersAuthService implements IUsersAuthService {
         enforceOrganizationAccess(ClientType.MOBILE_APP, user, isPlatformOwner);
 
         return issueSession(user, ClientType.MOBILE_APP, isAdmin, isPlatformOwner);
+    }
+
+    /**
+     * Asked after the password is checked, never before: a wrong password must answer alike for every account, or the
+     * login would tell anyone which accounts are suspended.
+     */
+    private void requireNotSuspended(UsersEntity user) {
+        if (user.isSuspended()) {
+            throw new AccessDeniedException(LoginError.ACCOUNT_SUSPENDED.name());
+        }
     }
 
     private AuthResponse issueSession(UsersEntity user, ClientType clientType, boolean isAdmin, boolean isPlatformOwner) {
@@ -352,7 +364,9 @@ public class UsersAuthService implements IUsersAuthService {
         UsersEntity user = userRepository.findByEmail(email)
                 .filter(found -> found.getDeletedAt() == null)
                 .orElse(null);
-        if (user == null) {
+        // A suspended account gets no email either, so asking for a reset can never be a way back in. The answer stays
+        // the generic one: it must not reveal which accounts are suspended.
+        if (user == null || user.isSuspended()) {
             return;
         }
 

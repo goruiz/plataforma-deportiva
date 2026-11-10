@@ -59,6 +59,7 @@ public class PlayerResponseAssembler {
             response.setTeamName(first.getTeam().getName());
         });
         response.setIsCaptain(memberships.stream().findFirst().map(TeamMembersEntity::isCaptainOfTheTeam).orElse(false));
+        response.setIsTeamAdmin(memberships.stream().findFirst().map(TeamMembersEntity::isAdministratorOfTheTeam).orElse(false));
         return response;
     }
 
@@ -67,6 +68,7 @@ public class PlayerResponseAssembler {
                 membership.getTeam().getId(),
                 membership.getTeam().getName(),
                 membership.getOrganizationId(),
-                membership.isCaptainOfTheTeam());
+                membership.isCaptainOfTheTeam(),
+                membership.isAdministratorOfTheTeam());
     }
 }

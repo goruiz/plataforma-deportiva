@@ -30,6 +30,8 @@ public class PlayerResponse {
     private Boolean inTeamOfAnotherOrganization;
     /** Whether the player captains the team of {@link #teamId}. */
     private Boolean isCaptain;
+    /** Whether the player manages the team of {@link #teamId} (not the same as being an administrator of the platform). */
+    private Boolean isTeamAdmin;
     /** The teams the caller can see the player in: only those of their organization for an administrator, all for the player. */
     private List<PlayerTeamResponse> teams = List.of();
     private LocalDateTime createdAt;

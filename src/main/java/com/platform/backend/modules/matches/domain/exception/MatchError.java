@@ -24,5 +24,29 @@ public enum MatchError {
     MATCH_NOT_FOUND,
 
     /** The calendar was asked for an event played in complexes that have no court: there is nowhere to schedule the matches. */
-    EVENT_COMPLEXES_WITHOUT_COURTS
+    EVENT_COMPLEXES_WITHOUT_COURTS,
+
+    /** The organization's settings do not allow a match that is not an elimination to end level (and no penalties settle it). */
+    DRAW_NOT_ALLOWED,
+
+    /** A penalty shoot-out was sent but the organization's settings do not allow penalties. */
+    PENALTIES_NOT_ENABLED,
+
+    /** A penalty shoot-out needs both scores (or none). */
+    PENALTIES_INCOMPLETE,
+
+    /** A penalty score is negative. */
+    INVALID_PENALTY_SCORE,
+
+    /** A penalty shoot-out only exists when the score of the match ended level. */
+    PENALTIES_REQUIRE_LEVEL_RESULT,
+
+    /** A penalty shoot-out has a winner: the two penalty scores cannot be equal. */
+    PENALTIES_MUST_DECIDE,
+
+    /** The result cannot be validated: the match has no result yet. */
+    RESULT_NOT_RECORDED,
+
+    /** The result cannot be validated while a dispute against it is open. */
+    HAS_OPEN_DISPUTES
 }

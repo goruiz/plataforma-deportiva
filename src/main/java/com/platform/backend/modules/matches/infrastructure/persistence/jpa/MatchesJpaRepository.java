@@ -17,6 +17,8 @@ public interface MatchesJpaRepository extends TenantScopedJpaRepository<MatchesE
 
     Optional<MatchesEntity> findByIdAndDeletedAtIsNull(UUID id);
 
+    List<MatchesEntity> findAllByIdInAndDeletedAtIsNull(Collection<UUID> ids);
+
     List<MatchesEntity> findAllByEventIdAndDeletedAtIsNull(UUID eventId);
 
     @Query("SELECT m FROM MatchesEntity m WHERE (m.homeTeamId = :teamId OR m.awayTeamId = :teamId) "

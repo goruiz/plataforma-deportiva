@@ -38,6 +38,7 @@ public class TeamsService implements ITeamsService {
     private final ICategoryRepository categoryRepository;
     private final TeamMapper teamMapper;
     private final JoinCodeGenerator joinCodeGenerator;
+    private final TeamManagementAccess teamManagementAccess;
 
     @Transactional(readOnly = true)
     @Override
@@ -113,6 +114,7 @@ public class TeamsService implements ITeamsService {
     @Override
     public TeamJoinCodeResponse generateJoinCode(UUID id) {
         TeamsEntity team = findTeamOfCreatorOrAdmin(id);
+        team.requireActive();
         team.setJoinCode(drawUnusedJoinCode());
         return toJoinCodeResponse(teamRepository.save(team));
     }
@@ -125,10 +127,13 @@ public class TeamsService implements ITeamsService {
         return toJoinCodeResponse(teamRepository.save(team));
     }
 
-    /** Whoever holds the code can bring anyone into the team, so only who may change the team may read or change it. */
+    /**
+     * Whoever holds the code can bring anyone into the team, so only who manages the team may read or change it: an
+     * administrator, whoever created it, and the administrators the team has named.
+     */
     private TeamsEntity findTeamOfCreatorOrAdmin(UUID id) {
         TeamsEntity team = findActiveOrThrow(id);
-        CreatorAccess.requireAdminOrCreator(team.getCreatedBy());
+        teamManagementAccess.requireCanManage(team);
         return team;
     }
 

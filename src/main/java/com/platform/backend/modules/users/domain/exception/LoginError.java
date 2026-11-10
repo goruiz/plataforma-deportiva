@@ -18,5 +18,8 @@ public enum LoginError {
     ORGANIZATION_NOT_FOUND,
 
     /** The account's organization is suspended. */
-    ORGANIZATION_SUSPENDED
+    ORGANIZATION_SUSPENDED,
+
+    /** An administrator suspended this account: its credentials are right but it cannot sign in until reactivated. */
+    ACCOUNT_SUSPENDED
 }

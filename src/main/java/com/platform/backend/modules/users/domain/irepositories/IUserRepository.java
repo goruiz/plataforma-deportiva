@@ -33,8 +33,8 @@ public interface IUserRepository {
     boolean existsActiveByOrganizationId(UUID organizationId);
 
     /**
-     * Whether the account still has a valid session for a token issued at that moment: it exists, is not deleted and
-     * has not signed out since. Scalar on purpose: it never loads the entity.
+     * Whether the account still has a valid session for a token issued at that moment: it exists, is not deleted or
+     * suspended and has not signed out since. Scalar on purpose: it never loads the entity.
      */
     boolean hasSessionValidAt(UUID id, LocalDateTime issuedAt);
 

@@ -107,6 +107,9 @@ public class ChampionshipResponse {
         private UUID awayTeamId;
         private Integer homeScore;
         private Integer awayScore;
+        /** The penalty shoot-out that settled this match when it ended level; null when there was none. */
+        private Integer homePenaltyScore;
+        private Integer awayPenaltyScore;
         private Integer legNumber;
         private UUID advancingTeamId;
         private LocalDateTime matchDate;

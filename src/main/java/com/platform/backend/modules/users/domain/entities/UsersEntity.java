@@ -55,6 +55,11 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
     @Column(name = "tokens_valid_after")
     private LocalDateTime tokensValidAfter;
 
+    /** When an administrator suspended the account; null while it is active. A suspended account cannot sign in. */
+    @JsonIgnore
+    @Column(name = "suspended_at")
+    private LocalDateTime suspendedAt;
+
     public UsersEntity() {}
 
     public String getFirstName() { return firstName; }
@@ -86,6 +91,11 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
     @JsonIgnore
     public LocalDateTime getTokensValidAfter() { return tokensValidAfter; }
     public void setTokensValidAfter(LocalDateTime tokensValidAfter) { this.tokensValidAfter = tokensValidAfter; }
+
+    public LocalDateTime getSuspendedAt() { return suspendedAt; }
+    public void setSuspendedAt(LocalDateTime suspendedAt) { this.suspendedAt = suspendedAt; }
+
+    public boolean isSuspended() { return suspendedAt != null; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {
