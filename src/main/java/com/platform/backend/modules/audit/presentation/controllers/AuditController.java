@@ -28,10 +28,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-@Tag(name = "Audit", description = "Who created, changed or deleted what (administrators only)")
+@Tag(name = "Audit", description = "Who created, changed or deleted what (the platform owner only)")
 @RestController
 @RequestMapping("/audit")
-@PreAuthorize(AccessRules.ADMIN_ONLY)
+@PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
 @RequiredArgsConstructor
 public class AuditController {
 
@@ -42,9 +42,10 @@ public class AuditController {
     private final ListQueryResolver listQueryResolver;
 
     /**
-     * The changes the caller may see (the platform owner all of them, an administrator those of their organization),
-     * the most recent first. {@code search} (every word must appear), {@code entityType}, {@code action} and the days
-     * {@code from} and {@code to} (yyyy-MM-dd, both included) narrow it.
+     * Every change of every organization, the most recent first. Only the platform owner reads it: it shows who did what
+     * in all the customers' data, so an administrator of one organization never sees it. {@code search} (every word must
+     * appear), {@code entityType}, {@code action} and the days {@code from} and {@code to} (yyyy-MM-dd, both included)
+     * narrow it.
      */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AuditEntryResponse>>> search(
