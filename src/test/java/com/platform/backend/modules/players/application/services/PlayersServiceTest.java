@@ -7,6 +7,7 @@ import com.platform.backend.modules.players.domain.irepositories.ITeamInvitation
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -33,17 +34,22 @@ class PlayersServiceTest {
     @Mock private ITeamInvitationRepository teamInvitationRepository;
     @Mock private PlayerMapper playerMapper;
     @Mock private EmailService emailService;
+    @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
 
     @InjectMocks
     private PlayersService playersService;
 
+    private final InMemoryTeamMembers memberships = new InMemoryTeamMembers();
     private PlayersEntity playerOfATeam;
     private PlayersEntity playerWithoutTeam;
 
     @BeforeEach
     void setUp() {
+        PlayersServiceTestSupport.useInMemoryMemberships(playersService, playerMapper, memberships, playerAccountOrganizationService);
         playerOfATeam = player("con-equipo@email.com");
-        playerOfATeam.setTeam(new TeamsEntity());
+        TeamsEntity team = new TeamsEntity();
+        team.setId(UUID.randomUUID());
+        memberships.put(playerOfATeam, team);
         playerWithoutTeam = player("sin-equipo@email.com");
 
         when(playerRepository.findAllActive()).thenReturn(List.of(playerOfATeam, playerWithoutTeam));

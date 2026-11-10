@@ -19,17 +19,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.player;
+import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.team;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** When a player's team changes, their account follows it: what they see in the app is their team's organization. */
+/**
+ * When a player's teams change, their account follows the one they joined last: what they see in the app is read from all
+ * their teams, but the organization of the account is a single one.
+ */
 @ExtendWith(MockitoExtension.class)
 class PlayersServiceTeamChangeTest {
 
     private static final String EMAIL = "ana@email.com";
     private static final UUID ORGANIZATION_ID = UUID.randomUUID();
+    private static final UUID OTHER_ORGANIZATION_ID = UUID.randomUUID();
 
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamRepository teamRepository;
@@ -39,21 +46,20 @@ class PlayersServiceTeamChangeTest {
     @InjectMocks
     private PlayersService playersService;
 
+    private InMemoryTeamMembers memberships;
     private PlayersEntity player;
     private TeamsEntity team;
 
     @BeforeEach
     void setUp() {
-        team = new TeamsEntity();
-        team.setId(UUID.randomUUID());
-        team.setOrganizationId(ORGANIZATION_ID);
+        memberships = new InMemoryTeamMembers();
+        PlayersServiceTestSupport.useInMemoryMemberships(playersService, playerMapper, memberships, playerAccountOrganizationService);
 
-        player = new PlayersEntity();
-        player.setId(UUID.randomUUID());
-        player.setEmail(EMAIL);
+        team = team("Tigres", ORGANIZATION_ID);
+        player = player(EMAIL);
 
         when(playerRepository.findActiveById(player.getId())).thenReturn(Optional.of(player));
-        when(playerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(playerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -75,11 +81,21 @@ class PlayersServiceTeamChangeTest {
     }
 
     @Test
-    void removeFromTeam_whenThePlayerLeavesTheirTeam_thenTheirAccountLosesTheOrganization() {
-        player.setTeam(team);
+    void removeFromTeam_whenThePlayerLeavesTheirOnlyTeam_thenTheirAccountLosesTheOrganization() {
+        memberships.put(player, team);
 
-        playersService.removeFromTeam(player.getId());
+        playersService.removeFromTeam(player.getId(), null);
 
         verify(playerAccountOrganizationService).followTeam(EMAIL, null);
+    }
+
+    @Test
+    void removeFromTeam_whenThePlayerStillPlaysForATeamOfAnotherOrganization_thenTheirAccountFollowsThatOne() {
+        memberships.put(player, team("Pumas", OTHER_ORGANIZATION_ID));
+        memberships.put(player, team);
+
+        playersService.removeFromTeam(player.getId(), team.getId());
+
+        verify(playerAccountOrganizationService).followTeam(EMAIL, OTHER_ORGANIZATION_ID);
     }
 }

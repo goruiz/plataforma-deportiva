@@ -1,9 +1,12 @@
 package com.platform.backend.modules.players.application.services;
 
 import com.platform.backend.modules.players.application.iservices.IPlayersService;
+import com.platform.backend.modules.players.application.iservices.ITeamMembershipsService;
 import com.platform.backend.modules.players.application.mappers.PlayerMapper;
+import com.platform.backend.modules.players.application.mappers.PlayerResponseAssembler;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
+import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
 import com.platform.backend.modules.players.domain.enums.InvitationStatus;
 import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
@@ -11,6 +14,7 @@ import com.platform.backend.modules.players.domain.exception.PlayerError;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamInvitationRepository;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.players.presentation.requests.CreatePlayerRequest.CreatePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InvitePlayerRequest.InvitePlayerRequest;
 import com.platform.backend.modules.players.presentation.requests.InviteRegisterRequest.InviteRegisterRequest;
@@ -26,9 +30,9 @@ import com.platform.backend.modules.teams.domain.enums.TeamStatus;
 import com.platform.backend.modules.teams.domain.exception.TeamError;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
-import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.presentation.requests.RegisterRequest.RegisterRequest;
+import com.platform.backend.shared.domain.tenancy.TenantScope;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.domain.utils.JoinCodes;
 import com.platform.backend.shared.infraestructure.email.EmailService;
@@ -41,9 +45,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -53,10 +58,12 @@ public class PlayersService implements IPlayersService {
     private final IPlayerRepository playerRepository;
     private final IPlayerPhotoRepository playerPhotoRepository;
     private final ITeamRepository teamRepository;
+    private final ITeamMemberRepository teamMemberRepository;
+    private final ITeamMembershipsService teamMembershipsService;
     private final ITeamInvitationRepository teamInvitationRepository;
     private final PlayerMapper playerMapper;
+    private final PlayerResponseAssembler playerResponses;
     private final IUsersAuthService usersAuthService;
-    private final IPlayerAccountOrganizationService playerAccountOrganizationService;
     private final IEmailVerificationService emailVerificationService;
     private final EmailService emailService;
 
@@ -66,10 +73,11 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional(readOnly = true)
     public List<PlayerResponse> getAll() {
-        return playerRepository.findAllActive()
-                .stream()
-                .filter(this::isListedForCaller)
-                .map(playerMapper::toResponse)
+        List<PlayersEntity> players = playerRepository.findAllActive();
+        Map<UUID, List<TeamMembersEntity>> membershipsByPlayer = playerResponses.membershipsByPlayerId(players);
+        return players.stream()
+                .filter(player -> isListedForCaller(membershipsByPlayer.getOrDefault(player.getId(), List.of())))
+                .map(player -> playerResponses.toResponse(player, membershipsByPlayer.getOrDefault(player.getId(), List.of())))
                 .toList();
     }
 
@@ -78,16 +86,38 @@ public class PlayersService implements IPlayersService {
     public PlayerResponse getById(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
-        return playerMapper.toResponse(player);
+        return playerResponses.toResponse(player);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PlayerResponse searchByEmail(String email) {
-        PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(email))
+        String normalizedEmail = EmailNormalizer.normalize(email);
+        return playerRepository.findByEmail(normalizedEmail)
                 .filter(p -> p.getDeletedAt() == null)
+                .map(playerResponses::toResponse)
+                .or(() -> findPlayerOfAnotherOrganization(normalizedEmail))
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-        return playerMapper.toResponse(player);
+    }
+
+    /**
+     * Someone who plays only for teams of other organizations is hidden from this administrator by the organization
+     * filter, but they are registered all the same: answering "not found" would send the administrator to ask them to
+     * register again. Only who they are is revealed (name, email, photo) and that they play for someone else: not which team,
+     * nor their phone or captaincy, which belong to the organization of that team.
+     */
+    private Optional<PlayerResponse> findPlayerOfAnotherOrganization(String normalizedEmail) {
+        return playerRepository.findAnyActiveByEmail(normalizedEmail).map(player -> {
+            PlayerResponse response = new PlayerResponse();
+            response.setId(player.getId());
+            response.setFirstName(player.getFirstName());
+            response.setLastName(player.getLastName());
+            response.setEmail(player.getEmail());
+            response.setProfilePhotoUrl(player.getProfilePhotoUrl());
+            response.setStatus(player.getStatus());
+            response.setInTeamOfAnotherOrganization(true);
+            return response;
+        });
     }
 
     @Override
@@ -104,9 +134,9 @@ public class PlayersService implements IPlayersService {
                 request.getFirstName(), request.getLastName(), false);
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
-        player.setTeam(team);
-        followTeamOrganization(player);
-        return playerMapper.toResponse(playerRepository.save(player));
+        PlayersEntity saved = playerRepository.save(player);
+        joinIfThereIsATeam(saved, team);
+        return playerResponses.toResponse(saved);
     }
 
     /**
@@ -124,14 +154,20 @@ public class PlayersService implements IPlayersService {
                 request.getFirstName(), request.getLastName(), isInvitedEmail(invitation, request.getEmail()));
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
-        player.setTeam(team);
-        followTeamOrganization(player);
+        PlayersEntity saved = playerRepository.save(player);
+        joinIfThereIsATeam(saved, team);
 
         if (hasInvitation) {
             invitation.setStatus(InvitationStatus.USED.name());
             teamInvitationRepository.save(invitation);
         }
-        return playerMapper.toResponse(playerRepository.save(player));
+        return playerResponses.toResponse(saved);
+    }
+
+    private void joinIfThereIsATeam(PlayersEntity player, TeamsEntity team) {
+        if (team != null) {
+            teamMembershipsService.join(player, team);
+        }
     }
 
     /** The refusal reasons are codes, not sentences, so the app can explain each one in the user's language. */
@@ -188,11 +224,11 @@ public class PlayersService implements IPlayersService {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         playerMapper.updateEntity(player, request);
+        PlayersEntity saved = playerRepository.save(player);
         if (request.getTeamId() != null) {
-            player.moveToTeam(resolveTeam(request.getTeamId()));
-            followTeamOrganization(player);
+            teamMembershipsService.join(saved, resolveTeam(request.getTeamId()));
         }
-        return playerMapper.toResponse(playerRepository.save(player));
+        return playerResponses.toResponse(saved);
     }
 
     @Override
@@ -203,16 +239,25 @@ public class PlayersService implements IPlayersService {
         PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(email))
                 .filter(found -> found.getDeletedAt() == null)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found"));
-        if (player.getTeam() != null) {
+        TeamsEntity team = findTeamOpenToJoinCodes(request.getCode());
+        requireNoTeamInTheOrganizationOf(player, team);
+
+        teamMembershipsService.join(player, team);
+        PlayerResponse joined = playerResponses.toResponse(player);
+
+        return new AcceptedInvitationResponse(joined, usersAuthService.reissueSession(player.getEmail()).getToken());
+    }
+
+    /**
+     * A code is not a way to change teams: a player who already plays for a team of that organization has to leave it
+     * first. The teams of other organizations do not matter, a player can have one in each.
+     */
+    private void requireNoTeamInTheOrganizationOf(PlayersEntity player, TeamsEntity team) {
+        boolean alreadyInTheOrganization = teamMemberRepository.findAllActiveByPlayerId(player.getId()).stream()
+                .anyMatch(membership -> Objects.equals(membership.getOrganizationId(), team.getOrganizationId()));
+        if (alreadyInTheOrganization) {
             throw new IllegalStateException(PlayerError.ALREADY_IN_TEAM.name());
         }
-
-        player.moveToTeam(findTeamOpenToJoinCodes(request.getCode()));
-        PlayerResponse joined = playerMapper.toResponse(playerRepository.save(player));
-
-        // What the player sees follows their team, and their open token still names the old organization.
-        followTeamOrganization(player);
-        return new AcceptedInvitationResponse(joined, usersAuthService.reissueSession(player.getEmail()).getToken());
     }
 
     /** A wrong code and a team that is no longer active answer alike: the caller learns nothing about which codes exist. */
@@ -225,17 +270,22 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional
     public void invitePlayer(InvitePlayerRequest request) {
-        PlayersEntity player = playerRepository.findByEmail(EmailNormalizer.normalize(request.getEmail()))
-                .filter(p -> p.getDeletedAt() == null)
+        // Whatever organization they play for: a registered person is never asked to register again.
+        PlayersEntity player = playerRepository.findAnyActiveByEmail(EmailNormalizer.normalize(request.getEmail()))
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         TeamsEntity team = teamRepository.findActiveById(request.getTeamId())
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
 
+        inviteRegisteredPlayer(player, team);
+    }
+
+    /** They join only if they accept it in the app; a team they have in the same organization is then replaced. */
+    private void inviteRegisteredPlayer(PlayersEntity player, TeamsEntity team) {
         // The invited person finds it by the email of their account, which is the player's one.
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
         invitation.setEmail(player.getEmail());
-        invitation.setTeamId(request.getTeamId());
+        invitation.setTeamId(team.getId());
         invitation.setType(InvitationType.EXISTING_USER.name());
         invitation.setStatus(InvitationStatus.PENDING.name());
         invitation.setExpiresAt(LocalDateTime.now().plusDays(inviteExpirationDays));
@@ -251,9 +301,16 @@ public class PlayersService implements IPlayersService {
         TeamsEntity team = teamRepository.findActiveById(request.getTeamId())
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + request.getTeamId()));
 
-        String token = UUID.randomUUID().toString();
-
         String email = EmailNormalizer.normalize(request.getEmail());
+
+        // Registering twice is impossible (the email is taken): whoever is already registered is asked to join instead.
+        Optional<PlayersEntity> alreadyRegistered = playerRepository.findAnyActiveByEmail(email);
+        if (alreadyRegistered.isPresent()) {
+            inviteRegisteredPlayer(alreadyRegistered.get(), team);
+            return;
+        }
+
+        String token = UUID.randomUUID().toString();
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
         invitation.setEmail(email);
         invitation.setTeamId(request.getTeamId());
@@ -269,23 +326,20 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional(readOnly = true)
     public List<PlayerResponse> getByTeamId(UUID teamId) {
-        return playerRepository.findAllActiveByTeamId(teamId)
-                .stream()
-                .map(playerMapper::toResponse)
+        return teamMemberRepository.findAllActiveByTeamId(teamId).stream()
+                .map(membership -> playerResponses.toResponse(membership.getPlayer(), List.of(membership)))
                 .toList();
     }
 
     @Override
     @Transactional
-    public PlayerResponse removeFromTeam(UUID id) {
+    public PlayerResponse removeFromTeam(UUID id, UUID teamId) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
-        if (player.getTeam() == null) {
-            throw new IllegalStateException("Player does not belong to any team");
-        }
-        player.moveToTeam(null);
-        followTeamOrganization(player);
-        return playerMapper.toResponse(playerRepository.save(player));
+        TeamMembersEntity membership = findMembershipToChange(player, teamId)
+                .orElseThrow(() -> new IllegalStateException("Player does not belong to any team"));
+        teamMembershipsService.leave(membership);
+        return playerResponses.toResponse(player);
     }
 
     @Override
@@ -294,7 +348,7 @@ public class PlayersService implements IPlayersService {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         player.setStatus(request.getStatus());
-        return playerMapper.toResponse(playerRepository.save(player));
+        return playerResponses.toResponse(playerRepository.save(player));
     }
 
     @Override
@@ -302,24 +356,40 @@ public class PlayersService implements IPlayersService {
     public PlayerResponse updateCaptain(UUID id, UpdatePlayerCaptainRequest request) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        TeamMembersEntity membership = findMembershipToChange(player, request.getTeamId())
+                .orElseThrow(() -> new IllegalStateException(PlayerError.CAPTAIN_REQUIRES_TEAM.name()));
 
         if (Boolean.TRUE.equals(request.getIsCaptain())) {
-            if (player.getTeam() == null) {
-                throw new IllegalStateException(PlayerError.CAPTAIN_REQUIRES_TEAM.name());
-            }
-            stepDownOtherCaptainsOf(player);
+            stepDownOtherCaptainsOf(membership);
         }
-        player.setIsCaptain(request.getIsCaptain());
-        return playerMapper.toResponse(playerRepository.save(player));
+        membership.setIsCaptain(request.getIsCaptain());
+        teamMemberRepository.save(membership);
+        return playerResponses.toResponse(player);
+    }
+
+    /**
+     * The team a change is about: the one asked for, or the only one the caller sees the player in. An administrator of an
+     * organization always sees one at most; whoever sees several (the platform owner) has to say which. Empty when the player
+     * plays for none the caller sees.
+     */
+    private Optional<TeamMembersEntity> findMembershipToChange(PlayersEntity player, UUID teamId) {
+        List<TeamMembersEntity> memberships = teamMemberRepository.findAllActiveByPlayerId(player.getId());
+        if (teamId != null) {
+            return memberships.stream().filter(membership -> membership.getTeam().getId().equals(teamId)).findFirst();
+        }
+        if (memberships.size() > 1) {
+            throw new IllegalStateException(PlayerError.TEAM_REQUIRED.name());
+        }
+        return memberships.stream().findFirst();
     }
 
     /** The previous captain is saved first: the unique index allows one captain per team at every moment. */
-    private void stepDownOtherCaptainsOf(PlayersEntity newCaptain) {
-        playerRepository.findAllActiveByTeamId(newCaptain.getTeam().getId()).stream()
-                .filter(teammate -> Boolean.TRUE.equals(teammate.getIsCaptain()) && !teammate.getId().equals(newCaptain.getId()))
+    private void stepDownOtherCaptainsOf(TeamMembersEntity newCaptain) {
+        teamMemberRepository.findAllActiveByTeamId(newCaptain.getTeam().getId()).stream()
+                .filter(teammate -> teammate.isCaptainOfTheTeam() && !teammate.getId().equals(newCaptain.getId()))
                 .forEach(previousCaptain -> {
                     previousCaptain.setIsCaptain(false);
-                    playerRepository.saveAndFlush(previousCaptain);
+                    teamMemberRepository.saveAndFlush(previousCaptain);
                 });
     }
 
@@ -329,30 +399,40 @@ public class PlayersService implements IPlayersService {
     public void delete(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        requireNotPlayingForAnotherOrganization(player);
+        teamMembershipsService.leaveEvery(player);
         player.setDeletedAt(LocalDateTime.now());
         playerRepository.save(player);
         playerPhotoRepository.deleteByPlayerId(id);
     }
 
     @Override
+    @Transactional
     public void hardDelete(UUID id) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        requireNotPlayingForAnotherOrganization(player);
         playerRepository.hardDelete(player);
+    }
+
+    /**
+     * A person is shared by every organization they play for, so one organization cannot erase them: it can only take
+     * them out of its own team. The platform owner (who sees everything) can.
+     */
+    private void requireNotPlayingForAnotherOrganization(PlayersEntity player) {
+        TenantScope scope = CurrentTenant.scope();
+        if (scope.restricted()
+                && teamMemberRepository.existsActiveOutsideOrganization(player.getId(), scope.organizationIdForFilter())) {
+            throw new IllegalStateException(PlayerError.PLAYS_FOR_ANOTHER_ORGANIZATION.name());
+        }
     }
 
     /**
      * A player with no team is visible to everyone so that it can be found by email and added to a team, but it is
      * not listed to an organization's administrator: that list is for their own teams' players.
      */
-    private boolean isListedForCaller(PlayersEntity player) {
-        return CurrentTenant.scope().isUnrestricted() || player.getTeam() != null;
-    }
-
-    /** What a player sees in the app is what their team's organization shows, so their account follows the team. */
-    private void followTeamOrganization(PlayersEntity player) {
-        UUID organizationId = player.getTeam() == null ? null : player.getTeam().getOrganizationId();
-        playerAccountOrganizationService.followTeam(player.getEmail(), organizationId);
+    private boolean isListedForCaller(List<TeamMembersEntity> visibleMemberships) {
+        return CurrentTenant.scope().isUnrestricted() || !visibleMemberships.isEmpty();
     }
 
     private TeamsEntity resolveTeam(UUID teamId) {
@@ -361,4 +441,3 @@ public class PlayersService implements IPlayersService {
                 .orElseThrow(() -> new EntityNotFoundException("Team not found with id: " + teamId));
     }
 }
-

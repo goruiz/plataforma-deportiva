@@ -20,6 +20,11 @@ public interface PlayersJpaRepository extends TenantScopedJpaRepository<PlayersE
 
     Optional<PlayersEntity> findByEmail(String email);
 
+    // Native on purpose: a player in a team is only visible to the organization of that team, and an administrator of
+    // another organization who wants to invite them has to find them (native queries skip the organization filter).
+    @Query(value = "SELECT * FROM players WHERE email = :email AND deleted_at IS NULL LIMIT 1", nativeQuery = true)
+    Optional<PlayersEntity> findAnyActiveByEmail(@Param("email") String email);
+
     boolean existsByEmailAndDeletedAtIsNull(String email);
 
     // Native on purpose: a leaderboard or a match timeline names players of other organizations, which the organization
@@ -36,8 +41,5 @@ public interface PlayersJpaRepository extends TenantScopedJpaRepository<PlayersE
 
         String getLastName();
     }
-
-    @Query("SELECT p FROM PlayersEntity p LEFT JOIN FETCH p.team WHERE p.team.id = :teamId AND p.deletedAt IS NULL")
-    List<PlayersEntity> findAllByTeamIdWithTeam(@Param("teamId") UUID teamId);
 }
 

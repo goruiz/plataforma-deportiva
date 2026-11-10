@@ -1,9 +1,11 @@
 package com.platform.backend.modules.players.application.services;
 
 import com.platform.backend.modules.players.application.mappers.PlayerMapper;
+import com.platform.backend.modules.players.application.mappers.PlayerResponseAssembler;
 import com.platform.backend.modules.players.application.mappers.TeamInvitationMapper;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
+import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
 import com.platform.backend.modules.players.domain.enums.InvitationStatus;
 import com.platform.backend.modules.players.domain.enums.InvitationType;
 import com.platform.backend.modules.players.domain.exception.TeamInvitationError;
@@ -31,6 +33,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -65,12 +68,18 @@ class TeamInvitationsServiceTest {
     @InjectMocks
     private TeamInvitationsService teamInvitationsService;
 
+    private InMemoryTeamMembers memberships;
     private TeamsEntity team;
     private PlayersEntity me;
 
     @BeforeEach
     void setUp() {
         TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), MY_EMAIL);
+        memberships = new InMemoryTeamMembers();
+        ReflectionTestUtils.setField(teamInvitationsService, "teamMembershipsService",
+                new TeamMembershipsService(memberships, playerAccountOrganizationService));
+        ReflectionTestUtils.setField(teamInvitationsService, "playerResponses",
+                new PlayerResponseAssembler(playerMapper, memberships));
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         team.setName("Tigres");
@@ -137,7 +146,7 @@ class TeamInvitationsServiceTest {
         AcceptedInvitationResponse response = teamInvitationsService.accept(invitation.getId());
 
         assertThat(response.getPlayer().getTeamId()).isEqualTo(team.getId());
-        assertThat(me.getTeam()).isSameAs(team);
+        assertThat(memberships.activeTeamsOf(me)).containsExactly(team);
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.USED.name());
     }
 
@@ -162,19 +171,35 @@ class TeamInvitationsServiceTest {
                 .hasMessage(AccessError.EMAIL_NOT_VERIFIED.name());
 
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.PENDING.name());
-        verify(playerRepository, never()).save(any());
+        assertThat(memberships.activeTeamsOf(me)).isEmpty();
     }
 
     @Test
-    void accept_whenThePlayerWasInAnotherTeam_thenTheyMoveToTheNewOne() {
+    void accept_whenThePlayerWasInAnotherTeamOfTheSameOrganization_thenTheyMoveToTheNewOne() {
         TeamsEntity previous = new TeamsEntity();
         previous.setId(UUID.randomUUID());
-        me.setTeam(previous);
+        previous.setOrganizationId(TEAM_ORGANIZATION_ID);
+        TeamMembersEntity previousMembership = memberships.put(me, previous);
         TeamInvitationsEntity invitation = pendingInvitation();
 
         teamInvitationsService.accept(invitation.getId());
 
-        assertThat(me.getTeam()).isSameAs(team);
+        assertThat(memberships.activeTeamsOf(me)).containsExactly(team);
+        assertThat(previousMembership.getDeletedAt()).as("the old team is kept as history").isNotNull();
+    }
+
+    @Test
+    void accept_whenThePlayerPlaysForATeamOfAnotherOrganization_thenTheNewTeamIsAddedAndTheOldOneStays() {
+        TeamsEntity elsewhere = new TeamsEntity();
+        elsewhere.setId(UUID.randomUUID());
+        elsewhere.setOrganizationId(UUID.randomUUID());
+        memberships.put(me, elsewhere);
+        TeamInvitationsEntity invitation = pendingInvitation();
+
+        AcceptedInvitationResponse response = teamInvitationsService.accept(invitation.getId());
+
+        assertThat(memberships.activeTeamsOf(me)).containsExactlyInAnyOrder(elsewhere, team);
+        assertThat(response.getPlayer().getTeams()).hasSize(2);
     }
 
     @Test
@@ -243,7 +268,7 @@ class TeamInvitationsServiceTest {
         teamInvitationsService.decline(invitation.getId());
 
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.DECLINED.name());
-        assertThat(me.getTeam()).isNull();
+        assertThat(memberships.activeTeamsOf(me)).isEmpty();
         verify(invitationRepository).save(invitation);
     }
 }

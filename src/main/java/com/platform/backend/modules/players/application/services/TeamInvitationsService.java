@@ -1,7 +1,8 @@
 package com.platform.backend.modules.players.application.services;
 
 import com.platform.backend.modules.players.application.iservices.ITeamInvitationsService;
-import com.platform.backend.modules.players.application.mappers.PlayerMapper;
+import com.platform.backend.modules.players.application.iservices.ITeamMembershipsService;
+import com.platform.backend.modules.players.application.mappers.PlayerResponseAssembler;
 import com.platform.backend.modules.players.application.mappers.TeamInvitationMapper;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamInvitationsEntity;
@@ -16,7 +17,6 @@ import com.platform.backend.modules.players.presentation.responses.TeamInvitatio
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
-import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import jakarta.persistence.EntityNotFoundException;
@@ -38,8 +38,8 @@ public class TeamInvitationsService implements ITeamInvitationsService {
     private final IPlayerRepository playerRepository;
     private final ITeamRepository teamRepository;
     private final TeamInvitationMapper invitationMapper;
-    private final PlayerMapper playerMapper;
-    private final IPlayerAccountOrganizationService playerAccountOrganizationService;
+    private final PlayerResponseAssembler playerResponses;
+    private final ITeamMembershipsService teamMembershipsService;
     private final IUsersAuthService usersAuthService;
     private final IEmailVerificationService emailVerificationService;
 
@@ -68,14 +68,13 @@ public class TeamInvitationsService implements ITeamInvitationsService {
                 .filter(found -> found.getDeletedAt() == null)
                 .orElseThrow(() -> new IllegalStateException(TeamInvitationError.PLAYER_NOT_FOUND.name()));
 
-        // A player has a single team, so accepting also leaves the previous one.
-        player.moveToTeam(team);
+        // A player has one team per organization: accepting leaves the one they have in this team's organization (if
+        // any) and keeps the ones of other organizations. What they see follows their teams, and their open token
+        // still names the old organization, hence the new one.
+        teamMembershipsService.join(player, team);
         invitation.setStatus(InvitationStatus.USED.name());
         invitationRepository.save(invitation);
-        PlayerResponse joined = playerMapper.toResponse(playerRepository.save(player));
-
-        // What the player sees follows their team, and their open token still names the old organization.
-        playerAccountOrganizationService.followTeam(player.getEmail(), team.getOrganizationId());
+        PlayerResponse joined = playerResponses.toResponse(player);
         return new AcceptedInvitationResponse(joined, usersAuthService.reissueSession(player.getEmail()).getToken());
     }
 

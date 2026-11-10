@@ -90,13 +90,9 @@ public class UsersManagementController {
         return ResponseEntity.ok(ApiResponse.ok(usersManagementService.updateUser(id, request)));
     }
 
+    /** Erases the account from the database: there is no way back, so only an administrator can. */
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable UUID id) {
-        usersManagementService.softDelete(id);
-        return ResponseEntity.ok(ApiResponse.deleted());
-    }
-
-    @DeleteMapping("/{id}/hard")
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         usersManagementService.hardDelete(id);
         return ResponseEntity.ok(ApiResponse.deleted());

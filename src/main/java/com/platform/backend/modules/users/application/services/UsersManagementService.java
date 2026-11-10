@@ -7,6 +7,8 @@ import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.enums.UserSection;
 import com.platform.backend.modules.users.domain.filters.UserListFilter;
+import com.platform.backend.modules.users.domain.irepositories.IEmailVerificationTokenRepository;
+import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
@@ -45,6 +47,8 @@ public class UsersManagementService implements IUsersManagementService {
 
     private final IUserRepository userRepository;
     private final IUsersRolesRepository usersRolesRepository;
+    private final IPasswordResetTokenRepository passwordResetTokenRepository;
+    private final IEmailVerificationTokenRepository emailVerificationTokenRepository;
     private final IOrganizationRepository organizationRepository;
     private final PlatformOwnerRole platformOwnerRole;
     private final UserMapper userMapper;
@@ -132,18 +136,24 @@ public class UsersManagementService implements IUsersManagementService {
         return userMapper.toUserResponse(userRepository.save(user));
     }
 
+    /**
+     * Erases the account from the database instead of marking it as deleted: its row, all its role assignments (also
+     * the ones already marked as deleted, because the foreign key to the account has no cascade) and its
+     * password-reset and email-verification tokens. The tokens are erased here and not left to the cascade of their
+     * foreign keys: that of {@code password_reset_tokens} is missing in a database where the table already existed
+     * when V12 ran ({@code CREATE TABLE IF NOT EXISTS}), and a token would be left pointing at nobody. A session the account still
+     * has stops working at once, because the account no longer exists (see {@code UserSessionChecker}). The audit
+     * columns of other records (created_by, updated_by) keep the id as a plain value: nothing references it by key.
+     * The player with the same email, if there is one, is not touched: it belongs to a team and to its match history.
+     */
     @Override
-    public void softDelete(UUID id) {
-        UsersEntity user = userRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
-        user.setDeletedAt(LocalDateTime.now());
-        userRepository.save(user);
-    }
-
-    @Override
+    @Transactional
     public void hardDelete(UUID id) {
         UsersEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
+        usersRolesRepository.hardDeleteAllOfUser(user.getId());
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        emailVerificationTokenRepository.deleteByUserId(user.getId());
         userRepository.hardDelete(user);
     }
 

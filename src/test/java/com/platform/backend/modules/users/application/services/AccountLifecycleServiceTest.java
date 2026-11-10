@@ -1,9 +1,9 @@
 package com.platform.backend.modules.users.application.services;
 
+import com.platform.backend.modules.players.application.iservices.ITeamMembershipsService;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
-import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.exception.AccountDeletionError;
 import com.platform.backend.modules.users.domain.irepositories.IEmailVerificationTokenRepository;
@@ -43,6 +43,7 @@ class AccountLifecycleServiceTest {
     @Mock private IUserRepository userRepository;
     @Mock private IPlayerRepository playerRepository;
     @Mock private IPlayerPhotoRepository playerPhotoRepository;
+    @Mock private ITeamMembershipsService teamMembershipsService;
     @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private IEmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -69,8 +70,6 @@ class AccountLifecycleServiceTest {
         user.setPassword("hashed");
         user.setEmailVerifiedAt(LocalDateTime.now().minusDays(3));
 
-        TeamsEntity team = new TeamsEntity();
-        team.setId(UUID.randomUUID());
         player = new PlayersEntity();
         player.setId(UUID.randomUUID());
         player.setEmail(EMAIL);
@@ -78,8 +77,6 @@ class AccountLifecycleServiceTest {
         player.setLastName("Gómez");
         player.setPhone("0991234567");
         player.setProfilePhotoUrl("https://photos/ana.png");
-        player.setTeam(team);
-        player.setIsCaptain(true);
 
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
     }
@@ -172,13 +169,13 @@ class AccountLifecycleServiceTest {
     }
 
     @Test
-    void deleteAccount_whenThePlayerHadATeamAndWasItsCaptain_thenThePlayerLeavesItAndIsErasedToo() {
+    void deleteAccount_whenThePlayerPlayedForTeams_thenThePlayerLeavesEveryOneAndIsErasedToo() {
         givenThePasswordIsRight();
 
         accountLifecycleService.deleteAccount(requestWith("secret"), EMAIL);
 
-        assertThat(player.getTeam()).isNull();
-        assertThat(player.getIsCaptain()).isFalse();
+        // The person erases themselves, so they leave every team they play for, in every organization.
+        verify(teamMembershipsService).leaveEvery(player);
         assertThat(player.getFirstName()).isEqualTo("Cuenta eliminada");
         assertThat(player.getLastName()).isEmpty();
         assertThat(player.getEmail()).isEqualTo("deleted-" + player.getId() + "@deleted.invalid");

@@ -14,6 +14,8 @@ import com.platform.backend.modules.matches.presentation.requests.UpdateMatchReq
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -61,6 +63,7 @@ class MatchesServiceTest {
     @Mock private ITeamRepository teamRepository;
     @Mock private ICourtRepository courtRepository;
     @Mock private IPlayerRepository playerRepository;
+    @Mock private ITeamMemberRepository teamMemberRepository;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -640,7 +643,7 @@ class MatchesServiceTest {
         assertThat(matchesService.update(stored.getId(), scores(1, 1)).getAwayScore()).isEqualTo(1);
     }
 
-    // ─── "my matches": the matches of the team the caller plays for ─────────
+    // ─── "my matches": the matches of the teams the caller plays for ────────
 
     @Test
     void getMine_whenThePlayerHasATeam_thenItsMatchesAreReturned() {
@@ -648,12 +651,33 @@ class MatchesServiceTest {
         TeamsEntity team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         PlayersEntity player = new PlayersEntity();
-        player.setTeam(team);
+        player.setId(UUID.randomUUID());
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
+        when(teamMemberRepository.findAllActiveByPlayerId(player.getId())).thenReturn(List.of(TeamMembersEntity.of(player, team)));
         MatchesEntity ofTheTeam = match(LocalDateTime.now().plusDays(2), "SCHEDULED");
         when(matchRepository.findAllActiveByTeamId(team.getId())).thenReturn(List.of(ofTheTeam));
 
         assertThat(matchesService.getMine()).extracting(MatchResponse::getId).containsExactly(ofTheTeam.getId());
+    }
+
+    @Test
+    void getMine_whenThePlayerPlaysForTeamsOfSeveralOrganizations_thenTheMatchesOfAllOfThemAreReturnedByDate() {
+        TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
+        TeamsEntity first = new TeamsEntity();
+        first.setId(UUID.randomUUID());
+        TeamsEntity second = new TeamsEntity();
+        second.setId(UUID.randomUUID());
+        PlayersEntity player = new PlayersEntity();
+        player.setId(UUID.randomUUID());
+        when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
+        when(teamMemberRepository.findAllActiveByPlayerId(player.getId()))
+                .thenReturn(List.of(TeamMembersEntity.of(player, first), TeamMembersEntity.of(player, second)));
+        MatchesEntity later = match(LocalDateTime.now().plusDays(9), "SCHEDULED");
+        MatchesEntity sooner = match(LocalDateTime.now().plusDays(2), "SCHEDULED");
+        when(matchRepository.findAllActiveByTeamId(first.getId())).thenReturn(List.of(later));
+        when(matchRepository.findAllActiveByTeamId(second.getId())).thenReturn(List.of(sooner));
+
+        assertThat(matchesService.getMine()).extracting(MatchResponse::getId).containsExactly(sooner.getId(), later.getId());
     }
 
     @Test
@@ -664,7 +688,9 @@ class MatchesServiceTest {
         assertThat(matchesService.getMine()).isEmpty();
 
         PlayersEntity withoutTeam = new PlayersEntity();
+        withoutTeam.setId(UUID.randomUUID());
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(withoutTeam));
+        when(teamMemberRepository.findAllActiveByPlayerId(withoutTeam.getId())).thenReturn(List.of());
 
         assertThat(matchesService.getMine()).isEmpty();
         verify(matchRepository, never()).findAllActiveByTeamId(any());
@@ -674,7 +700,6 @@ class MatchesServiceTest {
     void getMine_whenThePlayerWasDeleted_thenThereAreNoMatches() {
         TenantTestSupport.actAsMobileAccount(MOBILE_ACCOUNT_ID, "juan@email.com");
         PlayersEntity deleted = new PlayersEntity();
-        deleted.setTeam(new TeamsEntity());
         deleted.setDeletedAt(LocalDateTime.now());
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(deleted));
 

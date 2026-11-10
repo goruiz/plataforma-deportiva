@@ -9,6 +9,8 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.requests.UpdateAttendanceRequest.UpdateAttendanceRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchAttendanceResponse.MatchAttendanceResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -27,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +53,7 @@ class MatchAttendanceServiceTest {
     @Mock private IMatchRepository matchRepository;
     @Mock private IMatchAttendanceRepository attendanceRepository;
     @Mock private IPlayerRepository playerRepository;
+    @Mock private ITeamMemberRepository teamMemberRepository;
 
     @InjectMocks
     private MatchAttendanceService matchAttendanceService;
@@ -62,7 +66,8 @@ class MatchAttendanceServiceTest {
 
     @BeforeEach
     void setUp() {
-        juan = player("juan@email.com", tigres);
+        juan = player("juan@email.com");
+        givenPlaysFor(juan, tigres);
         match = matchBetween(tigres, leones, LocalDateTime.now().plusDays(2), "SCHEDULED");
         TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), EMAIL);
 
@@ -90,12 +95,17 @@ class MatchAttendanceServiceTest {
         return team;
     }
 
-    private static PlayersEntity player(String email, TeamsEntity team) {
+    private static PlayersEntity player(String email) {
         PlayersEntity player = new PlayersEntity();
         player.setId(UUID.randomUUID());
         player.setEmail(email);
-        player.setTeam(team);
         return player;
+    }
+
+    /** The teams the player plays for now (none when empty): a player can play for one team per organization. */
+    private void givenPlaysFor(PlayersEntity player, TeamsEntity... teams) {
+        lenient().when(teamMemberRepository.findAllActiveByPlayerId(player.getId()))
+                .thenReturn(Arrays.stream(teams).map(team -> TeamMembersEntity.of(player, team)).toList());
     }
 
     private static MatchesEntity matchBetween(TeamsEntity home, TeamsEntity away, LocalDateTime kickOff, String status) {
@@ -145,7 +155,8 @@ class MatchAttendanceServiceTest {
 
     @Test
     void respond_whenAPlayerOfTheAwayTeamDeclines_thenTheAnswerIsStoredForTheirTeam() {
-        PlayersEntity ana = player("ana@email.com", leones);
+        PlayersEntity ana = player("ana@email.com");
+        givenPlaysFor(ana, leones);
         TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "ana@email.com");
         when(playerRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(ana));
         when(attendanceRepository.findActiveByMatchIdAndPlayerId(match.getId(), ana.getId())).thenReturn(Optional.empty());
@@ -191,7 +202,7 @@ class MatchAttendanceServiceTest {
 
     @Test
     void respond_whenThePlayerBelongsToAnotherTeam_thenNotAParticipant() {
-        juan.setTeam(team());
+        givenPlaysFor(juan, team());
 
         assertThatThrownBy(() -> matchAttendanceService.respond(match.getId(), answer("CONFIRMED")))
                 .isInstanceOf(IllegalStateException.class)
@@ -201,7 +212,7 @@ class MatchAttendanceServiceTest {
 
     @Test
     void respond_whenThePlayerHasNoTeam_thenNotAParticipant() {
-        juan.setTeam(null);
+        givenPlaysFor(juan);
 
         assertThatThrownBy(() -> matchAttendanceService.respond(match.getId(), answer("CONFIRMED")))
                 .isInstanceOf(IllegalStateException.class)
@@ -283,8 +294,8 @@ class MatchAttendanceServiceTest {
 
     @Test
     void getByMatchId_whenAPlayerOfTheMatchAsks_thenTheyGetTheTotalsTheirOwnAnswerAndTheNames() {
-        PlayersEntity ana = player("ana@email.com", leones);
-        PlayersEntity luis = player("luis@email.com", tigres);
+        PlayersEntity ana = player("ana@email.com");
+        PlayersEntity luis = player("luis@email.com");
         answerOf(juan, tigres, AttendanceStatus.CONFIRMED);
         answerOf(ana, leones, AttendanceStatus.DECLINED);
         answerOf(luis, tigres, AttendanceStatus.CONFIRMED);
@@ -307,8 +318,8 @@ class MatchAttendanceServiceTest {
 
     @Test
     void getByMatchId_whenAPlayerOfAnotherTeamLooksAtAPublicMatch_thenTheyGetTheTotalsButNoNames() {
-        juan.setTeam(team());
-        answerOf(player("ana@email.com", leones), leones, AttendanceStatus.CONFIRMED);
+        givenPlaysFor(juan, team());
+        answerOf(player("ana@email.com"), leones, AttendanceStatus.CONFIRMED);
 
         MatchAttendanceResponse response = matchAttendanceService.getByMatchId(match.getId());
 
@@ -320,8 +331,8 @@ class MatchAttendanceServiceTest {
 
     @Test
     void getByMatchId_whenAPlayerWithoutTeamAsks_thenTheyGetTheTotalsButNoNames() {
-        juan.setTeam(null);
-        answerOf(player("ana@email.com", leones), leones, AttendanceStatus.DECLINED);
+        givenPlaysFor(juan);
+        answerOf(player("ana@email.com"), leones, AttendanceStatus.DECLINED);
 
         MatchAttendanceResponse response = matchAttendanceService.getByMatchId(match.getId());
 
@@ -333,7 +344,7 @@ class MatchAttendanceServiceTest {
     void getByMatchId_whenAnAdministratorAsks_thenTheyGetTheNamesAndNoOwnAnswer() {
         TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
         when(playerRepository.findByEmail("ana@liga.com")).thenReturn(Optional.empty());
-        PlayersEntity ana = player("ana@email.com", leones);
+        PlayersEntity ana = player("ana@email.com");
         answerOf(ana, leones, AttendanceStatus.CONFIRMED);
         when(playerRepository.findFullNamesByIds(any())).thenReturn(Map.of(ana.getId(), "Ana Lopez"));
 

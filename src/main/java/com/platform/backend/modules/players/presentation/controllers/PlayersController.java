@@ -100,9 +100,11 @@ public class PlayersController {
         return ResponseEntity.ok(ApiResponse.ok(playersService.joinByCode(request)));
     }
 
+    /** Takes the player out of one team: {@code teamId} is only needed when the caller sees them in several. */
     @PatchMapping("/{id}/remove-from-team")
-    public ResponseEntity<ApiResponse<PlayerResponse>> removeFromTeam(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(playersService.removeFromTeam(id)));
+    public ResponseEntity<ApiResponse<PlayerResponse>> removeFromTeam(@PathVariable UUID id,
+                                                                       @RequestParam(required = false) UUID teamId) {
+        return ResponseEntity.ok(ApiResponse.ok(playersService.removeFromTeam(id, teamId)));
     }
 
     @PatchMapping("/{id}/status")

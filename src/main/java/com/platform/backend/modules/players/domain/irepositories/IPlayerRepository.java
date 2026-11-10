@@ -27,11 +27,16 @@ public interface IPlayerRepository {
 
     Optional<PlayersEntity> findByEmail(String email);
 
+    /**
+     * The active player with that email whatever organization the caller sees: a player in a team is only visible to the
+     * organization of that team, and an administrator of another one still has to be able to tell they are registered.
+     * Whoever calls it decides how much of the player to reveal.
+     */
+    Optional<PlayersEntity> findAnyActiveByEmail(String email);
+
     List<PlayersEntity> findAllActive();
 
     boolean existsByEmail(String email);
 
     void hardDelete(PlayersEntity player);
-
-    List<PlayersEntity> findAllActiveByTeamId(UUID teamId);
 }

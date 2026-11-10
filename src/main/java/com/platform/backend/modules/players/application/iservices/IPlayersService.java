@@ -44,7 +44,11 @@ public interface IPlayersService {
 
     List<PlayerResponse> getByTeamId(UUID teamId);
 
-    PlayerResponse removeFromTeam(UUID id);
+    /**
+     * The player stops playing for one team (the others stay). {@code teamId} is optional when the caller sees the
+     * player in a single team, which is always the case for an administrator of an organization.
+     */
+    PlayerResponse removeFromTeam(UUID id, UUID teamId);
 
     PlayerResponse updateStatus(UUID id, UpdatePlayerStatusRequest request);
 

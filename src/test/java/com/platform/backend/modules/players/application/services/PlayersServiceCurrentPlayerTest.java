@@ -4,6 +4,7 @@ import com.platform.backend.modules.players.application.mappers.PlayerMapper;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.presentation.responses.PlayerResponse.PlayerResponse;
+import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
@@ -31,13 +32,17 @@ class PlayersServiceCurrentPlayerTest {
     private static final String MY_EMAIL = "juan@email.com";
 
     @Mock private IPlayerRepository playerRepository;
+    @Mock private IPlayerAccountOrganizationService playerAccountOrganizationService;
     @Spy private PlayerMapper playerMapper = Mappers.getMapper(PlayerMapper.class);
 
     @InjectMocks
     private PlayersService playersService;
 
+    private final InMemoryTeamMembers memberships = new InMemoryTeamMembers();
+
     @BeforeEach
     void actAsTheAccount() {
+        PlayersServiceTestSupport.useInMemoryMemberships(playersService, playerMapper, memberships, playerAccountOrganizationService);
         TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), MY_EMAIL);
     }
 
@@ -62,6 +67,25 @@ class PlayersServiceCurrentPlayerTest {
 
         assertThat(response.getId()).isEqualTo(me.getId());
         assertThat(response.getEmail()).isEqualTo(MY_EMAIL);
+    }
+
+    @Test
+    void getCurrent_whenThePlayerPlaysForTeamsOfSeveralOrganizations_thenEveryTeamIsListedTheLastJoinedFirst() {
+        PlayersEntity me = playerWithEmail(MY_EMAIL);
+        com.platform.backend.modules.teams.domain.entities.TeamsEntity first =
+                PlayersServiceTestSupport.team("Leones", UUID.randomUUID());
+        com.platform.backend.modules.teams.domain.entities.TeamsEntity second =
+                PlayersServiceTestSupport.team("Tigres", UUID.randomUUID());
+        memberships.put(me, first);
+        memberships.put(me, second).setIsCaptain(true);
+        when(playerRepository.findByEmail(MY_EMAIL)).thenReturn(Optional.of(me));
+
+        PlayerResponse response = playersService.getCurrent();
+
+        assertThat(response.getTeams()).extracting("teamName").containsExactly("Tigres", "Leones");
+        // A client that knows a single team reads the one joined last, with its captaincy.
+        assertThat(response.getTeamId()).isEqualTo(second.getId());
+        assertThat(response.getIsCaptain()).isTrue();
     }
 
     @Test

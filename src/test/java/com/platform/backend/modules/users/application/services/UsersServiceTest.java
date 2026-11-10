@@ -199,7 +199,6 @@ class UsersServiceTest {
         ArgumentCaptor<PlayersEntity> player = ArgumentCaptor.forClass(PlayersEntity.class);
         verify(playerRepository).save(player.capture());
         assertThat(player.getValue().getEmail()).isEqualTo("juan@email.com");
-        assertThat(player.getValue().getTeam()).isNull();
         assertThat(player.getValue().getPasswordHash()).isNull();
     }
 

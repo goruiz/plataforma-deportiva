@@ -18,7 +18,6 @@ public interface PlayerMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "team", ignore = true)       // asignado manualmente en el servicio
     @Mapping(target = "email", ignore = true)
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -29,8 +28,10 @@ public interface PlayerMapper {
     @Mapping(target = "deletedAt", ignore = true)
     void updateEntity(@MappingTarget PlayersEntity entity, UpdatePlayerRequest request);
 
-    // team.id → teamId  |  team.name → teamName
-    @Mapping(target = "teamId", source = "team.id")
-    @Mapping(target = "teamName", source = "team.name")
+    // Only the person: the teams (and the captaincy) come from the memberships, see PlayerResponseAssembler.
+    @Mapping(target = "teamId", ignore = true)
+    @Mapping(target = "teamName", ignore = true)
+    @Mapping(target = "isCaptain", ignore = true)
+    @Mapping(target = "teams", ignore = true)
     PlayerResponse toResponse(PlayersEntity entity);
 }

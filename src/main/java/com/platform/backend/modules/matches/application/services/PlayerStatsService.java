@@ -10,6 +10,7 @@ import com.platform.backend.modules.matches.presentation.responses.PlayerStatsRe
 import com.platform.backend.modules.matches.presentation.responses.PlayerTotalsResponse.PlayerTotalsResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
@@ -48,6 +49,7 @@ public class PlayerStatsService implements IPlayerStatsService {
     private final IMatchRepository matchRepository;
     private final IMatchEventRepository matchEventRepository;
     private final IPlayerRepository playerRepository;
+    private final ITeamMemberRepository teamMemberRepository;
     private final ITeamRepository teamRepository;
 
     @Override
@@ -148,18 +150,17 @@ public class PlayerStatsService implements IPlayerStatsService {
     }
 
     /**
-     * The played matches of the player's current team, joined with the matches where the player has an event (a goal
-     * for a team they left), each counted once. Nothing records when a player joined their team, so this is the closest
-     * the data allows.
+     * The played matches of the teams the player plays for now (the ones the caller can see them in), joined with the
+     * matches where the player has an event (a goal for a team they left), each counted once. Nothing records when a
+     * player joined their team, so this is the closest the data allows.
      */
     private int countMatchesPlayed(PlayersEntity player, List<MatchEventsEntity> playerEvents) {
         Set<UUID> matchIds = new HashSet<>();
         playerEvents.forEach(playerEvent -> matchIds.add(playerEvent.getMatchId()));
-        if (player.getTeam() != null) {
-            matchRepository.findAllActiveByTeamId(player.getTeam().getId()).stream()
-                    .filter(MatchesEntity::hasResult)
-                    .forEach(match -> matchIds.add(match.getId()));
-        }
+        teamMemberRepository.findAllActiveByPlayerId(player.getId()).forEach(membership ->
+                matchRepository.findAllActiveByTeamId(membership.getTeam().getId()).stream()
+                        .filter(MatchesEntity::hasResult)
+                        .forEach(match -> matchIds.add(match.getId())));
         return matchIds.size();
     }
 }

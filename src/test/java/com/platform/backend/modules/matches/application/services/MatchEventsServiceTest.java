@@ -14,6 +14,7 @@ import com.platform.backend.modules.matches.presentation.requests.CreateMatchEve
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchEventRequest.UpdateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchEventResponse.MatchEventResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -54,6 +55,7 @@ class MatchEventsServiceTest {
     @Mock private IMatchRepository matchRepository;
     @Mock private IEventRepository eventRepository;
     @Mock private IPlayerRepository playerRepository;
+    @Mock private ITeamMemberRepository teamMemberRepository;
     @Spy private MatchEventMapper matchEventMapper = Mappers.getMapper(MatchEventMapper.class);
 
     @InjectMocks
@@ -66,7 +68,7 @@ class MatchEventsServiceTest {
     @BeforeEach
     void setUp() {
         homeTeam = team();
-        homePlayer = player(homeTeam, "Ana", "Lopez");
+        homePlayer = player("Ana", "Lopez");
 
         match = new MatchesEntity();
         match.setId(UUID.randomUUID());
@@ -76,6 +78,7 @@ class MatchEventsServiceTest {
 
         lenient().when(matchRepository.findActiveById(match.getId())).thenReturn(Optional.of(match));
         lenient().when(playerRepository.findActiveById(homePlayer.getId())).thenReturn(Optional.of(homePlayer));
+        lenient().when(teamMemberRepository.existsActiveByPlayerIdAndTeamId(homePlayer.getId(), homeTeam.getId())).thenReturn(true);
         lenient().when(matchEventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(playerRepository.findFullNamesByIds(any()))
                 .thenReturn(Map.of(homePlayer.getId(), homePlayer.getFirstName() + " " + homePlayer.getLastName()));
@@ -92,12 +95,11 @@ class MatchEventsServiceTest {
         return team;
     }
 
-    private static PlayersEntity player(TeamsEntity team, String firstName, String lastName) {
+    private static PlayersEntity player(String firstName, String lastName) {
         PlayersEntity player = new PlayersEntity();
         player.setId(UUID.randomUUID());
         player.setFirstName(firstName);
         player.setLastName(lastName);
-        player.setTeam(team);
         return player;
     }
 
@@ -160,8 +162,7 @@ class MatchEventsServiceTest {
 
     @Test
     void create_whenThePlayerBelongsToAnotherTeam_thenRefusedOnThePlayerField() {
-        PlayersEntity stranger = player(team(), "Luis", "Mora");
-        when(playerRepository.findActiveById(stranger.getId())).thenReturn(Optional.of(stranger));
+        PlayersEntity stranger = player("Luis", "Mora");
 
         assertThatThrownBy(() -> matchEventsService.create(goalBy(stranger, homeTeam)))
                 .satisfies(error -> assertRejectedField(error, "playerId", MatchEventError.PLAYER_NOT_IN_TEAM));
@@ -169,9 +170,8 @@ class MatchEventsServiceTest {
 
     @Test
     void create_whenThePlayerHasNoTeamOrDoesNotExist_thenRefusedOnThePlayerField() {
-        PlayersEntity free = player(null, "Eva", "Rios");
-        when(playerRepository.findActiveById(free.getId())).thenReturn(Optional.of(free));
-        PlayersEntity ghost = player(homeTeam, "Fantasma", "Nadie");
+        PlayersEntity free = player("Eva", "Rios");
+        PlayersEntity ghost = player("Fantasma", "Nadie");
 
         assertThatThrownBy(() -> matchEventsService.create(goalBy(free, homeTeam)))
                 .satisfies(error -> assertRejectedField(error, "playerId", MatchEventError.PLAYER_NOT_IN_TEAM));

@@ -26,7 +26,6 @@ public interface IUsersManagementService {
 
     UserResponse updateUser(UUID id, UpdateUserRequest request);
 
-    void softDelete(UUID id);
-
+    /** Erases the account from the database, with its role assignments and tokens: it is not just marked as deleted. */
     void hardDelete(UUID id);
 }

@@ -52,6 +52,11 @@ public class UsersRolesRepository implements IUsersRolesRepository {
     }
 
     @Override
+    public void hardDeleteAllOfUser(UUID userId) {
+        usersRolesJpaRepository.deleteAllOfUser(userId);
+    }
+
+    @Override
     public boolean existsActiveByUserAndRole(UUID userId, UUID roleId) {
         return usersRolesJpaRepository.existsByUser_IdAndRole_IdAndDeletedAtIsNull(userId, roleId);
     }

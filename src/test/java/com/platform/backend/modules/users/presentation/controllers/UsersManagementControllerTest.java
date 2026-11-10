@@ -27,11 +27,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** The paginated listings of {@code /users}: how their query string is read and refused. Permissions are not part of this standalone setup. */
+/** The paginated listings of {@code /users} (how their query string is read and refused) and the delete of an account. Permissions are not part of this standalone setup. */
 @ExtendWith(MockitoExtension.class)
 class UsersManagementControllerTest {
 
@@ -103,6 +104,19 @@ class UsersManagementControllerTest {
                 .andExpect(jsonPath("$.data.owners").value(1))
                 .andExpect(jsonPath("$.data.admins").value(2))
                 .andExpect(jsonPath("$.data.appUsers").value(3));
+    }
+
+    // ─── deleting an account ────────────────────────────────────────────────────
+
+    @Test
+    void delete_whenAnAccountIsDeleted_thenTheServiceErasesIt() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(delete("/users/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersManagementService).hardDelete(id);
     }
 
     // ─── what is refused ────────────────────────────────────────────────────────

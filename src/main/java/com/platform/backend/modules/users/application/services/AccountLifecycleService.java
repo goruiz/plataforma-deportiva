@@ -1,5 +1,6 @@
 package com.platform.backend.modules.users.application.services;
 
+import com.platform.backend.modules.players.application.iservices.ITeamMembershipsService;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerPhotoRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
@@ -38,6 +39,7 @@ public class AccountLifecycleService implements IAccountLifecycleService {
     private final IUserRepository userRepository;
     private final IPlayerRepository playerRepository;
     private final IPlayerPhotoRepository playerPhotoRepository;
+    private final ITeamMembershipsService teamMembershipsService;
     private final IUsersRolesRepository usersRolesRepository;
     private final IPasswordResetTokenRepository passwordResetTokenRepository;
     private final IEmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -104,7 +106,8 @@ public class AccountLifecycleService implements IAccountLifecycleService {
     }
 
     private void erase(PlayersEntity player) {
-        player.moveToTeam(null);
+        // The person erases themselves, so they see (and leave) every team they play for, in every organization.
+        teamMembershipsService.leaveEvery(player);
         player.setFirstName(erasedPlayerName);
         player.setLastName("");
         player.setEmail(erasedEmailOf(player.getId()));

@@ -15,6 +15,7 @@ import com.platform.backend.modules.matches.presentation.requests.UpdateMatchEve
 import com.platform.backend.modules.matches.presentation.responses.MatchEventResponse.MatchEventResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +41,7 @@ public class MatchEventsService implements IMatchEventsService {
     private final IMatchRepository matchRepository;
     private final IEventRepository eventRepository;
     private final IPlayerRepository playerRepository;
+    private final ITeamMemberRepository teamMemberRepository;
     private final MatchEventMapper matchEventMapper;
 
     @Override
@@ -132,11 +134,7 @@ public class MatchEventsService implements IMatchEventsService {
         if (!teamId.equals(match.getHomeTeamId()) && !teamId.equals(match.getAwayTeamId())) {
             throw new FieldValidationException(TEAM_FIELD, MatchEventError.TEAM_NOT_IN_MATCH.name());
         }
-        boolean playerIsInTheTeam = playerRepository.findActiveById(playerId)
-                .map(PlayersEntity::getTeam)
-                .filter(team -> teamId.equals(team.getId()))
-                .isPresent();
-        if (!playerIsInTheTeam) {
+        if (!teamMemberRepository.existsActiveByPlayerIdAndTeamId(playerId, teamId)) {
             throw new FieldValidationException(PLAYER_FIELD, MatchEventError.PLAYER_NOT_IN_TEAM.name());
         }
     }

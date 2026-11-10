@@ -23,6 +23,9 @@ public interface IUsersRolesRepository {
 
     void hardDelete(UsersRolesEntity usersRoles);
 
+    /** Erases every assignment of an account, also the ones already marked as deleted: the foreign key to the account still holds them. */
+    void hardDeleteAllOfUser(UUID userId);
+
     boolean existsActiveByUserAndRole(UUID userId, UUID roleId);
 
     List<UUID> findActiveRoleIdsByUserId(UUID userId);

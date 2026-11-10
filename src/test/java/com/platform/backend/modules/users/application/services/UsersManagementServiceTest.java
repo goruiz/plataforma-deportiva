@@ -7,6 +7,8 @@ import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
 import com.platform.backend.modules.users.domain.enums.UserSection;
 import com.platform.backend.modules.users.domain.filters.UserListFilter;
+import com.platform.backend.modules.users.domain.irepositories.IEmailVerificationTokenRepository;
+import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -43,6 +46,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -60,6 +64,8 @@ class UsersManagementServiceTest {
 
     @Mock private IUserRepository userRepository;
     @Mock private IUsersRolesRepository usersRolesRepository;
+    @Mock private IPasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private IEmailVerificationTokenRepository emailVerificationTokenRepository;
     @Mock private IOrganizationRepository organizationRepository;
     @Mock private PlatformOwnerRole platformOwnerRole;
     @Mock private UserMapper userMapper;
@@ -480,6 +486,49 @@ class UsersManagementServiceTest {
         assertThat(counts.getOwners()).isZero();
         assertThat(counts.getAdmins()).isZero();
         assertThat(counts.getAppUsers()).isEqualTo(40);
+    }
+
+    // ─── hardDelete: the account is erased from the database, not marked as deleted ──
+
+    @Test
+    void hardDelete_whenTheAccountExists_thenItsAssignmentsAndTokensAreErasedBeforeTheAccountItself() {
+        UUID userId = UUID.randomUUID();
+        userEntity.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(userEntity));
+
+        usersManagementService.hardDelete(userId);
+
+        // The foreign key from the assignments to the account has no cascade, so they have to go first. The tokens
+        // are erased by hand too: the foreign key of the password-reset ones is missing in some databases.
+        InOrder erasing = inOrder(usersRolesRepository, passwordResetTokenRepository, emailVerificationTokenRepository, userRepository);
+        erasing.verify(usersRolesRepository).hardDeleteAllOfUser(userId);
+        erasing.verify(passwordResetTokenRepository).deleteByUserId(userId);
+        erasing.verify(emailVerificationTokenRepository).deleteByUserId(userId);
+        erasing.verify(userRepository).hardDelete(userEntity);
+    }
+
+    @Test
+    void hardDelete_whenTheAccountIsErased_thenItIsNotJustMarkedAsDeleted() {
+        UUID userId = UUID.randomUUID();
+        userEntity.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(userEntity));
+
+        usersManagementService.hardDelete(userId);
+
+        assertThat(userEntity.getDeletedAt()).isNull();
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void hardDelete_whenTheAccountDoesNotExistOrIsOfAnotherOrganization_thenNotFoundAndNothingIsErased() {
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> usersManagementService.hardDelete(userId))
+                .isInstanceOf(EntityNotFoundException.class);
+
+        verifyNoInteractions(usersRolesRepository, passwordResetTokenRepository, emailVerificationTokenRepository);
+        verify(userRepository, never()).hardDelete(any());
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────

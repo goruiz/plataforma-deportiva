@@ -13,6 +13,7 @@ import com.platform.backend.modules.matches.presentation.responses.AttendeeRespo
 import com.platform.backend.modules.matches.presentation.responses.MatchAttendanceResponse.MatchAttendanceResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -48,6 +49,7 @@ public class MatchAttendanceService implements IMatchAttendanceService {
     private final IMatchRepository matchRepository;
     private final IMatchAttendanceRepository attendanceRepository;
     private final IPlayerRepository playerRepository;
+    private final ITeamMemberRepository teamMemberRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -108,13 +110,15 @@ public class MatchAttendanceService implements IMatchAttendanceService {
         return AttendanceStatus.valueOf(status);
     }
 
-    /** The team the player answers for, which has to be one of the two that play. */
+    /**
+     * The team the player answers for: of the teams they play for (one per organization), the one that plays this match.
+     */
     private UUID requireTeamOfTheMatch(PlayersEntity player, MatchesEntity match) {
-        TeamsEntity team = player.getTeam();
-        if (team == null || !match.isPlayedBy(team.getId())) {
-            throw new IllegalStateException(MatchAttendanceError.NOT_A_PARTICIPANT.name());
-        }
-        return team.getId();
+        return teamMemberRepository.findAllActiveByPlayerId(player.getId()).stream()
+                .map(membership -> membership.getTeam().getId())
+                .filter(match::isPlayedBy)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(MatchAttendanceError.NOT_A_PARTICIPANT.name()));
     }
 
     /** Only a match that is still due to be played has something to confirm: not one that started, ended or was put off. */
@@ -158,8 +162,9 @@ public class MatchAttendanceService implements IMatchAttendanceService {
         if (CurrentCaller.isAdministrator()) {
             return true;
         }
-        return viewer.map(PlayersEntity::getTeam)
-                .map(team -> match.isPlayedBy(team.getId()))
+        return viewer
+                .map(player -> teamMemberRepository.findAllActiveByPlayerId(player.getId()).stream()
+                        .anyMatch(membership -> match.isPlayedBy(membership.getTeam().getId())))
                 .orElse(false);
     }
 

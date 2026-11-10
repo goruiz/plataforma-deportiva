@@ -16,6 +16,7 @@ import com.platform.backend.modules.matches.presentation.requests.UpdateMatchReq
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.CreatorAccess;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -56,6 +58,7 @@ public class MatchesService implements IMatchesService {
     private final ITeamRepository teamRepository;
     private final ICourtRepository courtRepository;
     private final IPlayerRepository playerRepository;
+    private final ITeamMemberRepository teamMemberRepository;
     private final MatchMapper matchMapper;
 
     @Override
@@ -84,14 +87,26 @@ public class MatchesService implements IMatchesService {
         return toResponses(matchRepository.findAllActiveByCourtIdAndDate(courtId, date));
     }
 
-    /** The matches of the team the caller plays for, in every event; with no player or no team there is none. */
+    /**
+     * The matches of every team the caller plays for (one per organization), in every event, by date; with no player or
+     * no team there is none.
+     */
     @Override
     public List<MatchResponse> getMine() {
         return playerRepository.findByEmail(CurrentCaller.require().getEmail())
                 .filter(player -> player.getDeletedAt() == null)
-                .map(PlayersEntity::getTeam)
-                .map(team -> toResponses(matchRepository.findAllActiveByTeamId(team.getId())))
+                .map(this::matchesOfTheTeamsOf)
                 .orElseGet(List::of);
+    }
+
+    private List<MatchResponse> matchesOfTheTeamsOf(PlayersEntity player) {
+        Map<UUID, MatchesEntity> matchesById = new LinkedHashMap<>();
+        teamMemberRepository.findAllActiveByPlayerId(player.getId()).forEach(membership ->
+                matchRepository.findAllActiveByTeamId(membership.getTeam().getId())
+                        .forEach(match -> matchesById.putIfAbsent(match.getId(), match)));
+        return toResponses(matchesById.values().stream()
+                .sorted(Comparator.comparing(MatchesEntity::getMatchDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList());
     }
 
     @Override

@@ -66,6 +66,7 @@ class PlayersServiceRegistrationTest {
     @InjectMocks
     private PlayersService playersService;
 
+    private InMemoryTeamMembers memberships;
     private TeamsEntity team;
     private PlayersEntity playerCreatedWithTheAccount;
     private TeamInvitationsEntity pendingInvitation;
@@ -73,6 +74,8 @@ class PlayersServiceRegistrationTest {
 
     @BeforeEach
     void setUp() {
+        memberships = new InMemoryTeamMembers();
+        PlayersServiceTestSupport.useInMemoryMemberships(playersService, playerMapper, memberships, playerAccountOrganizationService);
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         team.setOrganizationId(TEAM_ORGANIZATION_ID);
@@ -133,7 +136,7 @@ class PlayersServiceRegistrationTest {
 
         PlayerResponse response = playersService.registerWithInvite(registerRequest);
 
-        assertThat(playerCreatedWithTheAccount.getTeam()).isSameAs(team);
+        assertThat(memberships.activeTeamsOf(playerCreatedWithTheAccount)).containsExactly(team);
         assertThat(playerCreatedWithTheAccount.getPhone()).isEqualTo("0991234567");
         assertThat(pendingInvitation.getStatus()).isEqualTo(InvitationStatus.USED.name());
         verify(teamInvitationRepository).save(pendingInvitation);
@@ -162,9 +165,10 @@ class PlayersServiceRegistrationTest {
         playersService.registerWithInvite(registerRequest);
 
         verify(usersAuthService).register(any(RegisterRequest.class));
-        assertThat(playerCreatedWithTheAccount.getTeam()).isNull();
+        assertThat(memberships.activeTeamsOf(playerCreatedWithTheAccount)).isEmpty();
         verifyNoInteractions(teamInvitationRepository);
-        verify(playerAccountOrganizationService).followTeam(EMAIL, null);
+        // No team, so nothing to follow: a new account starts without organization.
+        verifyNoInteractions(playerAccountOrganizationService);
     }
 
     @Test
@@ -246,7 +250,7 @@ class PlayersServiceRegistrationTest {
         ArgumentCaptor<RegisterRequest> account = ArgumentCaptor.forClass(RegisterRequest.class);
         verify(usersAuthService).register(account.capture());
         assertThat(account.getValue().getEmail()).isEqualTo(EMAIL);
-        assertThat(playerCreatedWithTheAccount.getTeam()).isSameAs(team);
+        assertThat(memberships.activeTeamsOf(playerCreatedWithTheAccount)).containsExactly(team);
     }
 
     // ─── invitePlayer ───────────────────────────────────────────────────────────
@@ -259,7 +263,7 @@ class PlayersServiceRegistrationTest {
         playerCreatedWithTheAccount.setFirstName("Ana");
         playerCreatedWithTheAccount.setLastName("Gómez");
         team.setName("Los Tigres");
-        when(playerRepository.findByEmail(EMAIL)).thenReturn(Optional.of(playerCreatedWithTheAccount));
+        when(playerRepository.findAnyActiveByEmail(EMAIL)).thenReturn(Optional.of(playerCreatedWithTheAccount));
         when(teamRepository.findActiveById(team.getId())).thenReturn(Optional.of(team));
 
         playersService.invitePlayer(request);

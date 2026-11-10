@@ -55,6 +55,11 @@ public class PlayerRepository implements IPlayerRepository {
     }
 
     @Override
+    public Optional<PlayersEntity> findAnyActiveByEmail(String email) {
+        return playersJpaRepository.findAnyActiveByEmail(email);
+    }
+
+    @Override
     public List<PlayersEntity> findAllActive() {
         return playersJpaRepository.findAllByDeletedAtIsNull();
     }
@@ -69,9 +74,5 @@ public class PlayerRepository implements IPlayerRepository {
         playersJpaRepository.delete(player);
     }
 
-    @Override
-    public List<PlayersEntity> findAllActiveByTeamId(UUID teamId) {
-        return playersJpaRepository.findAllByTeamIdWithTeam(teamId);
-    }
 }
 

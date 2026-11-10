@@ -10,6 +10,8 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.responses.PlayerStatsResponse.PlayerStatsResponse;
 import com.platform.backend.modules.matches.presentation.responses.PlayerTotalsResponse.PlayerTotalsResponse;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
+import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
+import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
@@ -46,6 +48,7 @@ class PlayerStatsServiceTest {
     @Mock private IMatchRepository matchRepository;
     @Mock private IMatchEventRepository matchEventRepository;
     @Mock private IPlayerRepository playerRepository;
+    @Mock private ITeamMemberRepository teamMemberRepository;
     @Mock private ITeamRepository teamRepository;
 
     @InjectMocks
@@ -220,9 +223,15 @@ class PlayerStatsServiceTest {
         return event;
     }
 
+    /** The teams Ana plays for now (none when empty): a player can play for one team per organization. */
+    private void givenAnaPlaysFor(TeamsEntity... teams) {
+        lenient().when(teamMemberRepository.findAllActiveByPlayerId(ana.getId()))
+                .thenReturn(java.util.Arrays.stream(teams).map(team -> TeamMembersEntity.of(ana, team)).toList());
+    }
+
     @Test
     void getPlayerTotals_whenThePlayerHasEventsInSeveralMatches_thenEverythingIsAddedUp() {
-        ana.setTeam(tigres);
+        givenAnaPlaysFor(tigres);
         MatchesEntity first = playedMatch(tigres, leones, 2, 1);
         MatchesEntity second = playedMatch(leones, tigres, 0, 0);
         when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
@@ -245,7 +254,7 @@ class PlayerStatsServiceTest {
 
     @Test
     void getPlayerTotals_whenTheTeamPlayedMatchesWithoutTheirEvents_thenThosePlayedCountAsMatchesPlayed() {
-        ana.setTeam(tigres);
+        givenAnaPlaysFor(tigres);
         MatchesEntity playedWithoutAnaDoingAnything = playedMatch(tigres, leones, 1, 0);
         MatchesEntity notPlayedYet = playedMatch(tigres, leones, null, null);
         when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
@@ -258,7 +267,7 @@ class PlayerStatsServiceTest {
 
     @Test
     void getPlayerTotals_whenAMatchHasTheirEventAndIsOfTheirTeamToo_thenItIsCountedOnce() {
-        ana.setTeam(tigres);
+        givenAnaPlaysFor(tigres);
         MatchesEntity match = playedMatch(tigres, leones, 1, 0);
         when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
         when(matchEventRepository.findAllActiveByPlayerId(ana.getId())).thenReturn(List.of(
@@ -271,7 +280,7 @@ class PlayerStatsServiceTest {
     @Test
     void getPlayerTotals_whenThePlayerScoredForATeamTheyLeft_thenThoseEventsAndMatchesStillCount() {
         // Ana has no team now, but she scored for Leones in an earlier match.
-        ana.setTeam(null);
+        givenAnaPlaysFor();
         MatchesEntity oldMatch = playedMatch(leones, tigres, 1, 0);
         when(playerRepository.findActiveById(ana.getId())).thenReturn(Optional.of(ana));
         when(matchEventRepository.findAllActiveByPlayerId(ana.getId()))

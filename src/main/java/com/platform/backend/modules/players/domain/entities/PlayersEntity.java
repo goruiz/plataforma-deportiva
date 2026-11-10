@@ -2,12 +2,10 @@ package com.platform.backend.modules.players.domain.entities;
 
 import org.hibernate.annotations.Filter;
 import com.platform.backend.shared.domain.tenancy.TenantFilters;
-import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
-import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -15,11 +13,11 @@ import java.util.UUID;
         @UniqueConstraint(name = "players_email_key", columnNames = "email")
 })
 @Filter(name = TenantFilters.NAME, condition = TenantFilters.PLAYER_WITHOUT_TEAM_OR_OF_OWN_TEAM_OR_SELF, deduceAliasInjectionPoints = false)
+/**
+ * A person who plays. Which teams they play for (several, one per organization) and whether they captain any is in
+ * {@link TeamMembersEntity}, not here.
+ */
 public class PlayersEntity extends BaseEntity implements HasUniqueField {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_team", foreignKey = @ForeignKey(name = "fk_teams_players_1"))
-    private TeamsEntity team;
 
     @Column(length = 255, nullable = false)
     private String email;
@@ -43,14 +41,7 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
     @Column(length = 20, nullable = false)
     private String status = "ACTIVE";
 
-    /** The captain of the team; the administrator designates it and there is at most one per team. */
-    @Column(name = "is_captain", nullable = false)
-    private Boolean isCaptain = false;
-
     public PlayersEntity() {}
-
-    public TeamsEntity getTeam() { return team; }
-    public void setTeam(TeamsEntity team) { this.team = team; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -72,19 +63,6 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
-    public Boolean getIsCaptain() { return isCaptain; }
-    public void setIsCaptain(Boolean isCaptain) { this.isCaptain = isCaptain; }
-
-    /** A captain leads one team: moving to another team, or leaving it, ends the captaincy. */
-    public void moveToTeam(TeamsEntity newTeam) {
-        UUID currentTeamId = team == null ? null : team.getId();
-        UUID newTeamId = newTeam == null ? null : newTeam.getId();
-        if (!Objects.equals(currentTeamId, newTeamId)) {
-            isCaptain = false;
-        }
-        team = newTeam;
-    }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {
