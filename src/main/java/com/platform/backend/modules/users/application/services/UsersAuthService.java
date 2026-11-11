@@ -4,6 +4,7 @@ import com.platform.backend.modules.organizations.domain.entities.OrganizationsE
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.users.application.iservices.IAccountCapabilitiesService;
 import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.iservices.IUsersAuthService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
@@ -77,6 +78,7 @@ public class UsersAuthService implements IUsersAuthService {
     private final EmailService emailService;
     private final IEmailVerificationService emailVerificationService;
     private final PersonalDataValidator personalDataValidator;
+    private final IAccountCapabilitiesService accountCapabilitiesService;
 
     @Value("${app.security.password-reset-expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
@@ -285,7 +287,9 @@ public class UsersAuthService implements IUsersAuthService {
         UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
                 .filter(found -> found.getDeletedAt() == null)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
-        return userMapper.toUserResponse(user);
+        UserResponse response = userMapper.toUserResponse(user);
+        response.setCapabilities(accountCapabilitiesService.of(user.getId()).stream().map(Enum::name).sorted().toList());
+        return response;
     }
 
     @Override

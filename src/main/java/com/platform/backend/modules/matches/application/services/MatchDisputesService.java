@@ -88,19 +88,25 @@ public class MatchDisputesService implements IMatchDisputesService {
         }
     }
 
-    /** An administrator disputes for anyone; everyone else needs to be the captain of the team. */
+    /**
+     * An administrator disputes for anyone; everyone else has to be a "dirigente de equipo" (the account capability
+     * {@code OPEN_MATCH_DISPUTES}) and belong to the team they speak for. Being the captain no longer is enough.
+     */
     private void requireMayDisputeFor(UUID teamId) {
-        if (CurrentCaller.isAdministrator() || isCaptainOf(teamId)) {
+        if (CurrentCaller.isAdministrator() || (callerCanOpenDisputes() && belongsToTeam(teamId))) {
             return;
         }
         throw new AccessDeniedException(DisputeError.NOT_ALLOWED_FOR_TEAM.name());
     }
 
-    private boolean isCaptainOf(UUID teamId) {
+    private boolean callerCanOpenDisputes() {
+        return accountCapabilities.has(CurrentCaller.require().getId(), AccountCapability.OPEN_MATCH_DISPUTES);
+    }
+
+    private boolean belongsToTeam(UUID teamId) {
         return playerOfCaller()
                 .flatMap(player -> teamMemberRepository.findActiveByPlayerIdAndTeamId(player.getId(), teamId))
-                .map(membership -> Boolean.TRUE.equals(membership.getIsCaptain()))
-                .orElse(false);
+                .isPresent();
     }
 
     private void requireResultRecorded(MatchesEntity match) {
@@ -176,14 +182,19 @@ public class MatchDisputesService implements IMatchDisputesService {
         findMatchOrThrow(matchId);
         List<MatchDisputesEntity> disputes = disputeRepository.findAllActiveByMatchId(matchId);
         if (!CurrentCaller.isAdministrator()) {
-            Set<UUID> ownTeams = teamIdsOfCaller();
+            // Only a dirigente sees the disputes of their own teams; for anyone else there are none to show.
+            Set<UUID> ownTeams = callerCanOpenDisputes() ? teamIdsOfCaller() : Set.of();
             disputes = disputes.stream().filter(dispute -> ownTeams.contains(dispute.getTeamId())).toList();
         }
         return assembler.toResponses(disputes);
     }
 
+    /** The disputes of the teams of a dirigente (the app); an account without that capability has none to see. */
     @Override
     public List<MatchDisputeResponse> getMine() {
+        if (!callerCanOpenDisputes()) {
+            return List.of();
+        }
         return assembler.toResponses(disputeRepository.findAllActiveByTeamIds(teamIdsOfCaller()));
     }
 
@@ -275,10 +286,4 @@ public class MatchDisputesService implements IMatchDisputesService {
                 .orElse(caller.getEmail());
     }
 
-    private static String displayName(UsersEntity user) {
-        String fullName = Stream.of(user.getFirstName(), user.getLastName())
-                .filter(Objects::nonNull).map(String::trim).filter(part -> !part.isEmpty())
-                .collect(Collectors.joining(" "));
-        return fullName.isEmpty() ? user.getEmail() : fullName;
-    }
-}
+    privat

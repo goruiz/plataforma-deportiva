@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -24,4 +25,9 @@ public class UserResponse {
     private String gender;
     /** Null until the person says it. */
     private LocalDate birthDate;
+    /**
+     * What the account may do beyond the basics ({@code AccountCapability} names), from the roles it holds. The apps show
+     * a feature only to whoever has its capability. Empty for an ordinary user.
+     */
+    private List<String> capabilities = List.of();
 }
