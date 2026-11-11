@@ -18,6 +18,7 @@ import com.platform.backend.modules.matches.domain.irepositories.IEventScheduleC
 import com.platform.backend.modules.matches.domain.irepositories.IMatchRepository;
 import com.platform.backend.modules.matches.presentation.responses.GenerateMatchesResponse.GenerateMatchesResponse;
 import com.platform.backend.modules.matches.presentation.responses.MatchResponse.MatchResponse;
+import com.platform.backend.modules.settings.domain.models.SettingsValues;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.entities.TeamsEventsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamsEventsRepository;
@@ -79,6 +80,7 @@ class EventScheduleConfigServiceTest {
     @Mock private IHolidaysService holidaysService;
     @Mock private IMatchesService matchesService;
     @Mock private IMatchTimingService matchTimingService;
+    @Mock private MatchSettingsReader settingsReader;
     @Spy private MatchMapper matchMapper = Mappers.getMapper(MatchMapper.class);
 
     @InjectMocks
@@ -111,6 +113,21 @@ class EventScheduleConfigServiceTest {
         lenient().when(matchRepository.findAllActiveByEventId(eventId)).thenReturn(List.of());
         lenient().when(holidaysService.getNonPlayDatesBetween(any(), any(), any())).thenReturn(Set.of());
         lenient().when(matchRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        withMatchRules(0, 0);
+        // A match of the event ends one slot (60 + 15) after its kick-off, as in a config like the one above.
+        lenient().when(matchTimingService.getEndTimes(any())).thenAnswer(invocation -> {
+            Collection<MatchesEntity> matches = invocation.getArgument(0);
+            if (matches == null) {
+                return Map.of(); // a test that stubs this call with a matcher reaches here with null while it is being stubbed
+            }
+            return matches.stream().collect(Collectors.toMap(MatchesEntity::getId, match -> match.getMatchDate().plusMinutes(75)));
+        });
+    }
+
+    /** The match rules of the organization of the event: the wait before every match and the extra time of an elimination. */
+    private void withMatchRules(int waitMinutes, int extraTimeMinutes) {
+        lenient().when(settingsReader.forEvent(any())).thenReturn(
+                new SettingsValues(waitMinutes, 5, true, extraTimeMinutes, false, 48));
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────
@@ -616,5 +633,48 @@ class EventScheduleConfigServiceTest {
 
         assertThat(created).extracting(match -> match.getMatchDate()).containsOnly(FIRST_SATURDAY.atTime(9, 0));
         assertThat(created).extracting(MatchResponse::getCourtId).containsExactlyInAnyOrderElementsOf(idsOf(courts));
+    }
+
+    // ─── the match rules of the settings: wait before the start and extra time ──────────────────────────────
+
+    @Test
+    void generate_whenTheRulesMakeEveryMatchWait_thenTheNextSlotStartsAfterTheWait() {
+        withMatchRules(15, 0);
+        registerTeams(4);
+
+        List<MatchResponse> firstDay = byDate(service.generateMatches(eventId).getMatches()).get(FIRST_SATURDAY);
+
+        // A slot is 15 of wait + 60 of play + 15 of break = 90 minutes: 09:00 and 10:30 instead of 10:15.
+        assertThat(firstDay).extracting(match -> match.getMatchDate().toLocalTime())
+                .containsExactlyInAnyOrder(LocalTime.of(9, 0), LocalTime.of(10, 30));
+    }
+
+    @Test
+    void scheduleDrafts_whenARoundOfAnEliminationMayNeedExtraTime_thenItsMatchesReserveThemForIt() {
+        playInComplexWithCourts("Cancha 1");
+        withMatchRules(0, 30);
+        List<MatchDraft> drafts = List.of(
+                new MatchDraft(team(1), team(2), MatchStage.KNOCKOUT, 1, null, 1, null),
+                new MatchDraft(team(3), team(4), MatchStage.KNOCKOUT, 1, null, 2, null));
+
+        List<MatchResponse> created = service.scheduleDrafts(eventId, drafts);
+
+        // One court: the second match waits for the first one's slot (60 + 15 + 30 of extra time) to be over.
+        assertThat(created).extracting(match -> match.getMatchDate().toLocalTime())
+                .containsExactly(LocalTime.of(9, 0), LocalTime.of(10, 45));
+    }
+
+    @Test
+    void scheduleDrafts_whenTheRoundIsNotAnElimination_thenTheExtraTimeIsNotReserved() {
+        playInComplexWithCourts("Cancha 1");
+        withMatchRules(0, 30);
+        List<MatchDraft> drafts = List.of(
+                new MatchDraft(team(1), team(2), MatchStage.GROUP, 1, 1, null, null),
+                new MatchDraft(team(3), team(4), MatchStage.GROUP, 1, 1, null, null));
+
+        List<MatchResponse> created = service.scheduleDrafts(eventId, drafts);
+
+        assertThat(created).extracting(match -> match.getMatchDate().toLocalTime())
+                .containsExactly(LocalTime.of(9, 0), LocalTime.of(10, 15));
     }
 }

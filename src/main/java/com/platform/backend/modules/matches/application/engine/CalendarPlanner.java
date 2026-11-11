@@ -68,9 +68,15 @@ public final class CalendarPlanner {
      * court is busy for the slot of the match. It also counts for the court's share of the matches.
      */
     public void addExistingMatch(UUID homeId, UUID awayId, LocalDateTime kickOff, UUID courtId, boolean holdsItsCourt) {
+        addExistingMatch(homeId, awayId, kickOff, courtId, holdsItsCourt, kickOff.plusMinutes(rules.slotDurationMinutes()));
+    }
+
+    /** The same, for a match whose court is held until {@code endsAt} (its own slot, which may not be the planner's). */
+    public void addExistingMatch(UUID homeId, UUID awayId, LocalDateTime kickOff, UUID courtId, boolean holdsItsCourt,
+                                 LocalDateTime endsAt) {
         markTeamsBusy(kickOff.toLocalDate(), homeId, awayId);
         if (holdsItsCourt) {
-            blockCourt(courtId, kickOff, kickOff.plusMinutes(rules.slotDurationMinutes()));
+            blockCourt(courtId, kickOff, endsAt);
             matchCountByCourt.merge(courtId, 1, Integer::sum);
         }
     }

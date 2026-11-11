@@ -17,6 +17,10 @@ public class MatchEventResponse {
     private String eventType;
     private Integer minute;
     private String notes;
+    /** Only for a substitution: the player who goes out ({@link #playerId} is the one who comes in). */
+    private UUID replacedPlayerId;
+    /** The name of {@link #replacedPlayerId}; null when there is none or the player was deleted. */
+    private String replacedPlayerName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -27,25 +27,30 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.UUID;
 
-@Tag(name = "Audit", description = "Who created, changed or deleted what (the platform owner only)")
+@Tag(name = "Audit", description = "Who created, changed or deleted what: each administrator reads their organization's, the platform owner everyone's")
 @RestController
 @RequestMapping("/audit")
-@PreAuthorize(AccessRules.PLATFORM_OWNER_ONLY)
+@PreAuthorize(AccessRules.ADMIN_ONLY)
 @RequiredArgsConstructor
 public class AuditController {
 
     private static final String FROM_FIELD = "from";
     private static final String TO_FIELD = "to";
+    private static final String ORGANIZATION_FIELD = "organization";
+    /** What {@code organization} says to read only what belongs to no organization, that is, to the platform owner. */
+    private static final String PLATFORM = "PLATFORM";
 
     private final IAuditService auditService;
     private final ListQueryResolver listQueryResolver;
 
     /**
-     * Every change of every organization, the most recent first. Only the platform owner reads it: it shows who did what
-     * in all the customers' data, so an administrator of one organization never sees it. {@code search} (every word must
-     * appear), {@code entityType}, {@code action} and the days {@code from} and {@code to} (yyyy-MM-dd, both included)
-     * narrow it.
+     * The changes of the data the caller sees, the most recent first: an administrator of an organization reads only
+     * those of their own organization, whatever they ask for; the platform owner reads every organization's and can
+     * choose one administrator with {@code organization} (an organization's id, or {@code PLATFORM} for what belongs to
+     * the owner). {@code search} (every word must appear), {@code entityType}, {@code action} and the days {@code from}
+     * and {@code to} (yyyy-MM-dd, both included) narrow it further.
      */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AuditEntryResponse>>> search(
@@ -53,18 +58,22 @@ public class AuditController {
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) String organization) {
         LocalDate firstDay = parseDay(from, FROM_FIELD);
         LocalDate lastDay = parseDay(to, TO_FIELD);
         if (firstDay != null && lastDay != null && lastDay.isBefore(firstDay)) {
             throw new FieldValidationException(TO_FIELD, AuditError.DATE_RANGE_INVERTED.name());
         }
+        boolean platformOnly = StringUtils.hasText(organization) && PLATFORM.equalsIgnoreCase(organization.trim());
         AuditFilter filter = new AuditFilter(
                 listQueryResolver.searchTerms(request.getSearch()),
                 parseEntityType(entityType),
                 parseAction(action),
                 firstDay == null ? null : firstDay.atStartOfDay(),
-                endOfDay(lastDay));
+                endOfDay(lastDay),
+                platformOnly ? null : parseOrganization(organization),
+                platformOnly);
         PageQuery pageQuery = listQueryResolver.pageQuery(request.getPage(), request.getSize());
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(auditService.search(filter, pageQuery))));
     }
@@ -88,6 +97,17 @@ public class AuditController {
             return AuditAction.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException invalid) {
             throw new FieldValidationException("action", AuditError.INVALID_ACTION.name());
+        }
+    }
+
+    private static UUID parseOrganization(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException invalid) {
+            throw new FieldValidationException(ORGANIZATION_FIELD, AuditError.INVALID_ORGANIZATION.name());
         }
     }
 

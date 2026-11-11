@@ -17,6 +17,7 @@ import com.platform.backend.modules.users.presentation.responses.AuthResponse.Au
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
+import com.platform.backend.shared.infraestructure.config.PersonalDataValidator;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +63,7 @@ class UsersServiceVerificationTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private EmailService emailService;
     @Mock private IEmailVerificationService emailVerificationService;
+    @Mock private PersonalDataValidator personalDataValidator;
 
     @InjectMocks
     private UsersAuthService usersAuthService;

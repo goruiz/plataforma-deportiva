@@ -30,6 +30,10 @@ public class MatchEventsEntity extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** Only for a substitution: the player who goes out (the line's {@code playerId} is the one who comes in). */
+    @Column(name = "replaced_player_id")
+    private UUID replacedPlayerId;
+
     public MatchEventsEntity() {}
 
     public UUID getMatchId() { return matchId; }
@@ -49,4 +53,7 @@ public class MatchEventsEntity extends BaseEntity {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public UUID getReplacedPlayerId() { return replacedPlayerId; }
+    public void setReplacedPlayerId(UUID replacedPlayerId) { this.replacedPlayerId = replacedPlayerId; }
 }

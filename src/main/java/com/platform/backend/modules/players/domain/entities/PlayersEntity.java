@@ -6,6 +6,7 @@ import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +42,14 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
     @Column(length = 20, nullable = false)
     private String status = "ACTIVE";
 
+    /** {@code MALE} or {@code FEMALE} ({@code Gender}); null until the person says it. What a category may ask about. */
+    @Column(length = 10)
+    private String gender;
+
+    /** Null until the person says it. What a category may ask about. */
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
     public PlayersEntity() {}
 
     public String getEmail() { return email; }
@@ -63,6 +72,12 @@ public class PlayersEntity extends BaseEntity implements HasUniqueField {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public LocalDate getBirthDate() { return birthDate; }
+    public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

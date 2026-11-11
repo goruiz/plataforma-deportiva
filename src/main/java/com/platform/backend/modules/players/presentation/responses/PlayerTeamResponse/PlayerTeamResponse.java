@@ -19,4 +19,16 @@ public class PlayerTeamResponse {
     private Boolean isCaptain;
     /** Whether the player manages this team (see {@code team_members.is_team_admin}). */
     private Boolean isTeamAdmin;
+    /** False when the player does not meet what the team's category asks (gender, age): they may not play for it. */
+    private Boolean eligibleForCategory = true;
+    /** Why they do not ({@code CategoryEligibilityError}); null when they do. */
+    private String categoryIneligibility;
+
+    public PlayerTeamResponse(UUID teamId, String teamName, UUID organizationId, Boolean isCaptain, Boolean isTeamAdmin) {
+        this.teamId = teamId;
+        this.teamName = teamName;
+        this.organizationId = organizationId;
+        this.isCaptain = isCaptain;
+        this.isTeamAdmin = isTeamAdmin;
+    }
 }

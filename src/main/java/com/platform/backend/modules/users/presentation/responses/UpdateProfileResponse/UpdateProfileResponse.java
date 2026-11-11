@@ -2,6 +2,7 @@ package com.platform.backend.modules.users.presentation.responses.UpdateProfileR
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
@@ -13,4 +14,6 @@ public class UpdateProfileResponse {
     private String secondLastName;
     private String username;
     private String email;
+    private String gender;
+    private LocalDate birthDate;
 }

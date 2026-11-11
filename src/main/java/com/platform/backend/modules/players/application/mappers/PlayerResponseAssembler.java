@@ -1,5 +1,7 @@
 package com.platform.backend.modules.players.application.mappers;
 
+import com.platform.backend.modules.events.domain.models.CategoryRequirements;
+import com.platform.backend.modules.players.application.services.PlayerEligibilityPolicy;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
 import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
@@ -19,6 +21,9 @@ import java.util.stream.Collectors;
  * <p>
  * The memberships it reads go through the organization filter, so what a response says about a player's teams is what the
  * caller may see: an administrator only the team of their organization, the player themselves all of theirs.
+ * <p>
+ * Each team also says whether the player meets what its category asks (gender, age). The rules of the categories are read
+ * once for all the teams of a response (or of a whole list), never once per player.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,6 +31,7 @@ public class PlayerResponseAssembler {
 
     private final PlayerMapper playerMapper;
     private final ITeamMemberRepository teamMemberRepository;
+    private final PlayerEligibilityPolicy eligibilityPolicy;
 
     /** The player with every team the caller can see them in. */
     public PlayerResponse toResponse(PlayersEntity player) {
@@ -34,9 +40,18 @@ public class PlayerResponseAssembler {
 
     /** The players with their teams, read together (one query for the whole list, not one per player). */
     public List<PlayerResponse> toResponses(Collection<PlayersEntity> players) {
-        Map<UUID, List<TeamMembersEntity>> membershipsByPlayer = membershipsByPlayerId(players);
+        return toResponses(players, membershipsByPlayerId(players));
+    }
+
+    /** The players with memberships the caller already read (see {@link #membershipsByPlayerId}). */
+    public List<PlayerResponse> toResponses(Collection<PlayersEntity> players,
+                                            Map<UUID, List<TeamMembersEntity>> membershipsByPlayer) {
+        List<TeamMembersEntity> memberships = players.stream()
+                .flatMap(player -> membershipsByPlayer.getOrDefault(player.getId(), List.of()).stream())
+                .toList();
+        Map<UUID, CategoryRequirements> requirements = requirementsOfTeamsIn(memberships);
         return players.stream()
-                .map(player -> toResponse(player, membershipsByPlayer.getOrDefault(player.getId(), List.of())))
+                .map(player -> toResponse(player, membershipsByPlayer.getOrDefault(player.getId(), List.of()), requirements))
                 .toList();
     }
 
@@ -52,8 +67,15 @@ public class PlayerResponseAssembler {
      * {@code isCaptain} describe the first one, which is what clients that know a single team read.
      */
     public PlayerResponse toResponse(PlayersEntity player, List<TeamMembersEntity> memberships) {
+        return toResponse(player, memberships, requirementsOfTeamsIn(memberships));
+    }
+
+    private PlayerResponse toResponse(PlayersEntity player, List<TeamMembersEntity> memberships,
+                                      Map<UUID, CategoryRequirements> requirementsByCategory) {
         PlayerResponse response = playerMapper.toResponse(player);
-        response.setTeams(memberships.stream().map(PlayerResponseAssembler::toTeamResponse).toList());
+        response.setTeams(memberships.stream()
+                .map(membership -> toTeamResponse(player, membership, requirementsByCategory))
+                .toList());
         memberships.stream().findFirst().ifPresent(first -> {
             response.setTeamId(first.getTeam().getId());
             response.setTeamName(first.getTeam().getName());
@@ -63,12 +85,24 @@ public class PlayerResponseAssembler {
         return response;
     }
 
-    private static PlayerTeamResponse toTeamResponse(TeamMembersEntity membership) {
-        return new PlayerTeamResponse(
+    private Map<UUID, CategoryRequirements> requirementsOfTeamsIn(List<TeamMembersEntity> memberships) {
+        return eligibilityPolicy.requirementsOfCategoriesOf(memberships.stream().map(TeamMembersEntity::getTeam).toList());
+    }
+
+    private PlayerTeamResponse toTeamResponse(PlayersEntity player, TeamMembersEntity membership,
+                                              Map<UUID, CategoryRequirements> requirementsByCategory) {
+        PlayerTeamResponse response = new PlayerTeamResponse(
                 membership.getTeam().getId(),
                 membership.getTeam().getName(),
                 membership.getOrganizationId(),
                 membership.isCaptainOfTheTeam(),
                 membership.isAdministratorOfTheTeam());
+        CategoryRequirements requirements = PlayerEligibilityPolicy
+                .requirementFor(requirementsByCategory, membership.getTeam().getCategoryId());
+        eligibilityPolicy.reasonWhyNot(requirements, player.getGender(), player.getBirthDate()).ifPresent(reason -> {
+            response.setEligibleForCategory(false);
+            response.setCategoryIneligibility(reason.name());
+        });
+        return response;
     }
 }

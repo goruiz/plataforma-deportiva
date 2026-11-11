@@ -40,6 +40,8 @@ final class TeamStatsCalculator {
                 case YELLOW_CARD -> new EventTotals(goals, assists, yellowCards + amount, redCards, fouls);
                 case RED_CARD -> new EventTotals(goals, assists, yellowCards, redCards + amount, fouls);
                 case FOUL -> new EventTotals(goals, assists, yellowCards, redCards, fouls + amount);
+                // A substitution is part of the timeline, not of anybody's numbers.
+                case SUBSTITUTION -> this;
             };
         }
     }

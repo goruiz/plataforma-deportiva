@@ -2,6 +2,7 @@ package com.platform.backend.modules.users.presentation.responses.UserResponse;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,4 +20,8 @@ public class UserResponse {
     private boolean emailVerified;
     /** When the account was suspended; null while it is active. */
     private LocalDateTime suspendedAt;
+    /** {@code MALE} or {@code FEMALE}; null until the person says it. */
+    private String gender;
+    /** Null until the person says it. */
+    private LocalDate birthDate;
 }

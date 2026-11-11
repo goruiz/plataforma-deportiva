@@ -1,6 +1,7 @@
 package com.platform.backend.modules.events.domain.entities;
 
 import org.hibernate.annotations.Filter;
+import com.platform.backend.modules.events.domain.models.CategoryRequirements;
 import com.platform.backend.shared.domain.tenancy.TenantFilters;
 import com.platform.backend.shared.domain.tenancy.OrganizationOwned;
 import com.platform.backend.shared.infraestructure.tenancy.OrganizationOwnerListener;
@@ -28,6 +29,18 @@ public class CategoriesEntity extends BaseTranslatableEntity implements HasUniqu
     @Column(name = "organization_id")
     private UUID organizationId;
 
+    /** The gender the category admits ({@code Gender}); null admits both. */
+    @Column(length = 10)
+    private String gender;
+
+    /** The youngest age admitted, in years completed; null has no minimum. */
+    @Column(name = "min_age")
+    private Integer minAge;
+
+    /** The oldest age admitted, in years completed; null has no maximum. */
+    @Column(name = "max_age")
+    private Integer maxAge;
+
     public CategoriesEntity() {}
 
     public String getName() { return name; }
@@ -35,6 +48,20 @@ public class CategoriesEntity extends BaseTranslatableEntity implements HasUniqu
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public Integer getMinAge() { return minAge; }
+    public void setMinAge(Integer minAge) { this.minAge = minAge; }
+
+    public Integer getMaxAge() { return maxAge; }
+    public void setMaxAge(Integer maxAge) { this.maxAge = maxAge; }
+
+    /** What the category asks of whoever plays in it. */
+    public CategoryRequirements requirements() {
+        return new CategoryRequirements(gender, minAge, maxAge);
+    }
 
     /**
      * Frees the name for a new category by tagging it with this category's id. The original name is

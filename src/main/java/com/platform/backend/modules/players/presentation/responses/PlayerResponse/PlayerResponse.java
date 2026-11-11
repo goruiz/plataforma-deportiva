@@ -3,6 +3,7 @@ package com.platform.backend.modules.players.presentation.responses.PlayerRespon
 import com.platform.backend.modules.players.presentation.responses.PlayerTeamResponse.PlayerTeamResponse;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +18,10 @@ public class PlayerResponse {
     private String phone;
     private String profilePhotoUrl;
     private String status;
+    /** {@code MALE} or {@code FEMALE}; null until the person says it. */
+    private String gender;
+    /** Null until the person says it. */
+    private LocalDate birthDate;
     /**
      * The team the caller sees the player in: the one of their organization for an administrator, the last one joined for
      * the player themselves. A player can play for several teams (one per organization): they are all in {@link #teams}.

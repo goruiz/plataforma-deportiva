@@ -41,7 +41,7 @@ final class AuditQuery {
     static AuditQuery of(AuditFilter filter, TenantScope scope) {
         Map<String, Object> parameters = new LinkedHashMap<>();
         List<String> conditions = new ArrayList<>();
-        addScopeCondition(scope, conditions, parameters);
+        addScopeCondition(filter, scope, conditions, parameters);
         addDateConditions(filter, conditions, parameters);
         addSearchConditions(filter.searchTerms(), conditions, parameters);
         String where = conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
@@ -139,10 +139,20 @@ final class AuditQuery {
     // Conditions of the outer query
     // ---------------------------------------------------------------------------------------------------------------
 
-    private static void addScopeCondition(TenantScope scope, List<String> conditions, Map<String, Object> parameters) {
+    /**
+     * An administrator of an organization only reads their own organization's trail, whatever they ask for. Whoever sees
+     * every organization (the platform owner) reads all of them, or the one administrator they choose.
+     */
+    private static void addScopeCondition(AuditFilter filter, TenantScope scope, List<String> conditions,
+                                          Map<String, Object> parameters) {
         if (scope.restricted()) {
             conditions.add("a.organization_id = :organizationId");
             parameters.put("organizationId", scope.organizationIdForFilter());
+        } else if (filter.organizationId() != null) {
+            conditions.add("a.organization_id = :chosenOrganizationId");
+            parameters.put("chosenOrganizationId", filter.organizationId());
+        } else if (filter.withoutOrganization()) {
+            conditions.add("a.organization_id IS NULL");
         }
     }
 

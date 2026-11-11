@@ -26,6 +26,7 @@ import com.platform.backend.modules.users.presentation.requests.ResetPasswordReq
 import com.platform.backend.modules.users.presentation.requests.UpdateProfileRequest.UpdateProfileRequest;
 import com.platform.backend.modules.users.presentation.responses.AuthResponse.AuthResponse;
 import com.platform.backend.modules.users.presentation.responses.RegisterResponse.RegisterResponse;
+import com.platform.backend.shared.infraestructure.config.PersonalDataValidator;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -78,6 +79,7 @@ class UsersServiceTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private EmailService emailService;
     @Mock private IEmailVerificationService emailVerificationService;
+    @Mock private PersonalDataValidator personalDataValidator;
 
     @InjectMocks
     private UsersAuthService usersAuthService;

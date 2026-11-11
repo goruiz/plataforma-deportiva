@@ -28,4 +28,7 @@ public class CreateMatchEventRequest {
     private Integer minute;
 
     private String notes;
+
+    /** Only for a {@code SUBSTITUTION}: the player who goes out ({@code playerId} is the one who comes in). */
+    private UUID replacedPlayerId;
 }

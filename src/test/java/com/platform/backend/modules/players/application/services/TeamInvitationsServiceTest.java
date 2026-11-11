@@ -76,10 +76,11 @@ class TeamInvitationsServiceTest {
     void setUp() {
         TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), MY_EMAIL);
         memberships = new InMemoryTeamMembers();
+        PlayerEligibilityPolicy eligibility = PlayersServiceTestSupport.categoriesWithoutRules();
         ReflectionTestUtils.setField(teamInvitationsService, "teamMembershipsService",
-                new TeamMembershipsService(memberships, playerAccountOrganizationService));
+                new TeamMembershipsService(memberships, playerAccountOrganizationService, eligibility));
         ReflectionTestUtils.setField(teamInvitationsService, "playerResponses",
-                new PlayerResponseAssembler(playerMapper, memberships));
+                new PlayerResponseAssembler(playerMapper, memberships, eligibility));
         team = new TeamsEntity();
         team.setId(UUID.randomUUID());
         team.setName("Tigres");

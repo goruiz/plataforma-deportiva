@@ -20,6 +20,7 @@ public class TeamMembershipsService implements ITeamMembershipsService {
 
     private final ITeamMemberRepository teamMemberRepository;
     private final IPlayerAccountOrganizationService playerAccountOrganizationService;
+    private final PlayerEligibilityPolicy eligibilityPolicy;
 
     @Override
     @Transactional
@@ -36,6 +37,8 @@ public class TeamMembershipsService implements ITeamMembershipsService {
         // The one door every way into a team goes through (an accepted invitation, a registration link, a code, an
         // administrator): an inactive team takes nobody new, whichever way they come.
         team.requireActive();
+        // ...and so does a person the team's category does not admit (its gender, its ages): they may not play for it.
+        eligibilityPolicy.requireEligible(player, team);
 
         current.stream()
                 .filter(membership -> sameOrganization(membership.getOrganizationId(), team.getOrganizationId()))

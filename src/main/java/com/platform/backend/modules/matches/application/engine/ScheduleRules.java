@@ -16,6 +16,12 @@ public record ScheduleRules(Set<DayOfWeek> playDays, Set<LocalDate> blockedDates
 
     private static final int MINUTES_PER_DAY = 24 * 60;
 
+    /** The same rules with longer slots: what a match that may need extra time takes beyond a normal one. */
+    public ScheduleRules withExtraSlotMinutes(int extraMinutes) {
+        return new ScheduleRules(playDays, blockedDates, firstKickOff, matchDurationMinutes,
+                slotDurationMinutes + extraMinutes, startDate, searchLimit);
+    }
+
     public boolean isPlayable(LocalDate day) {
         return playDays.contains(day.getDayOfWeek()) && !blockedDates.contains(day);
     }

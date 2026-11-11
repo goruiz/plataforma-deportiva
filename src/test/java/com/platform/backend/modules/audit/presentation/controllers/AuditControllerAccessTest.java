@@ -7,16 +7,18 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The audit shows who did what in the data of every organization, so only the platform owner may read it. The rule is
- * an annotation, which nothing else exercises, so a test keeps it from being loosened by accident.
+ * The audit is per administrator: any administrator reads the trail of their own organization (the query itself is
+ * narrowed to it) and the platform owner reads every organization's. What nobody else may do is read it at all, so the
+ * rule (an annotation, which nothing else exercises) is pinned here: it must not be loosened to any account, nor
+ * tightened back to the owner only.
  */
 class AuditControllerAccessTest {
 
     @Test
-    void onlyThePlatformOwnerMayReadTheAudit() {
+    void onlyAdministratorsMayReadTheAudit() {
         PreAuthorize rule = AuditController.class.getAnnotation(PreAuthorize.class);
 
         assertThat(rule).isNotNull();
-        assertThat(rule.value()).isEqualTo(AccessRules.PLATFORM_OWNER_ONLY);
+        assertThat(rule.value()).isEqualTo(AccessRules.ADMIN_ONLY);
     }
 }

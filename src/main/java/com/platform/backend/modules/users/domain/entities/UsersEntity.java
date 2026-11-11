@@ -9,6 +9,7 @@ import com.platform.backend.shared.domain.entities.BaseEntity;
 import com.platform.backend.shared.domain.interfaces.HasUniqueField;
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -60,6 +61,16 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
     @Column(name = "suspended_at")
     private LocalDateTime suspendedAt;
 
+    /** {@code MALE} or {@code FEMALE} ({@code Gender}); null until the person says it. Kept in the player too. */
+    @JsonIgnore
+    @Column(length = 10)
+    private String gender;
+
+    /** Null until the person says it. Kept in the player too. */
+    @JsonIgnore
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
     public UsersEntity() {}
 
     public String getFirstName() { return firstName; }
@@ -96,6 +107,12 @@ public class UsersEntity extends BaseEntity implements HasUniqueField, Organizat
     public void setSuspendedAt(LocalDateTime suspendedAt) { this.suspendedAt = suspendedAt; }
 
     public boolean isSuspended() { return suspendedAt != null; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public LocalDate getBirthDate() { return birthDate; }
+    public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
 
     @Override
     public void releaseUniqueFields(UUID entityId) {

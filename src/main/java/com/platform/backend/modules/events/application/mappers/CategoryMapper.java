@@ -24,6 +24,10 @@ public interface CategoryMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    // The rules ("ANY", 0 = none) are interpreted by the service, which validates them: copying them here would store the codes.
+    @Mapping(target = "gender", ignore = true)
+    @Mapping(target = "minAge", ignore = true)
+    @Mapping(target = "maxAge", ignore = true)
     CategoriesEntity toEntity(CreateCategoryRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -34,6 +38,9 @@ public interface CategoryMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "gender", ignore = true)
+    @Mapping(target = "minAge", ignore = true)
+    @Mapping(target = "maxAge", ignore = true)
     void updateEntity(@MappingTarget CategoriesEntity entity, UpdateCategoryRequest request);
 
     CategoryResponse toResponse(CategoriesEntity entity);

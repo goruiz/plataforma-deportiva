@@ -36,6 +36,7 @@ import com.platform.backend.modules.users.presentation.requests.RegisterRequest.
 import com.platform.backend.shared.domain.tenancy.TenantScope;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.domain.utils.JoinCodes;
+import com.platform.backend.shared.infraestructure.config.PersonalDataValidator;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
@@ -45,12 +46,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +70,8 @@ public class PlayersService implements IPlayersService {
     private final IUsersAuthService usersAuthService;
     private final IEmailVerificationService emailVerificationService;
     private final EmailService emailService;
+    private final PlayerEligibilityPolicy eligibilityPolicy;
+    private final PersonalDataValidator personalDataValidator;
 
     @Value("${app.invite.expiration-days:7}")
     private int inviteExpirationDays;
@@ -76,10 +81,10 @@ public class PlayersService implements IPlayersService {
     public List<PlayerResponse> getAll() {
         List<PlayersEntity> players = playerRepository.findAllActive();
         Map<UUID, List<TeamMembersEntity>> membershipsByPlayer = playerResponses.membershipsByPlayerId(players);
-        return players.stream()
+        List<PlayersEntity> listed = players.stream()
                 .filter(player -> isListedForCaller(membershipsByPlayer.getOrDefault(player.getId(), List.of())))
-                .map(player -> playerResponses.toResponse(player, membershipsByPlayer.getOrDefault(player.getId(), List.of())))
                 .toList();
+        return playerResponses.toResponses(listed, membershipsByPlayer);
     }
 
     @Override
@@ -136,7 +141,7 @@ public class PlayersService implements IPlayersService {
             team.requireActive();
         }
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
-                request.getFirstName(), request.getLastName(), false);
+                request.getFirstName(), request.getLastName(), null, null, false);
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         PlayersEntity saved = playerRepository.save(player);
@@ -154,9 +159,15 @@ public class PlayersService implements IPlayersService {
         boolean hasInvitation = request.getInviteToken() != null && !request.getInviteToken().isBlank();
         TeamInvitationsEntity invitation = hasInvitation ? findUsableInvitation(request.getInviteToken()) : null;
         TeamsEntity team = hasInvitation ? findInvitingTeam(invitation) : null;
+        // Before the account exists too: what they say about themselves may be what the team's category refuses.
+        personalDataValidator.requireValid(request.getGender(), request.getBirthDate());
+        if (team != null) {
+            eligibilityPolicy.requireEligible(request.getGender(), request.getBirthDate(), team);
+        }
 
         PlayersEntity player = registerAccountWithPlayer(request.getEmail(), request.getPassword(),
-                request.getFirstName(), request.getLastName(), isInvitedEmail(invitation, request.getEmail()));
+                request.getFirstName(), request.getLastName(), request.getGender(), request.getBirthDate(),
+                isInvitedEmail(invitation, request.getEmail()));
         player.setPhone(request.getPhone());
         player.setProfilePhotoUrl(request.getProfilePhotoUrl());
         PlayersEntity saved = playerRepository.save(player);
@@ -211,12 +222,14 @@ public class PlayersService implements IPlayersService {
      * player with the same email; the caller then completes that player (phone, photo, team).
      */
     private PlayersEntity registerAccountWithPlayer(String email, String password, String firstName, String lastName,
-                                                    boolean emailVerified) {
+                                                    String gender, LocalDate birthDate, boolean emailVerified) {
         RegisterRequest account = new RegisterRequest();
         account.setEmail(email);
         account.setPassword(password);
         account.setFirstName(firstName);
         account.setLastName(lastName);
+        account.setGender(gender);
+        account.setBirthDate(birthDate);
         if (emailVerified) {
             usersAuthService.registerVerified(account);
         } else {
@@ -297,6 +310,8 @@ public class PlayersService implements IPlayersService {
 
     /** They join only if they accept it in the app; a team they have in the same organization is then replaced. */
     private void inviteRegisteredPlayer(PlayersEntity player, TeamsEntity team) {
+        // Not worth inviting someone the team's category will never admit: nothing is saved or emailed.
+        eligibilityPolicy.requireNotExcluded(player, team);
         // The invited person finds it by the email of their account, which is the player's one.
         TeamInvitationsEntity invitation = new TeamInvitationsEntity();
         invitation.setEmail(player.getEmail());
@@ -340,9 +355,12 @@ public class PlayersService implements IPlayersService {
     @Override
     @Transactional(readOnly = true)
     public List<PlayerResponse> getByTeamId(UUID teamId) {
-        return teamMemberRepository.findAllActiveByTeamId(teamId).stream()
-                .map(membership -> playerResponses.toResponse(membership.getPlayer(), List.of(membership)))
-                .toList();
+        List<TeamMembersEntity> roster = teamMemberRepository.findAllActiveByTeamId(teamId);
+        List<PlayersEntity> players = roster.stream().map(TeamMembersEntity::getPlayer).toList();
+        Map<UUID, List<TeamMembersEntity>> membershipsByPlayer = roster.stream()
+                .collect(Collectors.groupingBy(membership -> membership.getPlayer().getId()));
+        // The rules of the team's category are read once for the whole roster, not once per player.
+        return playerResponses.toResponses(players, membershipsByPlayer);
     }
 
     @Override

@@ -22,6 +22,7 @@ final class PlayerEventTally {
             case YELLOW_CARD -> yellowCards++;
             case RED_CARD -> redCards++;
             case FOUL -> fouls++;
+            case SUBSTITUTION -> { /* part of the timeline, not of anybody's numbers */ }
         }
     }
 

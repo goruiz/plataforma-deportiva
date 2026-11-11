@@ -5,6 +5,7 @@ import com.platform.backend.modules.audit.domain.enums.AuditEntityType;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * What the audit trail is narrowed by. Null (or empty) means "no condition of that kind".
@@ -15,11 +16,22 @@ import java.util.List;
  * @param action      only this kind of change
  * @param from        changes at or after this instant
  * @param until       changes before this instant (exclusive, so a whole last day is the start of the next one)
+ * @param organizationId  only what belongs to this administrator's organization. Only whoever sees every organization (the
+ *                    platform owner) can narrow by one: for an administrator of an organization the scope already is theirs
+ * @param withoutOrganization only what belongs to no organization, that is, to the platform owner
  */
 public record AuditFilter(
         List<String> searchTerms,
         AuditEntityType entityType,
         AuditAction action,
         LocalDateTime from,
-        LocalDateTime until) {
+        LocalDateTime until,
+        UUID organizationId,
+        boolean withoutOrganization) {
+
+    /** A filter that does not narrow by organization. */
+    public AuditFilter(List<String> searchTerms, AuditEntityType entityType, AuditAction action, LocalDateTime from,
+                       LocalDateTime until) {
+        this(searchTerms, entityType, action, from, until, null, false);
+    }
 }

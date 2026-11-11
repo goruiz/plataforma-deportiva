@@ -13,10 +13,14 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchEventRequest.CreateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchEventRequest.UpdateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchEventResponse.MatchEventResponse;
+import com.platform.backend.modules.events.domain.exception.CategoryEligibilityError;
+import com.platform.backend.modules.players.application.services.PlayerEligibilityPolicy;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.settings.domain.models.SettingsValues;
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
+import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
 import jakarta.persistence.EntityNotFoundException;
@@ -56,6 +60,10 @@ class MatchEventsServiceTest {
     @Mock private IEventRepository eventRepository;
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamMemberRepository teamMemberRepository;
+    @Mock private ITeamRepository teamRepository;
+    // A mock answers "nobody is refused" until a test says otherwise.
+    @Mock private PlayerEligibilityPolicy eligibilityPolicy;
+    @Mock private MatchSettingsReader settingsReader;
     @Spy private MatchEventMapper matchEventMapper = Mappers.getMapper(MatchEventMapper.class);
 
     @InjectMocks
@@ -177,6 +185,144 @@ class MatchEventsServiceTest {
                 .satisfies(error -> assertRejectedField(error, "playerId", MatchEventError.PLAYER_NOT_IN_TEAM));
         assertThatThrownBy(() -> matchEventsService.create(goalBy(ghost, homeTeam)))
                 .satisfies(error -> assertRejectedField(error, "playerId", MatchEventError.PLAYER_NOT_IN_TEAM));
+    }
+
+    // ─── the category of the team: who may play ─────────────────────────────────────────────────────────────
+
+    @Test
+    void create_whenThePlayerDoesNotMeetTheCategoryOfTheTeam_thenRefusedOnThePlayerFieldWithTheReason() {
+        when(teamRepository.findActiveById(homeTeam.getId())).thenReturn(Optional.of(homeTeam));
+        when(eligibilityPolicy.reasonWhyNot(homePlayer, homeTeam))
+                .thenReturn(Optional.of(CategoryEligibilityError.CATEGORY_TOO_YOUNG));
+
+        assertThatThrownBy(() -> matchEventsService.create(goalBy(homePlayer, homeTeam)))
+                .satisfies(error -> assertRejectedField(error, "playerId", CategoryEligibilityError.CATEGORY_TOO_YOUNG));
+        verify(matchEventRepository, never()).save(any());
+    }
+
+    @Test
+    void create_whenThePlayerMeetsTheCategoryOfTheTeam_thenItIsSaved() {
+        when(teamRepository.findActiveById(homeTeam.getId())).thenReturn(Optional.of(homeTeam));
+        when(eligibilityPolicy.reasonWhyNot(homePlayer, homeTeam)).thenReturn(Optional.empty());
+
+        assertThat(matchEventsService.create(goalBy(homePlayer, homeTeam)).getEventType()).isEqualTo("GOAL");
+    }
+
+    // ─── substitutions: who goes out and how many the settings allow ────────────────────────────────────────
+
+    private PlayersEntity benchPlayer() {
+        PlayersEntity bench = player("Luis", "Mora");
+        lenient().when(teamMemberRepository.existsActiveByPlayerIdAndTeamId(bench.getId(), homeTeam.getId())).thenReturn(true);
+        lenient().when(playerRepository.findFullNamesByIds(any())).thenReturn(Map.of(
+                homePlayer.getId(), "Ana Lopez", bench.getId(), "Luis Mora"));
+        return bench;
+    }
+
+    private void allowSubstitutions(int perTeam) {
+        when(settingsReader.of(match)).thenReturn(new SettingsValues(15, perTeam, true, 0, false, 48));
+    }
+
+    private CreateMatchEventRequest substitution(PlayersEntity comesIn, PlayersEntity goesOut) {
+        CreateMatchEventRequest request = goalBy(comesIn, homeTeam);
+        request.setEventType(MatchEventType.SUBSTITUTION.name());
+        request.setReplacedPlayerId(goesOut == null ? null : goesOut.getId());
+        return request;
+    }
+
+    private void alreadyMadeSubstitutions(int count) {
+        List<MatchEventsEntity> made = java.util.stream.IntStream.range(0, count)
+                .mapToObj(index -> storedEvent(10 + index, MatchEventType.SUBSTITUTION, LocalDateTime.now())).toList();
+        when(matchEventRepository.findAllActiveByMatchId(match.getId())).thenReturn(made);
+    }
+
+    @Test
+    void create_whenASubstitutionIsWithinTheLimit_thenItIsSavedAndNamesBothPlayers() {
+        PlayersEntity bench = benchPlayer();
+        allowSubstitutions(2);
+        alreadyMadeSubstitutions(1);
+
+        MatchEventResponse response = matchEventsService.create(substitution(bench, homePlayer));
+
+        assertThat(response.getEventType()).isEqualTo("SUBSTITUTION");
+        assertThat(response.getPlayerName()).isEqualTo("Luis Mora");
+        assertThat(response.getReplacedPlayerId()).isEqualTo(homePlayer.getId());
+        assertThat(response.getReplacedPlayerName()).isEqualTo("Ana Lopez");
+    }
+
+    @Test
+    void create_whenTheTeamAlreadyMadeAllItsSubstitutions_thenRefusedOnTheTypeField() {
+        PlayersEntity bench = benchPlayer();
+        allowSubstitutions(2);
+        alreadyMadeSubstitutions(2);
+
+        assertThatThrownBy(() -> matchEventsService.create(substitution(bench, homePlayer)))
+                .satisfies(error -> assertRejectedField(error, "eventType", MatchEventError.SUBSTITUTION_LIMIT_REACHED));
+        verify(matchEventRepository, never()).save(any());
+    }
+
+    @Test
+    void create_whenTheSettingsAllowNoSubstitutions_thenTheFirstOneIsRefused() {
+        PlayersEntity bench = benchPlayer();
+        allowSubstitutions(0);
+
+        assertThatThrownBy(() -> matchEventsService.create(substitution(bench, homePlayer)))
+                .satisfies(error -> assertRejectedField(error, "eventType", MatchEventError.SUBSTITUTION_LIMIT_REACHED));
+    }
+
+    @Test
+    void create_whenTheOtherTeamMadeItsSubstitutions_thenThisTeamStillHasItsOwn() {
+        PlayersEntity bench = benchPlayer();
+        allowSubstitutions(1);
+        MatchEventsEntity ofTheOtherTeam = storedEvent(10, MatchEventType.SUBSTITUTION, LocalDateTime.now());
+        ofTheOtherTeam.setTeamId(match.getAwayTeamId());
+        when(matchEventRepository.findAllActiveByMatchId(match.getId())).thenReturn(List.of(ofTheOtherTeam));
+
+        assertThat(matchEventsService.create(substitution(bench, homePlayer)).getEventType()).isEqualTo("SUBSTITUTION");
+    }
+
+    @Test
+    void create_whenASubstitutionDoesNotSayWhoGoesOut_thenRefusedOnThatField() {
+        PlayersEntity bench = benchPlayer();
+
+        assertThatThrownBy(() -> matchEventsService.create(substitution(bench, null)))
+                .satisfies(error -> assertRejectedField(error, "replacedPlayerId", MatchEventError.REPLACED_PLAYER_REQUIRED));
+    }
+
+    @Test
+    void create_whenTheSamePlayerComesInAndGoesOut_thenRefusedOnThatField() {
+        assertThatThrownBy(() -> matchEventsService.create(substitution(homePlayer, homePlayer)))
+                .satisfies(error -> assertRejectedField(error, "replacedPlayerId", MatchEventError.REPLACED_PLAYER_SAME_AS_PLAYER));
+    }
+
+    @Test
+    void create_whenWhoGoesOutIsNotOfTheTeam_thenRefusedOnThatField() {
+        PlayersEntity stranger = player("Eva", "Rios");
+
+        assertThatThrownBy(() -> matchEventsService.create(substitution(homePlayer, stranger)))
+                .satisfies(error -> assertRejectedField(error, "replacedPlayerId", MatchEventError.PLAYER_NOT_IN_TEAM));
+    }
+
+    @Test
+    void create_whenItIsNotASubstitution_thenWhoGoesOutIsDropped() {
+        CreateMatchEventRequest request = goalBy(homePlayer, homeTeam);
+        request.setReplacedPlayerId(UUID.randomUUID());
+
+        assertThat(matchEventsService.create(request).getReplacedPlayerId()).isNull();
+    }
+
+    @Test
+    void update_whenASubstitutionIsChangedWithTheLimitReached_thenItDoesNotCountAgainstItself() {
+        PlayersEntity bench = benchPlayer();
+        allowSubstitutions(1);
+        MatchEventsEntity stored = storedEvent(10, MatchEventType.SUBSTITUTION, LocalDateTime.now());
+        stored.setPlayerId(bench.getId());
+        stored.setReplacedPlayerId(homePlayer.getId());
+        when(matchEventRepository.findActiveById(stored.getId())).thenReturn(Optional.of(stored));
+        when(matchEventRepository.findAllActiveByMatchId(match.getId())).thenReturn(List.of(stored));
+        UpdateMatchEventRequest request = new UpdateMatchEventRequest();
+        request.setMinute(55);
+
+        assertThat(matchEventsService.update(stored.getId(), request).getMinute()).isEqualTo(55);
     }
 
     @Test

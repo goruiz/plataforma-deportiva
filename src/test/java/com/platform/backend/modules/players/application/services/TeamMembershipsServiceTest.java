@@ -38,7 +38,7 @@ class TeamMembershipsServiceTest {
     @BeforeEach
     void setUp() {
         memberships = new InMemoryTeamMembers();
-        service = new TeamMembershipsService(memberships, accountOrganization);
+        service = new TeamMembershipsService(memberships, accountOrganization, PlayersServiceTestSupport.categoriesWithoutRules());
         ana = player(EMAIL);
     }
 

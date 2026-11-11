@@ -5,10 +5,12 @@ import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
 import com.platform.backend.modules.events.domain.exception.CategoryError;
 import com.platform.backend.modules.events.domain.irepositories.ICategoryRepository;
 import com.platform.backend.modules.events.domain.irepositories.IEventsCategoriesRepository;
+import com.platform.backend.modules.events.domain.models.CategoryRequirements;
 import com.platform.backend.modules.events.presentation.requests.CreateCategoryRequest.CreateCategoryRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateCategoryRequest.UpdateCategoryRequest;
 import com.platform.backend.modules.events.presentation.responses.CategoryResponse.CategoryResponse;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
+import com.platform.backend.shared.infraestructure.config.PersonAgeLimits;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -38,6 +41,7 @@ class CategoriesServiceTest {
     @Mock private IEventsCategoriesRepository eventsCategoriesRepository;
     @Mock private ITeamRepository teamRepository;
     @Mock private CategoryMapper categoryMapper;
+    @Spy private PersonAgeLimits ageLimits = new PersonAgeLimits(120);
 
     @InjectMocks
     private CategoriesService categoriesService;
@@ -111,6 +115,112 @@ class CategoriesServiceTest {
         assertThat(result).isSameAs(categoryResponse);
         assertThat(categoryEntity.getName()).isEqualTo("Sub-15");
         verify(categoryRepository).save(categoryEntity);
+    }
+
+    // ─── who may play: gender and age rules ─────────────────────────────────────────────────────────────────
+
+    private void creating() {
+        when(categoryRepository.existsByName("Sub-15")).thenReturn(false);
+        when(categoryMapper.toEntity(createRequest)).thenReturn(categoryEntity);
+    }
+
+    private void assertRejected(Runnable action, String field, CategoryError reason) {
+        assertThatThrownBy(action::run)
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(error -> assertThat(((FieldValidationException) error).getFieldErrors())
+                        .containsEntry(field, reason.name()));
+        verify(categoryRepository, never()).save(any());
+    }
+
+    @Test
+    void create_whenTheRequestHasRules_thenTheCategoryKeepsThem() {
+        creating();
+        when(categoryRepository.save(categoryEntity)).thenReturn(categoryEntity);
+        createRequest.setGender("FEMALE");
+        createRequest.setMinAge(12);
+        createRequest.setMaxAge(15);
+
+        categoriesService.create(createRequest);
+
+        assertThat(categoryEntity.requirements()).isEqualTo(new CategoryRequirements("FEMALE", 12, 15));
+    }
+
+    @Test
+    void create_whenTheRequestHasNoRules_thenTheCategoryAdmitsEveryone() {
+        creating();
+        when(categoryRepository.save(categoryEntity)).thenReturn(categoryEntity);
+        createRequest.setGender(CategoryRequirements.ANY_GENDER);
+        createRequest.setMinAge(0);
+        createRequest.setMaxAge(0);
+
+        categoriesService.create(createRequest);
+
+        assertThat(categoryEntity.requirements().isEmpty()).isTrue();
+    }
+
+    @Test
+    void create_whenTheGenderIsNotOneWeKnow_thenRefusedOnTheGenderField() {
+        creating();
+        createRequest.setGender("OTHER");
+
+        assertRejected(() -> categoriesService.create(createRequest), "gender", CategoryError.INVALID_GENDER);
+    }
+
+    @Test
+    void create_whenTheMinimumAgeIsAboveTheMaximum_thenRefusedOnTheMaximumField() {
+        creating();
+        createRequest.setMinAge(16);
+        createRequest.setMaxAge(12);
+
+        assertRejected(() -> categoriesService.create(createRequest), "maxAge", CategoryError.AGE_RANGE_INVERTED);
+    }
+
+    @Test
+    void create_whenAnAgeIsMoreThanAPersonCanBe_thenRefusedOnThatField() {
+        creating();
+        createRequest.setMaxAge(121);
+
+        assertRejected(() -> categoriesService.create(createRequest), "maxAge", CategoryError.AGE_OUT_OF_RANGE);
+    }
+
+    @Test
+    void update_whenTheRulesAreNotSent_thenTheCategoryKeepsItsRules() {
+        categoryEntity.setGender("MALE");
+        categoryEntity.setMinAge(10);
+        when(categoryRepository.findActiveById(categoryEntity.getId())).thenReturn(Optional.of(categoryEntity));
+        when(categoryRepository.existsByNameExcludingId("Sub-17", categoryEntity.getId())).thenReturn(false);
+        when(categoryRepository.save(categoryEntity)).thenReturn(categoryEntity);
+
+        categoriesService.update(categoryEntity.getId(), updateRequest);
+
+        assertThat(categoryEntity.requirements()).isEqualTo(new CategoryRequirements("MALE", 10, null));
+    }
+
+    @Test
+    void update_whenTheRequestTakesRulesAway_thenTheyAreCleared() {
+        categoryEntity.setGender("MALE");
+        categoryEntity.setMinAge(10);
+        categoryEntity.setMaxAge(14);
+        when(categoryRepository.findActiveById(categoryEntity.getId())).thenReturn(Optional.of(categoryEntity));
+        when(categoryRepository.existsByNameExcludingId("Sub-17", categoryEntity.getId())).thenReturn(false);
+        when(categoryRepository.save(categoryEntity)).thenReturn(categoryEntity);
+        updateRequest.setGender(CategoryRequirements.ANY_GENDER);
+        updateRequest.setMinAge(0);
+
+        categoriesService.update(categoryEntity.getId(), updateRequest);
+
+        assertThat(categoryEntity.requirements()).isEqualTo(new CategoryRequirements(null, null, 14));
+    }
+
+    @Test
+    void update_whenANewMinimumPassesTheStoredMaximum_thenRefusedOnTheMaximumField() {
+        categoryEntity.setMaxAge(14);
+        when(categoryRepository.findActiveById(categoryEntity.getId())).thenReturn(Optional.of(categoryEntity));
+        when(categoryRepository.existsByNameExcludingId("Sub-17", categoryEntity.getId())).thenReturn(false);
+        updateRequest.setMinAge(18);
+
+        assertRejected(() -> categoriesService.update(categoryEntity.getId(), updateRequest),
+                "maxAge", CategoryError.AGE_RANGE_INVERTED);
     }
 
     @Test

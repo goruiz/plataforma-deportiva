@@ -2,11 +2,15 @@ package com.platform.backend.modules.events.infrastructure.persistence.repositor
 
 import com.platform.backend.modules.events.domain.entities.CategoriesEntity;
 import com.platform.backend.modules.events.domain.irepositories.ICategoryRepository;
+import com.platform.backend.modules.events.domain.models.CategoryRequirements;
 import com.platform.backend.modules.events.infrastructure.persistence.jpa.CategoriesJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,6 +38,17 @@ public class CategoryRepository implements ICategoryRepository {
     @Override
     public Optional<CategoriesEntity> findActiveById(UUID id) {
         return categoriesJpaRepository.findByIdAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public Map<UUID, CategoryRequirements> findRequirementsByIds(Collection<UUID> ids) {
+        Map<UUID, CategoryRequirements> requirements = new HashMap<>();
+        if (ids.isEmpty()) {
+            return requirements;
+        }
+        categoriesJpaRepository.findRulesByIds(ids).forEach(rules -> requirements.put(
+                rules.getId(), new CategoryRequirements(rules.getGender(), rules.getMinAge(), rules.getMaxAge())));
+        return requirements;
     }
 
     @Override

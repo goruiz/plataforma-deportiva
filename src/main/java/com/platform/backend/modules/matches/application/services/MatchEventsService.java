@@ -13,9 +13,11 @@ import com.platform.backend.modules.matches.domain.irepositories.IMatchRepositor
 import com.platform.backend.modules.matches.presentation.requests.CreateMatchEventRequest.CreateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.requests.UpdateMatchEventRequest.UpdateMatchEventRequest;
 import com.platform.backend.modules.matches.presentation.responses.MatchEventResponse.MatchEventResponse;
+import com.platform.backend.modules.players.application.services.PlayerEligibilityPolicy;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
+import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.security.CreatorAccess;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,7 +28,9 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -36,12 +40,16 @@ public class MatchEventsService implements IMatchEventsService {
     private static final String TEAM_FIELD = "teamId";
     private static final String PLAYER_FIELD = "playerId";
     private static final String EVENT_TYPE_FIELD = "eventType";
+    private static final String REPLACED_PLAYER_FIELD = "replacedPlayerId";
 
     private final IMatchEventRepository matchEventRepository;
     private final IMatchRepository matchRepository;
     private final IEventRepository eventRepository;
     private final IPlayerRepository playerRepository;
     private final ITeamMemberRepository teamMemberRepository;
+    private final ITeamRepository teamRepository;
+    private final PlayerEligibilityPolicy eligibilityPolicy;
+    private final MatchSettingsReader settingsReader;
     private final MatchEventMapper matchEventMapper;
 
     @Override
@@ -70,8 +78,10 @@ public class MatchEventsService implements IMatchEventsService {
     public MatchEventResponse create(CreateMatchEventRequest request) {
         MatchesEntity match = findMatchOrThrow(request.getMatchId());
         requireAdminOrCreatorOfEventOf(match);
-        validateEvent(match, request.getTeamId(), request.getPlayerId(), request.getEventType());
+        validateEvent(match, request.getTeamId(), request.getPlayerId(), request.getEventType(),
+                request.getReplacedPlayerId(), null);
         MatchEventsEntity matchEvent = matchEventMapper.toEntity(request);
+        clearReplacedPlayerUnlessSubstitution(matchEvent);
         return toResponses(List.of(matchEventRepository.save(matchEvent))).get(0);
     }
 
@@ -89,9 +99,12 @@ public class MatchEventsService implements IMatchEventsService {
         validateEvent(match,
                 valueOrStored(request.getTeamId(), matchEvent.getTeamId()),
                 valueOrStored(request.getPlayerId(), matchEvent.getPlayerId()),
-                valueOrStored(request.getEventType(), matchEvent.getEventType()));
+                valueOrStored(request.getEventType(), matchEvent.getEventType()),
+                valueOrStored(request.getReplacedPlayerId(), matchEvent.getReplacedPlayerId()),
+                matchEvent.getId());
 
         matchEventMapper.updateEntity(matchEvent, request);
+        clearReplacedPlayerUnlessSubstitution(matchEvent);
         return toResponses(List.of(matchEventRepository.save(matchEvent))).get(0);
     }
 
@@ -127,7 +140,9 @@ public class MatchEventsService implements IMatchEventsService {
         CreatorAccess.requireAdminOrCreator(match.getEventId(), eventRepository::findActiveById);
     }
 
-    private void validateEvent(MatchesEntity match, UUID teamId, UUID playerId, String eventType) {
+    /** {@code ownEventId} is the event being changed (null for a new one): it does not count against the substitution limit. */
+    private void validateEvent(MatchesEntity match, UUID teamId, UUID playerId, String eventType, UUID replacedPlayerId,
+                               UUID ownEventId) {
         if (!MatchEventType.isValid(eventType)) {
             throw new FieldValidationException(EVENT_TYPE_FIELD, MatchEventError.INVALID_EVENT_TYPE.name());
         }
@@ -137,6 +152,56 @@ public class MatchEventsService implements IMatchEventsService {
         if (!teamMemberRepository.existsActiveByPlayerIdAndTeamId(playerId, teamId)) {
             throw new FieldValidationException(PLAYER_FIELD, MatchEventError.PLAYER_NOT_IN_TEAM.name());
         }
+        requirePlayerMeetsCategoryOf(teamId, playerId);
+        if (MatchEventType.SUBSTITUTION.name().equals(eventType)) {
+            validateSubstitution(match, teamId, playerId, replacedPlayerId, ownEventId);
+        }
+    }
+
+    /**
+     * A player the category of the team does not admit (its gender, its ages) may not play, so nothing is recorded for
+     * them: the reason is the code of the refusal. A team the caller cannot see has no rules to apply here.
+     */
+    private void requirePlayerMeetsCategoryOf(UUID teamId, UUID playerId) {
+        teamRepository.findActiveById(teamId).ifPresent(team ->
+                playerRepository.findActiveById(playerId)
+                        .flatMap(player -> eligibilityPolicy.reasonWhyNot(player, team))
+                        .ifPresent(reason -> {
+                            throw new FieldValidationException(PLAYER_FIELD, reason.name());
+                        }));
+    }
+
+    /** Says who goes out (a player of the same team, other than the one who comes in) and respects the limit of the team. */
+    private void validateSubstitution(MatchesEntity match, UUID teamId, UUID playerId, UUID replacedPlayerId,
+                                      UUID ownEventId) {
+        if (replacedPlayerId == null) {
+            throw new FieldValidationException(REPLACED_PLAYER_FIELD, MatchEventError.REPLACED_PLAYER_REQUIRED.name());
+        }
+        if (replacedPlayerId.equals(playerId)) {
+            throw new FieldValidationException(REPLACED_PLAYER_FIELD, MatchEventError.REPLACED_PLAYER_SAME_AS_PLAYER.name());
+        }
+        if (!teamMemberRepository.existsActiveByPlayerIdAndTeamId(replacedPlayerId, teamId)) {
+            throw new FieldValidationException(REPLACED_PLAYER_FIELD, MatchEventError.PLAYER_NOT_IN_TEAM.name());
+        }
+        int allowed = settingsReader.of(match).maxSubstitutions();
+        if (countSubstitutionsOf(match.getId(), teamId, ownEventId) >= allowed) {
+            throw new FieldValidationException(EVENT_TYPE_FIELD, MatchEventError.SUBSTITUTION_LIMIT_REACHED.name());
+        }
+    }
+
+    private long countSubstitutionsOf(UUID matchId, UUID teamId, UUID ownEventId) {
+        return matchEventRepository.findAllActiveByMatchId(matchId).stream()
+                .filter(event -> MatchEventType.SUBSTITUTION.name().equals(event.getEventType()))
+                .filter(event -> teamId.equals(event.getTeamId()))
+                .filter(event -> !Objects.equals(event.getId(), ownEventId))
+                .count();
+    }
+
+    /** Who goes out only means something in a substitution. */
+    private void clearReplacedPlayerUnlessSubstitution(MatchEventsEntity matchEvent) {
+        if (!MatchEventType.SUBSTITUTION.name().equals(matchEvent.getEventType())) {
+            matchEvent.setReplacedPlayerId(null);
+        }
     }
 
     private <T> T valueOrStored(T requested, T stored) {
@@ -145,12 +210,19 @@ public class MatchEventsService implements IMatchEventsService {
 
     /** A line of the timeline says who did it, which the event only knows by id: the names are read once per call. */
     private List<MatchEventResponse> toResponses(List<MatchEventsEntity> matchEvents) {
-        List<UUID> playerIds = matchEvents.stream().map(MatchEventsEntity::getPlayerId).distinct().toList();
+        List<UUID> playerIds = matchEvents.stream()
+                .flatMap(event -> Stream.of(event.getPlayerId(), event.getReplacedPlayerId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
         // Names only, and without the organization filter: the timeline of a public event names players of another organization.
         Map<UUID, String> playerNames = playerRepository.findFullNamesByIds(playerIds);
         return matchEvents.stream().map(matchEvent -> {
             MatchEventResponse response = matchEventMapper.toResponse(matchEvent);
             response.setPlayerName(playerNames.get(matchEvent.getPlayerId()));
+            if (matchEvent.getReplacedPlayerId() != null) {
+                response.setReplacedPlayerName(playerNames.get(matchEvent.getReplacedPlayerId()));
+            }
             return response;
         }).toList();
     }

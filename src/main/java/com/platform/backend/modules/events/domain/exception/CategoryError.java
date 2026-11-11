@@ -6,5 +6,14 @@ package com.platform.backend.modules.events.domain.exception;
  */
 public enum CategoryError {
     NAME_ALREADY_EXISTS,
-    IN_USE
+    IN_USE,
+
+    /** The gender of the rule is not one of {@code Gender} (nor {@code ANY}). */
+    INVALID_GENDER,
+
+    /** An age of the rule is above the oldest a person can be ({@code app.people.max-age-years}). */
+    AGE_OUT_OF_RANGE,
+
+    /** The minimum age is above the maximum one. */
+    AGE_RANGE_INVERTED
 }

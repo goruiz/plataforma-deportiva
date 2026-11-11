@@ -21,9 +21,14 @@ public class MatchSettingsReader {
 
     /** A match without an event (or whose event is not visible) follows the platform's rules. */
     public SettingsValues of(MatchesEntity match) {
-        UUID organizationId = match.getEventId() == null
+        return forEvent(match.getEventId());
+    }
+
+    /** The rules of the organization of an event; no event (or one that is not visible) follows the platform's. */
+    public SettingsValues forEvent(UUID eventId) {
+        UUID organizationId = eventId == null
                 ? null
-                : eventRepository.findActiveById(match.getEventId()).map(EventsEntity::getOrganizationId).orElse(null);
+                : eventRepository.findActiveById(eventId).map(EventsEntity::getOrganizationId).orElse(null);
         return settingsService.effectiveFor(organizationId);
     }
 

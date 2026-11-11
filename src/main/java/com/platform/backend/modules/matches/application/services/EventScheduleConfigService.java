@@ -62,6 +62,7 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
     private final IHolidaysService holidaysService;
     private final IMatchesService matchesService;
     private final IMatchTimingService matchTimingService;
+    private final MatchSettingsReader settingsReader;
     private final MatchMapper matchMapper;
 
     @Override
@@ -179,12 +180,15 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         Set<LocalDate> blockedDates = new HashSet<>(parseBlockedDates(config.getBlockedDates()));
         blockedDates.addAll(holidaysService.getNonPlayDatesBetween(event.getOrganizationId(), startDate, searchLimit));
 
+        // A slot is what MatchTimingService says a match takes: its duration, the break after it and the wait the
+        // organization's rules give every match before it starts.
+        int waitMinutes = settingsReader.forEvent(event.getId()).matchWaitMinutes();
         return new ScheduleRules(
                 parsePlayDays(config.getPlayDays()),
                 blockedDates,
                 config.getStartTime(),
                 config.getMatchDurationMinutes(),
-                config.getMatchDurationMinutes() + config.getBreakBetweenMatchesMinutes(),
+                config.getMatchDurationMinutes() + config.getBreakBetweenMatchesMinutes() + waitMinutes,
                 startDate,
                 searchLimit
         );
@@ -199,9 +203,11 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
         List<UUID> courtIds = resolveCourtIds(event.getId(), config);
         CalendarPlanner planner = new CalendarPlanner(rules, courtIds);
 
+        // Each match holds its court until it ends: its own slot, which an elimination that may need extra time makes longer.
+        Map<UUID, LocalDateTime> endTimes = matchTimingService.getEndTimes(matchesThatStay);
         for (MatchesEntity match : matchesThatStay) {
             planner.addExistingMatch(match.getHomeTeamId(), match.getAwayTeamId(), match.getMatchDate(),
-                    match.getCourtId(), MatchStatus.occupiesCourt(match.getStatus()));
+                    match.getCourtId(), MatchStatus.occupiesCourt(match.getStatus()), endTimes.get(match.getId()));
         }
         blockCourtsHeldByOtherEvents(planner, event.getId(), courtIds, rules.startDate());
         return planner;
@@ -291,6 +297,10 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
                 .orElseThrow(() -> new IllegalStateException(ChampionshipError.SCHEDULE_CONFIG_REQUIRED.name()));
 
         ScheduleRules rules = buildRules(event, config, firstSchedulableDate(event));
+        // A round of an elimination may need extra time, so its matches reserve their court for that too.
+        if (isEliminationRound(drafts)) {
+            rules = rules.withExtraSlotMinutes(settingsReader.forEvent(eventId).extraTimeMinutes());
+        }
         CalendarPlanner planner = planCalendar(event, config, rules, matchRepository.findAllActiveByEventId(eventId));
         List<MatchResponse> created = new ArrayList<>();
 
@@ -299,6 +309,12 @@ public class EventScheduleConfigService implements IEventScheduleConfigService {
             created.add(createScheduledMatch(eventId, pairing, rules, planner, match -> tagWithChampionshipPlace(match, draft)));
         }
         return created;
+    }
+
+    /** True when every match to create belongs to an elimination (a stage of a phase that must produce winners). */
+    private boolean isEliminationRound(List<MatchDraft> drafts) {
+        return !drafts.isEmpty() && drafts.stream()
+                .allMatch(draft -> draft.stage() != null && draft.stage().phase().isElimination());
     }
 
     private MatchResponse createScheduledMatch(UUID eventId, UUID[] pairing, ScheduleRules rules, CalendarPlanner planner,

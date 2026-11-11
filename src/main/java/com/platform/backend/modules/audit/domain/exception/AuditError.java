@@ -12,5 +12,7 @@ public enum AuditError {
     /** A date is not written as yyyy-MM-dd. */
     INVALID_DATE,
     /** The last day comes before the first one. */
-    DATE_RANGE_INVERTED
+    DATE_RANGE_INVERTED,
+    /** {@code organization} is neither an organization's id nor {@code PLATFORM}. */
+    INVALID_ORGANIZATION
 }

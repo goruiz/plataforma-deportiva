@@ -11,7 +11,9 @@ public enum MatchEventType {
     ASSIST,
     YELLOW_CARD,
     RED_CARD,
-    FOUL;
+    FOUL,
+    /** A player comes in (the line's player) and another goes out ({@code replacedPlayerId}). The settings limit them per team. */
+    SUBSTITUTION;
 
     public static boolean isValid(String value) {
         return Arrays.stream(values()).anyMatch(type -> type.name().equals(value));

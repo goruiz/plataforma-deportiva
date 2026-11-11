@@ -30,6 +30,7 @@ import com.platform.backend.modules.users.presentation.responses.RegisterRespons
 import com.platform.backend.modules.users.presentation.responses.UserResponse.UserResponse;
 import com.platform.backend.modules.users.presentation.responses.UpdateProfileResponse.UpdateProfileResponse;
 import com.platform.backend.shared.domain.utils.EmailNormalizer;
+import com.platform.backend.shared.infraestructure.config.PersonalDataValidator;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.email.EmailService;
 import com.platform.backend.shared.infraestructure.email.EmailDeliveryException;
@@ -75,6 +76,7 @@ public class UsersAuthService implements IUsersAuthService {
     private final IPasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
     private final IEmailVerificationService emailVerificationService;
+    private final PersonalDataValidator personalDataValidator;
 
     @Value("${app.security.password-reset-expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
@@ -112,6 +114,7 @@ public class UsersAuthService implements IUsersAuthService {
         if (userRepository.existsByEmail(email) || playerRepository.existsByEmail(email)) {
             throw new DataIntegrityViolationException("Email already in use");
         }
+        personalDataValidator.requireValid(registerRequest.getGender(), registerRequest.getBirthDate());
         UsersEntity newUser = userMapper.toEntity(registerRequest);
         newUser.setEmail(email);
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
@@ -290,19 +293,25 @@ public class UsersAuthService implements IUsersAuthService {
     public UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email) {
         UsersEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
+        personalDataValidator.requireValid(request.getGender(), request.getBirthDate());
         userMapper.updateEntity(user, request);
         UsersEntity saved = userRepository.save(user);
-        syncPlayerNames(saved);
+        syncPlayerProfile(saved);
         return userMapper.toUpdateProfileResponse(saved);
     }
 
-    /** The player is created with a stand-in name; completing the profile gives it the real one. */
-    private void syncPlayerNames(UsersEntity user) {
+    /**
+     * The player is created with a stand-in name; completing the profile gives it the real one, and the gender and birth
+     * date the categories ask about (the player is the one who joins a team, so it has to know them too).
+     */
+    private void syncPlayerProfile(UsersEntity user) {
         playerRepository.findByEmail(user.getEmail())
                 .filter(player -> player.getDeletedAt() == null)
                 .ifPresent(player -> {
                     player.setFirstName(playerFirstNameOf(user));
                     player.setLastName(playerLastNameOf(user));
+                    player.setGender(user.getGender());
+                    player.setBirthDate(user.getBirthDate());
                     playerRepository.save(player);
                 });
     }
@@ -312,6 +321,8 @@ public class UsersAuthService implements IUsersAuthService {
         player.setEmail(user.getEmail());
         player.setFirstName(playerFirstNameOf(user));
         player.setLastName(playerLastNameOf(user));
+        player.setGender(user.getGender());
+        player.setBirthDate(user.getBirthDate());
         return player;
     }
 

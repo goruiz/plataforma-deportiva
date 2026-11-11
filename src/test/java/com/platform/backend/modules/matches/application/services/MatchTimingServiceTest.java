@@ -2,7 +2,9 @@ package com.platform.backend.modules.matches.application.services;
 
 import com.platform.backend.modules.matches.domain.entities.EventScheduleConfigEntity;
 import com.platform.backend.modules.matches.domain.entities.MatchesEntity;
+import com.platform.backend.modules.matches.domain.enums.MatchStage;
 import com.platform.backend.modules.matches.domain.irepositories.IEventScheduleConfigRepository;
+import com.platform.backend.modules.settings.domain.models.SettingsValues;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,14 +33,22 @@ class MatchTimingServiceTest {
     private static final LocalDateTime TEN_AM = LocalDateTime.of(2026, 10, 17, 10, 0);
 
     @Mock private IEventScheduleConfigRepository configRepository;
+    @Mock private MatchSettingsReader settingsReader;
 
     private MatchTimingService timingService;
     private UUID eventId;
 
     @BeforeEach
     void setUp() {
-        timingService = new MatchTimingService(configRepository, DEFAULT_DURATION, DEFAULT_BREAK);
+        timingService = new MatchTimingService(configRepository, settingsReader, DEFAULT_DURATION, DEFAULT_BREAK);
         eventId = UUID.randomUUID();
+        withSettings(0, 0);
+    }
+
+    /** The rules of the organization of every event: how long each match waits and the extra time of an elimination. */
+    private void withSettings(int waitMinutes, int extraTimeMinutes) {
+        lenient().when(settingsReader.forEvent(any())).thenReturn(
+                new SettingsValues(waitMinutes, 5, true, extraTimeMinutes, false, 48));
     }
 
     private void eventConfig(int duration, int breakBetweenMatches) {
@@ -132,5 +144,57 @@ class MatchTimingServiceTest {
         eventConfig(60, 15);
 
         assertThat(timingService.hasEnded(matchAt(TEN_AM.plusDays(3), eventId), TEN_AM)).isFalse();
+    }
+
+    // ─── the match rules of the settings: wait before the start and extra time ──────────────────────────────
+
+    private MatchesEntity eliminationAt(LocalDateTime kickOff, MatchStage stage, Integer legNumber) {
+        MatchesEntity match = matchAt(kickOff, eventId);
+        match.setStage(stage);
+        match.setLegNumber(legNumber);
+        return match;
+    }
+
+    @Test
+    void getEndTime_whenTheSettingsMakeEveryMatchWait_thenTheWaitIsPartOfTheSlot() {
+        eventConfig(60, 15);
+        withSettings(10, 0);
+
+        // 10:00 + 10 of wait + 60 of play + 15 of break = 11:25
+        assertThat(timingService.getEndTime(matchAt(TEN_AM, eventId))).isEqualTo(LocalDateTime.of(2026, 10, 17, 11, 25));
+    }
+
+    @Test
+    void getEndTime_whenAnEliminationDecidesATie_thenItsExtraTimeIsPartOfTheSlot() {
+        eventConfig(60, 15);
+        withSettings(0, 30);
+
+        assertThat(timingService.getEndTime(eliminationAt(TEN_AM, MatchStage.KNOCKOUT, null)))
+                .as("a single match").isEqualTo(TEN_AM.plusMinutes(105));
+        assertThat(timingService.getEndTime(eliminationAt(TEN_AM, MatchStage.KNOCKOUT, 2)))
+                .as("the second leg").isEqualTo(TEN_AM.plusMinutes(105));
+    }
+
+    @Test
+    void getEndTime_whenTheMatchCannotGoToExtraTime_thenItsSlotIsTheNormalOne() {
+        eventConfig(60, 15);
+        withSettings(0, 30);
+
+        assertThat(timingService.getEndTime(eliminationAt(TEN_AM, MatchStage.KNOCKOUT, 1)))
+                .as("the first leg of a tie").isEqualTo(TEN_AM.plusMinutes(75));
+        assertThat(timingService.getEndTime(eliminationAt(TEN_AM, MatchStage.LEAGUE, null)))
+                .as("a league match").isEqualTo(TEN_AM.plusMinutes(75));
+        assertThat(timingService.getEndTime(matchAt(TEN_AM, eventId)))
+                .as("a match made by hand, with no stage").isEqualTo(TEN_AM.plusMinutes(75));
+    }
+
+    @Test
+    void getEndTimes_whenSeveralMatchesShareAnEvent_thenItsSettingsAreReadOnce() {
+        eventConfig(60, 15);
+        withSettings(5, 0);
+
+        timingService.getEndTimes(List.of(matchAt(TEN_AM, eventId), matchAt(TEN_AM.plusHours(2), eventId)));
+
+        verify(settingsReader, times(1)).forEvent(eventId);
     }
 }

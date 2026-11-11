@@ -82,6 +82,44 @@ class AuditQueryTest {
     }
 
     @Test
+    void thePlatformOwnerCanChooseOneAdministrator() {
+        UUID organizationId = UUID.randomUUID();
+        AuditFilter filter = new AuditFilter(List.of(), null, null, null, null, organizationId, false);
+
+        AuditQuery query = AuditQuery.of(filter, TenantScope.unrestricted());
+
+        assertThat(query.selectSql()).contains("a.organization_id = :chosenOrganizationId");
+        assertThat(query.countSql()).contains("a.organization_id = :chosenOrganizationId");
+        assertThat(query.parameters()).containsEntry("chosenOrganizationId", organizationId);
+    }
+
+    @Test
+    void thePlatformOwnerCanReadOnlyWhatBelongsToNoOrganization() {
+        AuditFilter filter = new AuditFilter(List.of(), null, null, null, null, null, true);
+
+        AuditQuery query = AuditQuery.of(filter, TenantScope.unrestricted());
+
+        assertThat(query.selectSql()).contains("a.organization_id IS NULL");
+        assertThat(query.parameters()).isEmpty();
+    }
+
+    @Test
+    void anAdministratorOfAnOrganizationCannotReadAnotherOnesWhateverTheyAsk() {
+        UUID own = UUID.randomUUID();
+        UUID another = UUID.randomUUID();
+        AuditFilter asksForAnother = new AuditFilter(List.of(), null, null, null, null, another, false);
+        AuditFilter asksForThePlatform = new AuditFilter(List.of(), null, null, null, null, null, true);
+
+        AuditQuery first = AuditQuery.of(asksForAnother, TenantScope.ofOrganization(own));
+        AuditQuery second = AuditQuery.of(asksForThePlatform, TenantScope.ofOrganization(own));
+
+        assertThat(first.parameters()).containsEntry("organizationId", own).doesNotContainKey("chosenOrganizationId");
+        assertThat(first.selectSql()).doesNotContain("chosenOrganizationId");
+        assertThat(second.parameters()).containsEntry("organizationId", own);
+        assertThat(second.selectSql()).doesNotContain("organization_id IS NULL");
+    }
+
+    @Test
     void theDaysBecomeABoundedRange() {
         LocalDateTime from = LocalDateTime.of(2026, 11, 1, 0, 0);
         LocalDateTime until = LocalDateTime.of(2026, 11, 8, 0, 0);
