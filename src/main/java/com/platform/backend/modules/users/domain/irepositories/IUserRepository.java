@@ -22,7 +22,11 @@ public interface IUserRepository {
 
     Optional<UsersEntity> findById(UUID id);
 
-    Optional<UsersEntity> findByEmail(String email);
+    /**
+     * The account that can still be used with that email. An erased account keeps its row (its history stays under
+     * the erased name) but is never found here: it cannot sign in, reset its password nor be looked up again.
+     */
+    Optional<UsersEntity> findActiveByEmail(String email);
 
     /** Usernames are unique in the whole platform, so this looks at every organization, not only the caller's. */
     Optional<UsersEntity> findByUsername(String username);

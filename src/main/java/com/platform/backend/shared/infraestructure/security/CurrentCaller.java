@@ -24,6 +24,19 @@ public final class CurrentCaller {
         return isAdministrator(SecurityContextHolder.getContext().getAuthentication());
     }
 
+    /**
+     * True for an administrator and for the account that has that email: what a person may do for themselves
+     * (leave a team) an organizer may do for them too. Code that runs without a caller (jobs) is not restricted,
+     * like in {@code CreatorAccess}.
+     */
+    public static boolean isAdministratorOrAccount(String email) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CallerPrincipal caller)) {
+            return true;
+        }
+        return isAdministrator(authentication) || (email != null && email.equalsIgnoreCase(caller.getEmail()));
+    }
+
     static boolean isAdministrator(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> Authority.ADMIN.roleName().equals(authority.getAuthority()));

@@ -93,7 +93,7 @@ class EmailVerificationServiceTest {
 
     @Test
     void resendVerificationLink_whenTheEmailIsNotConfirmed_thenANewLinkIsSent() {
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         emailVerificationService.resendVerificationLink("  Ana@Email.com ");
 
@@ -103,7 +103,7 @@ class EmailVerificationServiceTest {
     @Test
     void resendVerificationLink_whenTheEmailIsAlreadyConfirmed_thenNothingIsSent() {
         user.setEmailVerifiedAt(LocalDateTime.now().minusDays(1));
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         emailVerificationService.resendVerificationLink(EMAIL);
 

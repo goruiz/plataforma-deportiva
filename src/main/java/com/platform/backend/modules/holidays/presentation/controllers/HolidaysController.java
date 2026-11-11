@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
+import com.platform.backend.shared.infraestructure.security.AccessRules;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,17 +42,22 @@ public class HolidaysController {
         return ResponseEntity.ok(ApiResponse.ok(holidaysService.getById(id)));
     }
 
+    // Only an administrator creates, changes or deletes these: the app only reads them (the organization filter
+    // already keeps each administrator inside their own).
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<HolidayResponse>> create(@Valid @RequestBody CreateHolidayRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(holidaysService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<HolidayResponse>> update(@PathVariable UUID id,
                                                                @Valid @RequestBody UpdateHolidayRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(holidaysService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         holidaysService.delete(id);

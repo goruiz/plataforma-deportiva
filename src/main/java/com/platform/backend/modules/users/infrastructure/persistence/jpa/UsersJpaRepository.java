@@ -15,7 +15,7 @@ import java.util.UUID;
 public interface UsersJpaRepository
         extends TenantScopedJpaRepository<UsersEntity>, JpaSpecificationExecutor<UsersEntity> {
 
-    Optional<UsersEntity> findByEmail(String email);
+    Optional<UsersEntity> findByEmailAndDeletedAtIsNull(String email);
 
     boolean existsByOrganizationIdAndDeletedAtIsNull(UUID organizationId);
 

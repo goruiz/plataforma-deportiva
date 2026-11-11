@@ -38,11 +38,13 @@ import com.platform.backend.shared.domain.utils.EmailNormalizer;
 import com.platform.backend.shared.domain.utils.JoinCodes;
 import com.platform.backend.shared.infraestructure.config.PersonalDataValidator;
 import com.platform.backend.shared.infraestructure.email.EmailService;
+import com.platform.backend.shared.domain.exception.AccessError;
 import com.platform.backend.shared.infraestructure.security.CurrentCaller;
 import com.platform.backend.shared.infraestructure.tenancy.CurrentTenant;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -368,6 +370,7 @@ public class PlayersService implements IPlayersService {
     public PlayerResponse removeFromTeam(UUID id, UUID teamId) {
         PlayersEntity player = playerRepository.findActiveById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
+        requireAdministratorOrThePlayer(player);
         TeamMembersEntity membership = findMembershipToChange(player, teamId)
                 .orElseThrow(() -> new IllegalStateException("Player does not belong to any team"));
         teamMembershipsService.leave(membership);
@@ -459,6 +462,13 @@ public class PlayersService implements IPlayersService {
                 .orElseThrow(() -> new EntityNotFoundException("Player not found with id: " + id));
         requireNotPlayingForAnotherOrganization(player);
         playerRepository.hardDelete(player);
+    }
+
+    /** Leaving a team is the player's own decision or the organizer's: nobody else takes a person out of a team. */
+    private void requireAdministratorOrThePlayer(PlayersEntity player) {
+        if (!CurrentCaller.isAdministratorOrAccount(player.getEmail())) {
+            throw new AccessDeniedException(AccessError.NOT_YOURSELF.name());
+        }
     }
 
     /**

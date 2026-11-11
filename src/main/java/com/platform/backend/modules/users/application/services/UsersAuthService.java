@@ -163,7 +163,7 @@ public class UsersAuthService implements IUsersAuthService {
                 new UsernamePasswordAuthenticationToken(email, loginRequest.getPassword())
         );
 
-        UsersEntity user = userRepository.findByEmail(email)
+        UsersEntity user = userRepository.findActiveByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         requireNotSuspended(user);
 
@@ -182,7 +182,7 @@ public class UsersAuthService implements IUsersAuthService {
     @Override
     @Transactional(readOnly = true)
     public AuthResponse reissueSession(String email) {
-        UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
+        UsersEntity user = userRepository.findActiveByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         requireNotSuspended(user);
 
@@ -284,8 +284,7 @@ public class UsersAuthService implements IUsersAuthService {
     @Override
     @Transactional(readOnly = true)
     public UserResponse getCurrentAccount(String email) {
-        UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
-                .filter(found -> found.getDeletedAt() == null)
+        UsersEntity user = userRepository.findActiveByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         UserResponse response = userMapper.toUserResponse(user);
         response.setCapabilities(accountCapabilitiesService.of(user.getId()).stream().map(Enum::name).sorted().toList());
@@ -295,7 +294,7 @@ public class UsersAuthService implements IUsersAuthService {
     @Override
     @Transactional
     public UpdateProfileResponse updateProfile(UpdateProfileRequest request, String email) {
-        UsersEntity user = userRepository.findByEmail(email)
+        UsersEntity user = userRepository.findActiveByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         personalDataValidator.requireValid(request.getGender(), request.getBirthDate());
         userMapper.updateEntity(user, request);
@@ -356,7 +355,7 @@ public class UsersAuthService implements IUsersAuthService {
      */
     @Override
     public void changePassword(ChangePasswordRequest request, String email) {
-        UsersEntity user = userRepository.findByEmail(email)
+        UsersEntity user = userRepository.findActiveByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
@@ -376,9 +375,7 @@ public class UsersAuthService implements IUsersAuthService {
         passwordResetTokenRepository.deleteExpiredBefore(LocalDateTime.now());
 
         String email = request.getEmail().trim().toLowerCase();
-        UsersEntity user = userRepository.findByEmail(email)
-                .filter(found -> found.getDeletedAt() == null)
-                .orElse(null);
+        UsersEntity user = userRepository.findActiveByEmail(email).orElse(null);
         // A suspended account gets no email either, so asking for a reset can never be a way back in. The answer stays
         // the generic one: it must not reveal which accounts are suspended.
         if (user == null || user.isSuspended()) {

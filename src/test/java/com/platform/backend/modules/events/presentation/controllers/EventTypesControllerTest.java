@@ -146,7 +146,7 @@ class EventTypesControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(buildCreateRequest("", null))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.name").exists());
+                .andExpect(jsonPath("$.data.name").exists());
     }
 
     @Test
@@ -155,7 +155,7 @@ class EventTypesControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors").isMap());
+                .andExpect(jsonPath("$.data").isMap());
     }
 
     @Test

@@ -75,16 +75,20 @@ public class UsersManagementController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(usersManagementService.getUserById(id)));
     }
 
+    // Accounts are managed only by administrators; a user of the app has no business reading or creating them.
     @PostMapping
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(usersManagementService.createUser(request)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(@PathVariable UUID id,
                                                                  @Valid @RequestBody UpdateUserRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(usersManagementService.updateUser(id, request)));

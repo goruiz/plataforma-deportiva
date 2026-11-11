@@ -33,7 +33,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        UsersEntity user = userRepository.findByEmail(email)
+        UsersEntity user = userRepository.findActiveByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
         String authority = isAdmin(user) ? "ROLE_ADMIN" : "ROLE_USER";

@@ -7,6 +7,9 @@ import com.platform.backend.modules.players.presentation.requests.UpdatePlayerRe
 import com.platform.backend.modules.teams.domain.entities.TeamsEntity;
 import com.platform.backend.modules.teams.domain.irepositories.ITeamRepository;
 import com.platform.backend.modules.users.application.iservices.IPlayerAccountOrganizationService;
+import com.platform.backend.shared.domain.exception.AccessError;
+import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,12 +18,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.player;
 import static com.platform.backend.modules.players.application.services.PlayersServiceTestSupport.team;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -97,5 +102,43 @@ class PlayersServiceTeamChangeTest {
         playersService.removeFromTeam(player.getId(), team.getId());
 
         verify(playerAccountOrganizationService).followTeam(EMAIL, OTHER_ORGANIZATION_ID);
+    }
+
+    // ─── Who may take a player out of a team ────────────────────────────────────
+
+    @Test
+    void removeFromTeam_whenThePlayerLeavesByThemselves_thenTheyAreOut() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), EMAIL);
+        memberships.put(player, team);
+
+        playersService.removeFromTeam(player.getId(), team.getId());
+
+        verify(playerAccountOrganizationService).followTeam(EMAIL, null);
+    }
+
+    @Test
+    void removeFromTeam_whenAnAdministratorTakesThePlayerOut_thenTheyAreOut() {
+        TenantTestSupport.actAsOrganizationAdmin(ORGANIZATION_ID);
+        memberships.put(player, team);
+
+        playersService.removeFromTeam(player.getId(), team.getId());
+
+        verify(playerAccountOrganizationService).followTeam(EMAIL, null);
+    }
+
+    @Test
+    void removeFromTeam_whenAnotherPlayerTriesToTakeThemOut_thenItIsRefusedAsNotYourself() {
+        TenantTestSupport.actAsMobileAccount(UUID.randomUUID(), "rival@email.com");
+        memberships.put(player, team);
+
+        assertThatThrownBy(() -> playersService.removeFromTeam(player.getId(), team.getId()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(AccessError.NOT_YOURSELF.name());
+        verify(playerAccountOrganizationService, never()).followTeam(any(), any());
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        TenantTestSupport.actAsNobody();
     }
 }

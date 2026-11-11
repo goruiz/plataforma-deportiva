@@ -3,6 +3,7 @@ package com.platform.backend.modules.users.infrastructure.configuration.security
 import com.platform.backend.shared.infraestructure.ratelimit.LoginRateLimiterFilter;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationEntryPoint;
 import com.platform.backend.shared.infraestructure.security.jwt.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -48,10 +49,16 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * Only the browsers of the panel and of the web app may call the API (a native app sends no origin). The
+     * patterns come from {@code app.cors.allowed-origin-patterns}, so each environment lists its own addresses
+     * and none of them is open to every site.
+     */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origin-patterns}") List<String> allowedOriginPatterns) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(allowedOriginPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

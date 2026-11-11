@@ -53,7 +53,7 @@ public class EmailVerificationService implements IEmailVerificationService {
     @Override
     @Transactional
     public void resendVerificationLink(String email) {
-        UsersEntity user = userRepository.findByEmail(EmailNormalizer.normalize(email))
+        UsersEntity user = userRepository.findActiveByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         if (!user.isEmailVerified()) {
             sendVerificationLink(user);

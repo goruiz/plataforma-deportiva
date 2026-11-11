@@ -273,7 +273,7 @@ class UsersServiceTest {
         player.setEmail("juan@email.com");
         player.setFirstName("juan");
         player.setLastName("");
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(userRepository.save(usersEntity)).thenReturn(usersEntity);
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
 
@@ -288,7 +288,7 @@ class UsersServiceTest {
     void updateProfile_whenTheNameIsLongerThanThePlayerColumn_thenItIsCutToFitIt() {
         usersEntity.setFirstName("a".repeat(200));
         PlayersEntity player = new PlayersEntity();
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(userRepository.save(usersEntity)).thenReturn(usersEntity);
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(player));
 
@@ -299,7 +299,7 @@ class UsersServiceTest {
 
     @Test
     void updateProfile_whenTheAccountHasNoPlayer_thenOnlyTheAccountIsUpdated() {
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(userRepository.save(usersEntity)).thenReturn(usersEntity);
         when(playerRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
 
@@ -314,7 +314,7 @@ class UsersServiceTest {
     void login_whenValidCredentials_thenReturnToken() {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(jwtService.generateToken(anyMap(), eq("juan@email.com"))).thenReturn("jwt-login-token");
 
         AuthResponse response = usersAuthService.login(loginRequest);
@@ -322,7 +322,7 @@ class UsersServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getToken()).isEqualTo("jwt-login-token");
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(userRepository).findByEmail("juan@email.com");
+        verify(userRepository).findActiveByEmail("juan@email.com");
     }
 
     @Test
@@ -333,14 +333,14 @@ class UsersServiceTest {
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class);
 
-        verify(userRepository, never()).findByEmail(anyString());
+        verify(userRepository, never()).findActiveByEmail(anyString());
     }
 
     @Test
     void login_whenAuthPassesButUserNotFound_thenThrowsBadCredentialsException() {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class)
@@ -357,7 +357,7 @@ class UsersServiceTest {
         loginRequest.setClientType(ClientType.ADMIN_PANEL);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(usersRolesRepository.existsActiveByUserAndRole(usersEntity.getId(), ADMIN_ROLE_ID)).thenReturn(true);
     }
 
@@ -380,7 +380,7 @@ class UsersServiceTest {
         loginRequest.setClientType(clientType);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(platformOwnerRole.isOwner(usersEntity.getId())).thenReturn(true);
     }
 
@@ -442,7 +442,7 @@ class UsersServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
         usersEntity.setSuspendedAt(LocalDateTime.now().minusDays(1));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
 
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(AccessDeniedException.class)
@@ -459,13 +459,13 @@ class UsersServiceTest {
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class);
 
-        verify(userRepository, never()).findByEmail(anyString());
+        verify(userRepository, never()).findActiveByEmail(anyString());
     }
 
     @Test
     void reissueSession_whenTheAccountIsSuspended_thenItIsDenied() {
         usersEntity.setSuspendedAt(LocalDateTime.now().minusHours(2));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
 
         assertThatThrownBy(() -> usersAuthService.reissueSession("juan@email.com"))
                 .isInstanceOf(AccessDeniedException.class)
@@ -501,7 +501,7 @@ class UsersServiceTest {
         usersEntity.setOrganizationId(ORGANIZATION_ID);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(organizationRepository.findActiveById(ORGANIZATION_ID)).thenReturn(Optional.of(organization(OrganizationStatus.SUSPENDED)));
 
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
@@ -515,7 +515,7 @@ class UsersServiceTest {
         loginRequest.setClientType(ClientType.ADMIN_PANEL);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("juan@email.com", "password123"));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
 
         assertThatThrownBy(() -> usersAuthService.login(loginRequest))
                 .isInstanceOf(AccessDeniedException.class)
@@ -528,7 +528,7 @@ class UsersServiceTest {
 
     @Test
     void changePassword_whenCurrentPasswordMatches_thenStoreEncodedNewPassword() {
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
         when(passwordEncoder.matches("brand-new-pass", "hashed_password")).thenReturn(false);
         when(passwordEncoder.encode("brand-new-pass")).thenReturn("hashed_new_password");
@@ -541,7 +541,7 @@ class UsersServiceTest {
 
     @Test
     void changePassword_whenCurrentPasswordIsWrong_thenRejectCurrentPasswordFieldWithoutSaving() {
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(passwordEncoder.matches("wrong-password", "hashed_password")).thenReturn(false);
 
         assertThatThrownBy(() -> usersAuthService.changePassword(
@@ -555,7 +555,7 @@ class UsersServiceTest {
 
     @Test
     void changePassword_whenNewPasswordEqualsCurrent_thenRejectNewPasswordFieldWithoutSaving() {
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
 
         assertThatThrownBy(() -> usersAuthService.changePassword(
@@ -570,7 +570,7 @@ class UsersServiceTest {
 
     @Test
     void changePassword_whenUserNoLongerExists_thenThrowsBadCredentialsException() {
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usersAuthService.changePassword(
                 buildChangePasswordRequest("password123", "brand-new-pass"), "juan@email.com"))
@@ -581,7 +581,7 @@ class UsersServiceTest {
     void requestPasswordReset_whenAccountDoesNotExist_thenKeepResponseGeneric() {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail(" unknown@email.com ");
-        when(userRepository.findByEmail("unknown@email.com")).thenReturn(Optional.empty());
+        when(userRepository.findActiveByEmail("unknown@email.com")).thenReturn(Optional.empty());
 
         usersAuthService.requestPasswordReset(request);
 
@@ -594,7 +594,7 @@ class UsersServiceTest {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("juan@email.com");
         usersEntity.setSuspendedAt(LocalDateTime.now().minusDays(1));
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
 
         usersAuthService.requestPasswordReset(request);
 
@@ -608,7 +608,7 @@ class UsersServiceTest {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail(" JUAN@EMAIL.COM ");
         usersEntity.setFirstName("Juan");
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         ArgumentCaptor<PasswordResetTokenEntity> tokenCaptor =
                 ArgumentCaptor.forClass(PasswordResetTokenEntity.class);
         ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
@@ -636,7 +636,7 @@ class UsersServiceTest {
     void requestPasswordReset_whenEmailDeliveryFails_thenKeepResponseGeneric() {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("juan@email.com");
-        when(userRepository.findByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
+        when(userRepository.findActiveByEmail("juan@email.com")).thenReturn(Optional.of(usersEntity));
         doThrow(new EmailDeliveryException("Could not send email", new RuntimeException()))
                 .when(emailService)
                 .sendPasswordReset(eq("juan@email.com"), any(), anyString());

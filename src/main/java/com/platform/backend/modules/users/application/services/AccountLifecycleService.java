@@ -123,8 +123,7 @@ public class AccountLifecycleService implements IAccountLifecycleService {
     }
 
     private UsersEntity findAccount(String email) {
-        return userRepository.findByEmail(EmailNormalizer.normalize(email))
-                .filter(user -> user.getDeletedAt() == null)
+        return userRepository.findActiveByEmail(EmailNormalizer.normalize(email))
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
     }
 

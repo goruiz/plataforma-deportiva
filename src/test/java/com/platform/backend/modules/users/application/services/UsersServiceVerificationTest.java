@@ -139,7 +139,7 @@ class UsersServiceVerificationTest {
         loginRequest.setEmail(EMAIL);
         loginRequest.setPassword("password123");
         loginRequest.setClientType(ClientType.MOBILE_APP);
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
         when(jwtService.generateToken(anyMap(), eq(EMAIL))).thenReturn("jwt-token");
 
         assertThat(usersAuthService.login(loginRequest).isEmailVerified()).isFalse();
@@ -155,7 +155,7 @@ class UsersServiceVerificationTest {
     void getCurrentAccount_whenTheAccountExists_thenItIsReadAsItIsNow() {
         UserResponse mapped = new UserResponse();
         mapped.setEmailVerified(true);
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
         when(userMapper.toUserResponse(newAccount)).thenReturn(mapped);
 
         assertThat(usersAuthService.getCurrentAccount("  Juan@Email.com ").isEmailVerified()).isTrue();
@@ -163,7 +163,7 @@ class UsersServiceVerificationTest {
 
     @Test
     void getCurrentAccount_saysWhatTheAccountMayDoBeyondTheBasics() {
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
         when(userMapper.toUserResponse(newAccount)).thenReturn(new UserResponse());
         when(accountCapabilitiesService.of(newAccount.getId())).thenReturn(Set.of(AccountCapability.OPEN_MATCH_DISPUTES));
 
@@ -172,7 +172,7 @@ class UsersServiceVerificationTest {
 
     @Test
     void getCurrentAccount_anOrdinaryAccountHasNoCapabilities() {
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
         when(userMapper.toUserResponse(newAccount)).thenReturn(new UserResponse());
         when(accountCapabilitiesService.of(newAccount.getId())).thenReturn(Set.of());
 
@@ -180,9 +180,9 @@ class UsersServiceVerificationTest {
     }
 
     @Test
+    // A deleted account is never found by the active lookup (the repository filters it), so it is an unknown one.
     void getCurrentAccount_whenTheAccountWasDeleted_thenItIsAnUnknownAccount() {
-        newAccount.setDeletedAt(LocalDateTime.now());
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usersAuthService.getCurrentAccount(EMAIL))
                 .isInstanceOf(BadCredentialsException.class);

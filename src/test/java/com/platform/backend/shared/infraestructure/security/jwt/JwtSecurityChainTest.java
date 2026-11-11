@@ -46,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @TestPropertySource(properties = {
         "jwt.secret=test-secret-key-long-enough-for-hmac-sha-256-signing",
-        "jwt.expiration=60000"
+        "jwt.expiration=60000",
+        "app.cors.allowed-origin-patterns=http://localhost:*"
 })
 class JwtSecurityChainTest {
 

@@ -37,6 +37,8 @@ public class PlayersController {
 
     private final IPlayersService playersService;
 
+    // Every player, with their email and phone: an organizer's list, not something a player of the app browses.
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @GetMapping
     public ResponseEntity<ApiResponse<List<PlayerResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok(playersService.getAll()));
@@ -57,12 +59,18 @@ public class PlayersController {
         return ResponseEntity.ok(ApiResponse.ok(playersService.getByTeamId(teamId)));
     }
 
+    // Looking a person up by email tells whether they are registered: only for whoever invites players.
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PlayerResponse>> search(
             @RequestParam @NotBlank @Email String email) {
         return ResponseEntity.ok(ApiResponse.ok(playersService.searchByEmail(email)));
     }
 
+    // Managing the people of a team (creating, inviting, changing or deleting a player) is the organizer's work.
+    // What a player does for themselves (register with a link, join with a code, leave a team) stays open:
+    // leaving checks in the service that it is the caller's own membership.
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<PlayerResponse>> create(@Valid @RequestBody CreatePlayerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(playersService.create(request)));
@@ -73,6 +81,7 @@ public class PlayersController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(playersService.registerWithInvite(request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping("/invite")
     public ResponseEntity<ApiResponse<Void>> invite(@Valid @RequestBody InvitePlayerRequest request) {
         playersService.invitePlayer(request);
@@ -84,6 +93,7 @@ public class PlayersController {
                 .build());
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping("/invite-register")
     public ResponseEntity<ApiResponse<Void>> inviteRegister(@Valid @RequestBody InviteRegisterRequest request) {
         playersService.inviteRegister(request);
@@ -108,6 +118,7 @@ public class PlayersController {
         return ResponseEntity.ok(ApiResponse.ok(playersService.removeFromTeam(id, teamId)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<PlayerResponse>> updateStatus(@PathVariable UUID id,
                                                                      @Valid @RequestBody UpdatePlayerStatusRequest request) {
@@ -130,18 +141,21 @@ public class PlayersController {
         return ResponseEntity.ok(ApiResponse.ok(playersService.updateTeamAdmin(id, request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<PlayerResponse>> update(@PathVariable UUID id,
                                                               @Valid @RequestBody UpdatePlayerRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(playersService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         playersService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         playersService.hardDelete(id);

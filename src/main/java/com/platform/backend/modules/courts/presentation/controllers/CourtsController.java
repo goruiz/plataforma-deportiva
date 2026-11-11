@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
+import com.platform.backend.shared.infraestructure.security.AccessRules;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,23 +42,29 @@ public class CourtsController {
         return ResponseEntity.ok(ApiResponse.ok(courtsService.getById(id)));
     }
 
+    // Only an administrator creates, changes or deletes these: the app only reads them (the organization filter
+    // already keeps each administrator inside their own).
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PostMapping
     public ResponseEntity<ApiResponse<CourtResponse>> create(@Valid @RequestBody CreateCourtRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(courtsService.create(request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CourtResponse>> update(@PathVariable UUID id,
                                                              @Valid @RequestBody UpdateCourtRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(courtsService.update(id, request)));
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         courtsService.delete(id);
         return ResponseEntity.ok(ApiResponse.deleted());
     }
 
+    @PreAuthorize(AccessRules.ADMIN_ONLY)
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<ApiResponse<Void>> hardDelete(@PathVariable UUID id) {
         courtsService.hardDelete(id);

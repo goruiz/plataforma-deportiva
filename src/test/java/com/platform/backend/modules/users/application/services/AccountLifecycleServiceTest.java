@@ -78,7 +78,7 @@ class AccountLifecycleServiceTest {
         player.setPhone("0991234567");
         player.setProfilePhotoUrl("https://photos/ana.png");
 
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(userRepository.findActiveByEmail(EMAIL)).thenReturn(Optional.of(user));
     }
 
     private static DeleteAccountRequest requestWith(String password) {

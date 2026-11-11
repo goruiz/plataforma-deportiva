@@ -49,8 +49,8 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
-    public Optional<UsersEntity> findByEmail(String email) {
-        return usersJpaRepository.findByEmail(email);
+    public Optional<UsersEntity> findActiveByEmail(String email) {
+        return usersJpaRepository.findByEmailAndDeletedAtIsNull(email);
     }
 
     @Override

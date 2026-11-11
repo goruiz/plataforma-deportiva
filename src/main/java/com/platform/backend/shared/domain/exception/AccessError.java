@@ -9,5 +9,8 @@ public enum AccessError {
     NOT_THE_CREATOR,
 
     /** The account has not confirmed its email, so it cannot do what depends on that (join a team). */
-    EMAIL_NOT_VERIFIED
+    EMAIL_NOT_VERIFIED,
+
+    /** The action is about another person (leaving a team is theirs to do) and the caller is not an administrator. */
+    NOT_YOURSELF
 }
