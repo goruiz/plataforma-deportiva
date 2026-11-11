@@ -2,9 +2,11 @@ package com.platform.backend.modules.users.application.services;
 
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.users.application.iservices.IAccountCapabilitiesService;
 import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.enums.AccountCapability;
 import com.platform.backend.modules.users.domain.irepositories.IPasswordResetTokenRepository;
 import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
@@ -32,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,6 +67,7 @@ class UsersServiceVerificationTest {
     @Mock private EmailService emailService;
     @Mock private IEmailVerificationService emailVerificationService;
     @Mock private PersonalDataValidator personalDataValidator;
+    @Mock private IAccountCapabilitiesService accountCapabilitiesService;
 
     @InjectMocks
     private UsersAuthService usersAuthService;
@@ -155,6 +159,24 @@ class UsersServiceVerificationTest {
         when(userMapper.toUserResponse(newAccount)).thenReturn(mapped);
 
         assertThat(usersAuthService.getCurrentAccount("  Juan@Email.com ").isEmailVerified()).isTrue();
+    }
+
+    @Test
+    void getCurrentAccount_saysWhatTheAccountMayDoBeyondTheBasics() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userMapper.toUserResponse(newAccount)).thenReturn(new UserResponse());
+        when(accountCapabilitiesService.of(newAccount.getId())).thenReturn(Set.of(AccountCapability.OPEN_MATCH_DISPUTES));
+
+        assertThat(usersAuthService.getCurrentAccount(EMAIL).getCapabilities()).containsExactly("OPEN_MATCH_DISPUTES");
+    }
+
+    @Test
+    void getCurrentAccount_anOrdinaryAccountHasNoCapabilities() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(newAccount));
+        when(userMapper.toUserResponse(newAccount)).thenReturn(new UserResponse());
+        when(accountCapabilitiesService.of(newAccount.getId())).thenReturn(Set.of());
+
+        assertThat(usersAuthService.getCurrentAccount(EMAIL).getCapabilities()).isEmpty();
     }
 
     @Test

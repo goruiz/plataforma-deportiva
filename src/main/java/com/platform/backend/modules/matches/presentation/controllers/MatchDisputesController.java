@@ -45,7 +45,7 @@ public class MatchDisputesController {
     private final IMatchDisputesService disputesService;
     private final ListQueryResolver listQueryResolver;
 
-    /** The captain of a team (or an administrator) disputes the result of a match on the team's behalf. */
+    /** A "dirigente de equipo" of one of the teams (or an administrator) disputes the result of a match on the team's behalf. */
     @PostMapping("/matches/{matchId}/disputes")
     public ResponseEntity<ApiResponse<MatchDisputeResponse>> open(@PathVariable UUID matchId,
                                                                   @Valid @RequestBody OpenDisputeRequest request) {
@@ -75,7 +75,7 @@ public class MatchDisputesController {
         return ResponseEntity.ok(ApiResponse.ok(disputesService.countByStatus(filter)));
     }
 
-    /** The disputes of the teams the caller plays for (the mobile app). */
+    /** The disputes of the teams a "dirigente de equipo" plays for (the mobile app); empty for anyone else. */
     @GetMapping("/disputes/mine")
     public ResponseEntity<ApiResponse<List<MatchDisputeResponse>>> getMine() {
         return ResponseEntity.ok(ApiResponse.ok(disputesService.getMine()));

@@ -19,7 +19,9 @@ import com.platform.backend.modules.players.domain.entities.TeamMembersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
 import com.platform.backend.modules.settings.domain.models.SettingsValues;
+import com.platform.backend.modules.users.application.iservices.IAccountCapabilitiesService;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.enums.AccountCapability;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import com.platform.backend.shared.infraestructure.tenancy.TenantTestSupport;
@@ -67,6 +69,7 @@ class MatchDisputesServiceTest {
     @Mock private IUserRepository userRepository;
     @Mock private IPlayerRepository playerRepository;
     @Mock private ITeamMemberRepository teamMemberRepository;
+    @Mock private IAccountCapabilitiesService accountCapabilities;
     @Mock private MatchDisputeResponseAssembler assembler;
 
     @InjectMocks
@@ -104,14 +107,19 @@ class MatchDisputesServiceTest {
         TenantTestSupport.actAsOrganizationAdmin(CALLER_ID, UUID.randomUUID());
     }
 
-    private void actAsCaptainOf(UUID teamId, boolean isCaptain) {
+    /** An account of the app that plays for {@code teamId}; whether it is a «dirigente de equipo» is what the tests vary. */
+    private void actAsPlayerOf(UUID teamId, boolean isTeamManager) {
         TenantTestSupport.actAsMobileAccount(CALLER_ID, CALLER_EMAIL);
         PlayersEntity player = new PlayersEntity();
         player.setId(UUID.randomUUID());
-        when(playerRepository.findByEmail(CALLER_EMAIL)).thenReturn(Optional.of(player));
-        TeamMembersEntity membership = mock(TeamMembersEntity.class);
-        when(membership.getIsCaptain()).thenReturn(isCaptain);
-        when(teamMemberRepository.findActiveByPlayerIdAndTeamId(player.getId(), teamId)).thenReturn(Optional.of(membership));
+        lenient().when(playerRepository.findByEmail(CALLER_EMAIL)).thenReturn(Optional.of(player));
+        lenient().when(teamMemberRepository.findActiveByPlayerIdAndTeamId(player.getId(), teamId))
+                .thenReturn(Optional.of(mock(TeamMembersEntity.class)));
+        lenient().when(accountCapabilities.has(CALLER_ID, AccountCapability.OPEN_MATCH_DISPUTES)).thenReturn(isTeamManager);
+    }
+
+    private void actAsTeamManagerOf(UUID teamId) {
+        actAsPlayerOf(teamId, true);
     }
 
     private static OpenDisputeRequest dispute(UUID teamId, String reason) {
@@ -143,8 +151,8 @@ class MatchDisputesServiceTest {
     // ─── opening ─────────────────────────────────────────────────────────────────
 
     @Test
-    void theCaptainOfATeamOfTheMatchOpensADisputeWithTheirNameAndATrimmedReason() {
-        actAsCaptainOf(HOME_TEAM_ID, true);
+    void aTeamManagerOfATeamOfTheMatchOpensADisputeWithTheirNameAndATrimmedReason() {
+        actAsTeamManagerOf(HOME_TEAM_ID);
 
         service.open(MATCH_ID, dispute(HOME_TEAM_ID, "  El gol del minuto 80 no fue nuestro  "));
 
@@ -167,8 +175,8 @@ class MatchDisputesServiceTest {
     }
 
     @Test
-    void aPlayerWhoIsNotTheCaptainCannotDisputeForTheTeam() {
-        actAsCaptainOf(HOME_TEAM_ID, false);
+    void aPlayerWhoIsNotATeamManagerCannotDisputeForTheTeamNotEvenAsItsCaptain() {
+        actAsPlayerOf(HOME_TEAM_ID, false);
 
         assertThatThrownBy(() -> service.open(MATCH_ID, dispute(HOME_TEAM_ID, "x")))
                 .isInstanceOf(AccessDeniedException.class)
@@ -177,11 +185,22 @@ class MatchDisputesServiceTest {
     }
 
     @Test
-    void aCaptainCannotDisputeForTheOtherTeam() {
-        TenantTestSupport.actAsMobileAccount(CALLER_ID, CALLER_EMAIL);
-        when(playerRepository.findByEmail(CALLER_EMAIL)).thenReturn(Optional.of(new PlayersEntity()));
+    void aTeamManagerCannotDisputeForTheOtherTeam() {
+        actAsTeamManagerOf(HOME_TEAM_ID);
 
         assertThatThrownBy(() -> service.open(MATCH_ID, dispute(AWAY_TEAM_ID, "x")))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(DisputeError.NOT_ALLOWED_FOR_TEAM.name());
+        verify(disputeRepository, never()).save(any());
+    }
+
+    @Test
+    void anAccountWithoutAPlayerCannotDisputeEvenIfItHoldsTheCapability() {
+        TenantTestSupport.actAsMobileAccount(CALLER_ID, CALLER_EMAIL);
+        when(accountCapabilities.has(CALLER_ID, AccountCapability.OPEN_MATCH_DISPUTES)).thenReturn(true);
+        when(playerRepository.findByEmail(CALLER_EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.open(MATCH_ID, dispute(HOME_TEAM_ID, "x")))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -197,8 +216,8 @@ class MatchDisputesServiceTest {
     }
 
     @Test
-    void aCaptainCannotDisputeOnceTheWindowIsOver() {
-        actAsCaptainOf(HOME_TEAM_ID, true);
+    void aTeamManagerCannotDisputeOnceTheWindowIsOver() {
+        actAsTeamManagerOf(HOME_TEAM_ID);
         match.setResultRecordedAt(LocalDateTime.now().minusHours(WINDOW_HOURS + 1));
 
         assertThatThrownBy(() -> service.open(MATCH_ID, dispute(HOME_TEAM_ID, "x")))
@@ -379,8 +398,23 @@ class MatchDisputesServiceTest {
     // ─── reading ─────────────────────────────────────────────────────────────────
 
     @Test
-    void aPlayerOnlySeesTheDisputesOfTheirOwnTeamsForAMatch() {
+    void aPlayerWhoIsNotATeamManagerSeesNoDisputesAtAll() {
+        actAsPlayerOf(HOME_TEAM_ID, false);
+
+        assertThat(service.getMine()).isEmpty();
+        service.getByMatch(MATCH_ID);
+
+        ArgumentCaptor<List<MatchDisputesEntity>> shown = ArgumentCaptor.forClass(List.class);
+        // getMine() answers at once with nothing; only the match's list went through the assembler, and it is empty.
+        verify(assembler).toResponses(shown.capture());
+        assertThat(shown.getValue()).isEmpty();
+        verify(disputeRepository, never()).findAllActiveByTeamIds(any());
+    }
+
+    @Test
+    void aTeamManagerOnlySeesTheDisputesOfTheirOwnTeamsForAMatch() {
         TenantTestSupport.actAsMobileAccount(CALLER_ID, CALLER_EMAIL);
+        when(accountCapabilities.has(CALLER_ID, AccountCapability.OPEN_MATCH_DISPUTES)).thenReturn(true);
         PlayersEntity player = new PlayersEntity();
         player.setId(UUID.randomUUID());
         when(playerRepository.findByEmail(CALLER_EMAIL)).thenReturn(Optional.of(player));

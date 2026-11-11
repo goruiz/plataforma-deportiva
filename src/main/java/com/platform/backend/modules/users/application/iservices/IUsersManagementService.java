@@ -20,6 +20,9 @@ public interface IUsersManagementService {
     /** How many accounts each section has (for the same search), so the screen can number its tabs without loading them. */
     UserCountsResponse countUsersBySection(List<String> searchTerms);
 
+    /** How many accounts of each section are suspended (they are also in {@link #countUsersBySection}'s numbers). */
+    UserCountsResponse countSuspendedBySection();
+
     UserResponse getUserById(UUID id);
 
     UserResponse createUser(CreateUserRequest request);

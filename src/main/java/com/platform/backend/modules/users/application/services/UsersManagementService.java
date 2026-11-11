@@ -82,6 +82,16 @@ public class UsersManagementService implements IUsersManagementService {
         return new UserCountsResponse(owners, admins, total - owners - admins);
     }
 
+    /** Same split as the tabs, over the suspended accounts only: the sections still add up to the total. */
+    @Override
+    @Transactional(readOnly = true)
+    public UserCountsResponse countSuspendedBySection() {
+        long total = countSuspendedOf(UserSection.ALL);
+        long owners = countSuspendedOf(UserSection.OWNERS);
+        long admins = countSuspendedOf(UserSection.ADMINS);
+        return new UserCountsResponse(owners, admins, total - owners - admins);
+    }
+
     @Override
     public UserResponse getUserById(UUID id) {
         UsersEntity user = userRepository.findActiveById(id)
@@ -212,6 +222,10 @@ public class UsersManagementService implements IUsersManagementService {
 
     private long countOf(UserSection section, List<String> searchTerms) {
         return listFilterOf(section, searchTerms).map(userRepository::countActive).orElse(0L);
+    }
+
+    private long countSuspendedOf(UserSection section) {
+        return listFilterOf(section, List.of()).map(UserListFilter::onlySuspended).map(userRepository::countActive).orElse(0L);
     }
 
     /** The accounts of the page with their roles, read for all of them at once. */

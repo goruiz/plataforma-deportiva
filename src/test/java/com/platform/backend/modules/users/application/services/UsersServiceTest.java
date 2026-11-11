@@ -5,6 +5,7 @@ import com.platform.backend.modules.organizations.domain.enums.OrganizationStatu
 import com.platform.backend.modules.organizations.domain.irepositories.IOrganizationRepository;
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
+import com.platform.backend.modules.users.application.iservices.IAccountCapabilitiesService;
 import com.platform.backend.modules.users.application.iservices.IEmailVerificationService;
 import com.platform.backend.modules.users.application.mappers.UserMapper;
 import com.platform.backend.modules.users.domain.entities.PasswordResetTokenEntity;
@@ -80,6 +81,7 @@ class UsersServiceTest {
     @Mock private EmailService emailService;
     @Mock private IEmailVerificationService emailVerificationService;
     @Mock private PersonalDataValidator personalDataValidator;
+    @Mock private IAccountCapabilitiesService accountCapabilitiesService;
 
     @InjectMocks
     private UsersAuthService usersAuthService;

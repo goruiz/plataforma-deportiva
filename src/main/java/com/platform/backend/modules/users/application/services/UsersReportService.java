@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
 
 /**
  * The accounts and players of the platform added up for the report screen. What the caller sees is decided by the
- * organization filter, not here: an administrator's totals are their organization's. TODO: when accounts can be
- * suspended, count them here too.
+ * organization filter, not here: an administrator's totals are their organization's. A suspended account stays in
+ * every total and is also counted apart, so the report never hides it nor mixes it with the active ones.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,6 +56,7 @@ public class UsersReportService implements IUsersReportService {
         report.setOwners(accounts.getOwners());
         report.setAdmins(accounts.getAdmins());
         report.setAppUsers(accounts.getAppUsers());
+        setSuspendedAccounts(report, usersManagementService.countSuspendedBySection());
         report.setVerifiedEmails(verified);
         report.setUnverifiedEmails(totalAccounts - verified);
         report.setAccountsByMonth(UsersReportCalculator.fillMonths(
@@ -66,6 +67,14 @@ public class UsersReportService implements IUsersReportService {
         report.setPlayersWithTeam(usersReportRepository.countPlayersWithTeam());
         report.setPlayersWithoutTeam(platformOwner ? usersReportRepository.countPlayersWithoutTeam() : null);
         return report;
+    }
+
+    /** The suspended accounts are not taken out of the totals: the report says how many of them are blocked. */
+    private static void setSuspendedAccounts(UsersReportResponse report, UserCountsResponse suspended) {
+        report.setSuspendedOwners(suspended.getOwners());
+        report.setSuspendedAdmins(suspended.getAdmins());
+        report.setSuspendedAppUsers(suspended.getAppUsers());
+        report.setSuspendedAccounts(suspended.getOwners() + suspended.getAdmins() + suspended.getAppUsers());
     }
 
     /** The most numerous first; the platform owner's own accounts (no organization) keep their line, unnamed. */

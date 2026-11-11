@@ -14,7 +14,7 @@ public enum DisputeError {
     /** The team that disputes does not play the match. */
     TEAM_NOT_IN_MATCH,
 
-    /** Only an administrator, or the captain of the team, may dispute on behalf of a team. */
+    /** Only an administrator, or a "dirigente de equipo" who belongs to the team, may dispute on behalf of a team. */
     NOT_ALLOWED_FOR_TEAM,
 
     /** The team already has a dispute open against this match. */

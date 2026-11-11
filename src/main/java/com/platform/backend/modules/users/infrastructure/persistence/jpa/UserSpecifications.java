@@ -36,6 +36,9 @@ public final class UserSpecifications {
         return (user, query, builder) -> {
             List<Predicate> conditions = new ArrayList<>();
             conditions.add(builder.isNull(user.get("deletedAt")));
+            if (filter.suspendedOnly()) {
+                conditions.add(builder.isNotNull(user.get("suspendedAt")));
+            }
             if (!filter.withAnyRoleIds().isEmpty()) {
                 conditions.add(builder.exists(roleAssignment(user, query, builder, filter.withAnyRoleIds())));
             }

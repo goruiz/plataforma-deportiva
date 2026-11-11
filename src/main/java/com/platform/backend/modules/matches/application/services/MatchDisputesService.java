@@ -19,7 +19,9 @@ import com.platform.backend.modules.matches.presentation.responses.MatchDisputeR
 import com.platform.backend.modules.players.domain.entities.PlayersEntity;
 import com.platform.backend.modules.players.domain.irepositories.IPlayerRepository;
 import com.platform.backend.modules.players.domain.irepositories.ITeamMemberRepository;
+import com.platform.backend.modules.users.application.iservices.IAccountCapabilitiesService;
 import com.platform.backend.modules.users.domain.entities.UsersEntity;
+import com.platform.backend.modules.users.domain.enums.AccountCapability;
 import com.platform.backend.modules.users.domain.irepositories.IUserRepository;
 import com.platform.backend.shared.domain.pagination.PageQuery;
 import com.platform.backend.shared.domain.pagination.PageResult;
@@ -61,6 +63,7 @@ public class MatchDisputesService implements IMatchDisputesService {
     private final IUserRepository userRepository;
     private final IPlayerRepository playerRepository;
     private final ITeamMemberRepository teamMemberRepository;
+    private final IAccountCapabilitiesService accountCapabilities;
     private final MatchDisputeResponseAssembler assembler;
 
     // ------------------------------------------------------------------ opening
@@ -286,4 +289,10 @@ public class MatchDisputesService implements IMatchDisputesService {
                 .orElse(caller.getEmail());
     }
 
-    privat
+    private static String displayName(UsersEntity user) {
+        String fullName = Stream.of(user.getFirstName(), user.getLastName())
+                .filter(Objects::nonNull).map(String::trim).filter(part -> !part.isEmpty())
+                .collect(Collectors.joining(" "));
+        return fullName.isEmpty() ? user.getEmail() : fullName;
+    }
+}

@@ -18,6 +18,14 @@ public class UsersReportResponse {
     private long admins;
     /** Accounts holding neither role: the ones created from the mobile app. */
     private long appUsers;
+    /**
+     * How many of the accounts above an administrator suspended (they are still counted in the figures above: the
+     * report shows them apart instead of hiding them). Same split by type, and the total of the three.
+     */
+    private long suspendedOwners;
+    private long suspendedAdmins;
+    private long suspendedAppUsers;
+    private long suspendedAccounts;
     private long verifiedEmails;
     private long unverifiedEmails;
     /** The last months in order, the current one last; a month without new accounts is there with zero. */

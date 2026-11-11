@@ -48,6 +48,7 @@ class UsersReportServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(usersReportService, "historyMonths", 3);
         lenient().when(usersManagementService.countUsersBySection(List.of())).thenReturn(new UserCountsResponse(1, 4, 15));
+        lenient().when(usersManagementService.countSuspendedBySection()).thenReturn(new UserCountsResponse(0, 1, 5));
         lenient().when(usersReportRepository.countAccountsWithVerifiedEmail()).thenReturn(17L);
         lenient().when(usersReportRepository.countAccountsCreatedSinceByMonth(any())).thenReturn(List.of());
         lenient().when(usersReportRepository.countPlayersWithTeam()).thenReturn(9L);
@@ -78,6 +79,21 @@ class UsersReportServiceTest {
         assertThat(report.getVerifiedEmails()).isEqualTo(17);
         assertThat(report.getUnverifiedEmails()).isEqualTo(3);
         assertThat(report.getPlayersWithTeam()).isEqualTo(9);
+    }
+
+    @Test
+    void theSuspendedAccountsAreCountedApartAndStayInEveryTotal() {
+        TenantTestSupport.actAsOrganizationAdmin(UUID.randomUUID());
+
+        UsersReportResponse report = usersReportService.buildReport(NOVEMBER);
+
+        assertThat(report.getSuspendedOwners()).isZero();
+        assertThat(report.getSuspendedAdmins()).isEqualTo(1);
+        assertThat(report.getSuspendedAppUsers()).isEqualTo(5);
+        assertThat(report.getSuspendedAccounts()).isEqualTo(6);
+        // Not subtracted: the 15 app users are still 15, 5 of them suspended.
+        assertThat(report.getAppUsers()).isEqualTo(15);
+        assertThat(report.getUnverifiedEmails()).isEqualTo(3);
     }
 
     @Test

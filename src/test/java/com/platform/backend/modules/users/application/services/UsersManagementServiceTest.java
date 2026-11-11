@@ -488,6 +488,45 @@ class UsersManagementServiceTest {
         assertThat(counts.getAppUsers()).isEqualTo(40);
     }
 
+    // ─── countSuspendedBySection ────────────────────────────────────────────────
+
+    @Test
+    void countSuspendedBySection_whenAskedForTheReport_thenOnlyTheSuspendedAccountsAreCountedPerSection() {
+        configureAdminRoleId(ADMIN_ROLE_ID.toString());
+        when(platformOwnerRole.id()).thenReturn(Optional.of(OWNER_ROLE_ID));
+        when(userRepository.countActive(any())).thenAnswer(call -> {
+            UserListFilter filter = call.getArgument(0);
+            assertThat(filter.suspendedOnly()).as("only suspended accounts are asked for").isTrue();
+            assertThat(filter.searchTerms()).isEmpty();
+            if (filter.withAnyRoleIds().contains(OWNER_ROLE_ID)) {
+                return 1L;
+            }
+            if (filter.withAnyRoleIds().contains(ADMIN_ROLE_ID)) {
+                return 2L;
+            }
+            return 8L;
+        });
+
+        UserCountsResponse suspended = usersManagementService.countSuspendedBySection();
+
+        assertThat(suspended.getOwners()).isEqualTo(1);
+        assertThat(suspended.getAdmins()).isEqualTo(2);
+        assertThat(suspended.getAppUsers()).isEqualTo(5);
+    }
+
+    @Test
+    void countUsersBySection_whenAskedForTheTabs_thenSuspendedAccountsAreNotLeftOut() {
+        configureAdminRoleId(ADMIN_ROLE_ID.toString());
+        when(platformOwnerRole.id()).thenReturn(Optional.of(OWNER_ROLE_ID));
+        when(userRepository.countActive(any())).thenAnswer(call -> {
+            UserListFilter filter = call.getArgument(0);
+            assertThat(filter.suspendedOnly()).isFalse();
+            return 10L;
+        });
+
+        usersManagementService.countUsersBySection(NO_SEARCH);
+    }
+
     // ─── hardDelete: the account is erased from the database, not marked as deleted ──
 
     @Test
