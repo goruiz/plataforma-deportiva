@@ -1,8 +1,5 @@
 package com.platform.backend.modules.events.presentation.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.platform.backend.modules.events.application.iservices.IEventTypesService;
 import com.platform.backend.modules.events.presentation.requests.CreateEventTypeRequest.CreateEventTypeRequest;
 import com.platform.backend.modules.events.presentation.requests.UpdateEventTypeRequest.UpdateEventTypeRequest;
@@ -17,10 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,16 +40,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EventTypesControllerTest {
 
     private MockMvc mockMvc;
-    private ObjectMapper objectMapper;
+    private JsonMapper objectMapper;
 
     @Mock
     private IEventTypesService eventTypesService;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Jackson 3 ya trae soporte de java.time y escribe las fechas como texto por defecto.
+        objectMapper = JsonMapper.builder().build();
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
@@ -60,7 +57,7 @@ class EventTypesControllerTest {
                 .standaloneSetup(new EventTypesController(eventTypesService))
                 .setControllerAdvice(new GlobalException())
                 .setValidator(validator)
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .setMessageConverters(new JacksonJsonHttpMessageConverter(objectMapper))
                 .build();
     }
 
