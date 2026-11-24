@@ -16,6 +16,7 @@ import com.platform.backend.modules.menu.presentation.responses.MenuResponse.Men
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.infrastructure.configuration.security.AdministratorRole;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.shared.domain.utils.SoftDeleteHelper;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
@@ -57,6 +58,7 @@ public class MenuService implements IMenuService {
     private final IUsersRolesRepository usersRolesRepository;
     private final IRoleRepository roleRepository;
     private final PlatformOwnerRole platformOwnerRole;
+    private final AdministratorRole administratorRole;
     private final MenuMapper menuMapper;
     private final int maxDepth;
 
@@ -65,6 +67,7 @@ public class MenuService implements IMenuService {
                        IUsersRolesRepository usersRolesRepository,
                        IRoleRepository roleRepository,
                        PlatformOwnerRole platformOwnerRole,
+                       AdministratorRole administratorRole,
                        MenuMapper menuMapper,
                        @Value("${app.menu.max-depth:5}") int maxDepth) {
         this.menuRepository = menuRepository;
@@ -72,6 +75,7 @@ public class MenuService implements IMenuService {
         this.usersRolesRepository = usersRolesRepository;
         this.roleRepository = roleRepository;
         this.platformOwnerRole = platformOwnerRole;
+        this.administratorRole = administratorRole;
         this.menuMapper = menuMapper;
         this.maxDepth = maxDepth;
     }
@@ -86,6 +90,9 @@ public class MenuService implements IMenuService {
      * Regular roles see what was granted as visible in roles_menu. The platform owner sees every active menu item.
      * Groups need no grant of their own: they show while something inside them does
      * (see {@link MenuTree#visibleFor}). A regular user with no visible grants sees an empty menu.
+     * <p>
+     * The one exception for everyone who runs the panel (the owner and the administrators): the items of the mobile app
+     * only, whatever their roles grant (see {@link #removeMobileOnlyItems}).
      */
     @Override
     public List<MenuTreeResponse> getForUser(UUID userId) {
@@ -95,6 +102,7 @@ public class MenuService implements IMenuService {
         }
 
         boolean isPlatformOwner = roleIds.stream().anyMatch(platformOwnerRole::isOwnerRole);
+        boolean runsThePanel = isPlatformOwner || roleIds.stream().anyMatch(administratorRole::isAdministratorRole);
         Set<UUID> grantedMenuIds = rolesMenuRepository.findActiveVisibleByRoleIds(roleIds).stream()
                 .map(RolesMenuEntity::getMenu)
                 .map(MenuEntity::getId)
@@ -107,7 +115,18 @@ public class MenuService implements IMenuService {
         if (isPlatformOwner) {
             activeMenus.stream().map(MenuEntity::getId).forEach(grantedMenuIds::add);
         }
+        if (runsThePanel) {
+            removeMobileOnlyItems(activeMenus, grantedMenuIds);
+        }
         return buildTree(new MenuTree(activeMenus).visibleFor(grantedMenuIds));
+    }
+
+    /**
+     * The mobile app's own items mean nothing in the panel, and an administrator cannot even sign in to the app. Taking
+     * them out of what was granted also drops their group, which only shows while something inside it does.
+     */
+    private void removeMobileOnlyItems(List<MenuEntity> menus, Set<UUID> grantedMenuIds) {
+        menus.stream().filter(MenuEntity::isMobileOnly).map(MenuEntity::getId).forEach(grantedMenuIds::remove);
     }
 
     /**

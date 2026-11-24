@@ -14,6 +14,7 @@ import com.platform.backend.modules.menu.presentation.responses.MenuResponse.Men
 import com.platform.backend.modules.users.domain.entities.RolesEntity;
 import com.platform.backend.modules.users.domain.irepositories.IRoleRepository;
 import com.platform.backend.modules.users.domain.irepositories.IUsersRolesRepository;
+import com.platform.backend.modules.users.infrastructure.configuration.security.AdministratorRole;
 import com.platform.backend.modules.users.infrastructure.configuration.security.PlatformOwnerRole;
 import com.platform.backend.shared.infraestructure.exceptions.FieldValidationException;
 import jakarta.persistence.EntityNotFoundException;
@@ -48,6 +49,7 @@ class MenuServiceTest {
     @Mock private IUsersRolesRepository usersRolesRepository;
     @Mock private IRoleRepository roleRepository;
     @Mock private PlatformOwnerRole platformOwnerRole;
+    @Mock private AdministratorRole administratorRole;
 
     private MenuService menuService;
 
@@ -60,6 +62,9 @@ class MenuServiceTest {
     private MenuEntity formats;
     private MenuEntity platform;
     private MenuEntity menusScreen;
+    private MenuEntity mobileApp;
+    private MenuEntity mobileHome;
+    private MenuEntity mobileProfile;
 
     /** What the database holds; saves add to it the way the real repository would. */
     private final List<MenuEntity> storedMenus = new ArrayList<>();
@@ -88,6 +93,7 @@ class MenuServiceTest {
 
         lenient().when(platformOwnerRole.id()).thenReturn(Optional.of(ownerRole.getId()));
         lenient().when(platformOwnerRole.isOwnerRole(ownerRole.getId())).thenReturn(true);
+        lenient().when(administratorRole.isAdministratorRole(adminRole.getId())).thenReturn(true);
         lenient().when(roleRepository.findActiveById(ownerRole.getId())).thenReturn(Optional.of(ownerRole));
         // Like the real query: by order, then by name.
         lenient().when(menuRepository.findAllActive()).thenAnswer(invocation -> storedMenus.stream()
@@ -121,7 +127,7 @@ class MenuServiceTest {
         });
 
         menuService = new MenuService(menuRepository, rolesMenuRepository, usersRolesRepository, roleRepository,
-                platformOwnerRole, Mappers.getMapper(MenuMapper.class), MAX_DEPTH);
+                platformOwnerRole, administratorRole, Mappers.getMapper(MenuMapper.class), MAX_DEPTH);
     }
 
     private static RolesEntity role() {
@@ -562,6 +568,68 @@ class MenuServiceTest {
         assertThat(menu).extracting(MenuTreeResponse::getName).containsExactly("Dashboard", "Competition", "Platform");
         assertThat(menu.get(1).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Events");
         assertThat(menu.get(2).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Menus");
+    }
+
+    /** Mobile app ── Home, Profile (all of the mobile app only): added to the stored menu by the tests that need them. */
+    private void addMobileAppMenus() {
+        mobileApp = group("Mobile app", null, 3);
+        mobileHome = screen("Home", "/home", mobileApp, 0);
+        mobileProfile = screen("Profile", "/profile", mobileApp, 1);
+        List.of(mobileApp, mobileHome, mobileProfile).forEach(menu -> menu.setMobileOnly(true));
+        storedMenus.addAll(List.of(mobileApp, mobileHome, mobileProfile));
+    }
+
+    @Test
+    void getForUser_whenTheUserIsThePlatformOwner_thenTheMobileAppMenusAreLeftOut() {
+        addMobileAppMenus();
+        UUID userId = UUID.randomUUID();
+        lenient().when(usersRolesRepository.findActiveRoleIdsByUserId(userId)).thenReturn(List.of(ownerRole.getId()));
+        lenient().when(rolesMenuRepository.findActiveVisibleByRoleIds(any())).thenReturn(List.of());
+
+        List<MenuTreeResponse> menu = menuService.getForUser(userId);
+
+        assertThat(menu).extracting(MenuTreeResponse::getName).containsExactly("Dashboard", "Competition", "Platform");
+    }
+
+    @Test
+    void getForUser_whenAnAdministratorAlsoHoldsAnAppRole_thenTheMobileAppMenusAreStillLeftOut() {
+        addMobileAppMenus();
+        RolesEntity appUserRole = role();
+        UUID userId = UUID.randomUUID();
+        lenient().when(usersRolesRepository.findActiveRoleIdsByUserId(userId))
+                .thenReturn(List.of(adminRole.getId(), appUserRole.getId()));
+        lenient().when(rolesMenuRepository.findActiveVisibleByRoleIds(any())).thenReturn(List.of(
+                assignment(adminRole, events, true),
+                assignment(appUserRole, mobileHome, true),
+                assignment(appUserRole, mobileProfile, true)));
+
+        List<MenuTreeResponse> menu = menuService.getForUser(userId);
+
+        assertThat(menu).extracting(MenuTreeResponse::getName).containsExactly("Competition");
+        assertThat(menu).extracting(MenuTreeResponse::getId).doesNotContain(mobileApp.getId());
+    }
+
+    @Test
+    void getForUser_whenTheUserOnlyHasAppRoles_thenTheMobileAppMenusAreKept() {
+        addMobileAppMenus();
+        RolesEntity appUserRole = role();
+        UUID userId = UUID.randomUUID();
+        lenient().when(usersRolesRepository.findActiveRoleIdsByUserId(userId)).thenReturn(List.of(appUserRole.getId()));
+        lenient().when(rolesMenuRepository.findActiveVisibleByRoleIds(any())).thenReturn(List.of(
+                assignment(appUserRole, mobileHome, true),
+                assignment(appUserRole, mobileProfile, true)));
+
+        List<MenuTreeResponse> menu = menuService.getForUser(userId);
+
+        assertThat(menu).extracting(MenuTreeResponse::getId).containsExactly(mobileApp.getId());
+        assertThat(menu.get(0).getSubmenus()).extracting(MenuTreeResponse::getName).containsExactly("Home", "Profile");
+    }
+
+    @Test
+    void getAll_showsTheMobileAppMenusToo() {
+        addMobileAppMenus();
+
+        assertThat(menuService.getAll()).extracting(MenuTreeResponse::getId).contains(mobileApp.getId());
     }
 
     @Test

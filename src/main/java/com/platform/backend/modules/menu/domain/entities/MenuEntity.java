@@ -38,6 +38,10 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
     @Column(name = "owner_only", nullable = false)
     private boolean ownerOnly;
 
+    /** An item of the mobile app only (Home, Profile): never part of the menu of the owner or of an administrator. */
+    @Column(name = "mobile_only", nullable = false)
+    private boolean mobileOnly;
+
     /** A screen the platform itself needs (the ones that manage the menu): it cannot be deleted, hidden or lose its url. */
     @Column(name = "is_system", nullable = false)
     private boolean system;
@@ -70,6 +74,9 @@ public class MenuEntity extends BaseTranslatableEntity implements HasUniqueField
 
     public boolean isOwnerOnly() { return ownerOnly; }
     public void setOwnerOnly(boolean ownerOnly) { this.ownerOnly = ownerOnly; }
+
+    public boolean isMobileOnly() { return mobileOnly; }
+    public void setMobileOnly(boolean mobileOnly) { this.mobileOnly = mobileOnly; }
 
     public boolean isSystem() { return system; }
     public void setSystem(boolean system) { this.system = system; }
